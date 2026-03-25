@@ -3049,7 +3049,138 @@
                     replEmit('  <span class="repl-entity">/compile</span> [text]  Natural language → command');
                     replEmit('  <span class="repl-entity">/drill</span> [id]     Chain honey across node + children');
                     replEmit('  <span class="repl-entity">/clear</span>          Clear REPL output');
+                    replEmit('');
+                    replEmit('  <span class="repl-entity" onclick="replCmd(\'quickstart\')">/quickstart</span>     Step-by-step getting started');
+                    replEmit('  <span class="repl-entity" onclick="replCmd(\'manual\')">/manual</span>         Full operator manual');
+                    replEmit('  <span class="repl-entity" onclick="replCmd(\'troubleshoot\')">/troubleshoot</span>   Fix common issues');
                     replEmit('  <span class="repl-dim">Type without / to plant a root. Natural language works too.</span>');
+                    break;
+                    
+                case 'quickstart': case 'start': case 'tutorial':
+                    replEmit('<strong style="font-size:12px">━━━ QUICKSTART ━━━</strong>');
+                    replEmit('');
+                    replEmit('<span class="repl-num">STEP 1</span> · <strong>PLANT A ROOT</strong>');
+                    replEmit('  Type a story premise, world name, or concept in the');
+                    replEmit('  input bar and press <strong>Enter</strong>. This creates your first node.');
+                    replEmit('  <span class="repl-dim">Example: A lighthouse keeper who collects shipwrecked memories</span>');
+                    replEmit('');
+                    replEmit('<span class="repl-num">STEP 2</span> · <strong>FORK PATHS</strong>');
+                    replEmit('  <strong>Shift+drag</strong> from any node outward to create a fork.');
+                    replEmit('  The LLM generates 2-4 diverging narrative paths.');
+                    replEmit('  Or use <span class="repl-entity" onclick="replCmd(\'fork\')">/fork</span> in the REPL.');
+                    replEmit('');
+                    replEmit('<span class="repl-num">STEP 3</span> · <strong>NAVIGATE</strong>');
+                    replEmit('  <strong>Click</strong> a node on canvas to select it.');
+                    replEmit('  <strong>Click</strong> timeline pills at the top to fly there.');
+                    replEmit('  Use <span class="repl-entity" onclick="replCmd(\'cd\')">/cd</span>, <span class="repl-entity" onclick="replCmd(\'fly\')">/fly</span>, or <span class="repl-entity" onclick="replCmd(\'tree\')">/tree</span> in the REPL.');
+                    replEmit('');
+                    replEmit('<span class="repl-num">STEP 4</span> · <strong>ANALYZE</strong>');
+                    replEmit('  Select a node, then use <span class="repl-entity" onclick="replCmd(\'honey\')">/honey</span> for LLM analysis.');
+                    replEmit('  Use <span class="repl-entity" onclick="replCmd(\'drill\')">/drill</span> to auto-chain analysis across children.');
+                    replEmit('  Use <span class="repl-entity" onclick="replCmd(\'cat\')">/cat</span> to read the full text of any node.');
+                    replEmit('');
+                    replEmit('<span class="repl-num">STEP 5</span> · <strong>EXPORT & IMPORT</strong>');
+                    replEmit('  <strong>⭳ MD</strong> exports your garden as Markdown (re-importable).');
+                    replEmit('  <strong>⭳ Twee</strong> exports as standard Twine format.');
+                    replEmit('  <strong>⬆ Twine</strong> imports .twee, .html, .json, or .md files.');
+                    replEmit('');
+                    replEmit('<span class="repl-dim">Type /manual for the full reference or /help for commands.</span>');
+                    break;
+                    
+                case 'manual': case 'man': case 'doc': case 'docs':
+                    replEmit('<strong style="font-size:12px">━━━ OPERATOR MANUAL ━━━</strong>');
+                    replEmit('');
+                    replEmit('<strong>CANVAS CONTROLS</strong>');
+                    replEmit('  <span class="repl-num">Click</span>           Select a node');
+                    replEmit('  <span class="repl-num">Click empty</span>     Deselect');
+                    replEmit('  <span class="repl-num">Drag</span>            Pan the canvas');
+                    replEmit('  <span class="repl-num">Scroll</span>          Zoom in/out');
+                    replEmit('  <span class="repl-num">Shift+drag</span>      Fork: drag from node to empty space or another node');
+                    replEmit('  <span class="repl-num">Drag node</span>       Move a node (grab the dot)');
+                    replEmit('');
+                    replEmit('<strong>OPERATORS (bottom quiver panel)</strong>');
+                    replEmit('  Select an operator, then shift+drag between nodes to fire it.');
+                    replEmit('  <span class="repl-num">SURFACE</span>     Map the immediate narrative landscape');
+                    replEmit('  <span class="repl-num">LIMITS</span>      Probe boundaries and constraints');
+                    replEmit('  <span class="repl-num">MODES</span>       Explore alternative interaction modes');
+                    replEmit('  <span class="repl-num">HOLISTIC</span>    Full-system ecological view');
+                    replEmit('  <span class="repl-num">ZOOM</span>        Deep-focus on specific details');
+                    replEmit('  <span class="repl-num">FORK</span>        Generate 2-4 diverging paths');
+                    replEmit('  <span class="repl-num">ROOT</span>        Plant a new origin node');
+                    replEmit('');
+                    replEmit('<strong>RIGHT PANEL (Forking Paths)</strong>');
+                    replEmit('  Shows all generated text cards. Each card has:');
+                    replEmit('  <span class="repl-num">↑ Route</span>     Copy text to input bar');
+                    replEmit('  <span class="repl-num">⊕ Scene</span>    Center canvas on this node');
+                    replEmit('  <span class="repl-num">Copy</span>        Copy to clipboard');
+                    replEmit('  <span class="repl-num">Prune</span>       Delete node and card');
+                    replEmit('  Hover a card to see connection beams to the canvas.');
+                    replEmit('');
+                    replEmit('<strong>TIMELINE BAR</strong>');
+                    replEmit('  Horizontal bar between top bar and right panel.');
+                    replEmit('  Shows the branching path from root → selected node.');
+                    replEmit('  Click any pill to fly to that node.');
+                    replEmit('  ⑂N badges show fork count at each branch point.');
+                    replEmit('');
+                    replEmit('<strong>BOTTOM REPL PANEL</strong>');
+                    replEmit('  Drag the top edge to resize. ▲/▼ to toggle.');
+                    replEmit('  All / commands listed under <span class="repl-entity" onclick="replCmd(\'help\')">/help</span>.');
+                    replEmit('  ↑/↓ arrows cycle command history.');
+                    replEmit('  Clickable <span class="repl-entity">entity names</span> navigate to that node.');
+                    replEmit('');
+                    replEmit('<strong>TOP BAR</strong>');
+                    replEmit('  <span class="repl-num">ALL W L E S</span>   Filter nodes by type');
+                    replEmit('  <span class="repl-num">EXPLORE/AIM</span>   Switch between pan and fire modes');
+                    replEmit('  <span class="repl-num">API key</span>       Enter OpenAI key for LLM features');
+                    replEmit('  <span class="repl-num">🔇/🔉</span>        Sound toggle');
+                    replEmit('');
+                    replEmit('<strong>IMPORT / EXPORT</strong>');
+                    replEmit('  <span class="repl-num">⭳ MD</span>     Export as Markdown (re-importable via ⬆ Twine)');
+                    replEmit('  <span class="repl-num">⭳ Twee</span>   Export as Twine/Twee format');
+                    replEmit('  <span class="repl-num">⬆ Twine</span>  Import .twee, .html, .json, or .md files');
+                    replEmit('');
+                    replEmit('<span class="repl-dim">See /quickstart for a step-by-step tutorial.</span>');
+                    break;
+                    
+                case 'troubleshoot': case 'fix': case 'debug':
+                    replEmit('<strong style="font-size:12px">━━━ TROUBLESHOOTING ━━━</strong>');
+                    replEmit('');
+                    replEmit('<strong>Nothing on canvas</strong>');
+                    replEmit('  Type a concept in the input bar and press Enter to plant');
+                    replEmit('  your first root node. Or import a file via ⬆ Twine.');
+                    replEmit('');
+                    replEmit('<strong>Shift+drag not working</strong>');
+                    replEmit('  Make sure to start the drag FROM a node dot (the colored');
+                    replEmit('  circle), not from empty space. Hold Shift before dragging.');
+                    replEmit('');
+                    replEmit('<strong>LLM/Fork not generating text</strong>');
+                    replEmit('  1. Check that your OpenAI API key is entered (top-right).');
+                    replEmit('  2. The dot next to the key field should turn green.');
+                    replEmit('  3. Check browser console for network errors (F12).');
+                    replEmit('  4. Without a key, forks use placeholder text.');
+                    replEmit('');
+                    replEmit('<strong>Canvas is blank/frozen</strong>');
+                    replEmit('  Try scrolling to zoom, or drag to pan. Use <span class="repl-entity" onclick="replCmd(\'stats\')">/stats</span>');
+                    replEmit('  to verify nodes exist. Use <span class="repl-entity" onclick="replCmd(\'ls\')">/ls</span> to list them.');
+                    replEmit('');
+                    replEmit('<strong>Nodes too small to read</strong>');
+                    replEmit('  Scroll to zoom in. All nodes now display labels. Click a');
+                    replEmit('  node to select it — selected labels are larger.');
+                    replEmit('');
+                    replEmit('<strong>Imported file shows no passages</strong>');
+                    replEmit('  Supported formats: .twee/.tw (Twee), .html (Twine 2),');
+                    replEmit('  .json ({title, body, links}), .md (epistemic-log format).');
+                    replEmit('  Check that the file has passage content, not just metadata.');
+                    replEmit('');
+                    replEmit('<strong>localStorage quota exceeded</strong>');
+                    replEmit('  The API key is now wrapped in try/catch. If persistent,');
+                    replEmit('  clear site data in browser DevTools → Application → Storage.');
+                    replEmit('');
+                    replEmit('<strong>REPL commands not recognized</strong>');
+                    replEmit('  Commands must start with <strong>/</strong> (e.g. <span class="repl-entity">/ls</span>).');
+                    replEmit('  Without /, input plants a root node.');
+                    replEmit('');
+                    replEmit('<span class="repl-dim">Still stuck? Try /clear then /quickstart.</span>');
                     break;
                     
                 case 'ls':
@@ -3522,6 +3653,14 @@
         parsePOMLData();
         document.addEventListener('click', () => { if (!AC) initSnd(); }, { once: true });
         document.addEventListener('touchstart', () => { if (!AC) initSnd(); }, { once: true, passive: true });
+        
+        // Auto-show quickstart on first visit
+        if (!localStorage.getItem('twine_onboarded')) {
+            setTimeout(() => {
+                replCmd('quickstart');
+                try { localStorage.setItem('twine_onboarded', '1'); } catch(e) {}
+            }, 600);
+        }
     
         // ══════════════════════════════
         // TIMELINE BAR
