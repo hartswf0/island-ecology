@@ -2186,8 +2186,17 @@
                     ctx.strokeStyle = hsl(h, 50, 40, 0.9); ctx.stroke();
                 } else if (n.op === 'analyst') { // State: Hollow catalytic ring
                     ctx.arc(n.x, n.y, r * 1.0, 0, Math.PI * 2); ctx.strokeStyle = hsl(h, 80, 60, 1); ctx.lineWidth = 2.0; ctx.stroke();
+                } else if (n.op === 'root') { // Root: Golden nucleus
+                    ctx.arc(n.x, n.y, r * 2.0, 0, Math.PI * 2);
+                    ctx.fillStyle = hsl(45, 70, 55, 0.5); ctx.fill();
+                    ctx.strokeStyle = hsl(45, 80, 65, 0.9); ctx.lineWidth = 1.5; ctx.stroke();
+                    ctx.beginPath(); ctx.arc(n.x, n.y, r * 0.7, 0, Math.PI * 2); ctx.fillStyle = hsl(45, 90, 75, 1); ctx.fill();
+                } else if (n.op === 'fork') { // Fork: Branching indicator
+                    ctx.arc(n.x, n.y, r * 1.5, 0, Math.PI * 2);
+                    ctx.fillStyle = hsl(320, 60, 50, 0.5); ctx.fill();
+                    ctx.strokeStyle = hsl(320, 70, 65, 0.8); ctx.lineWidth = 1.2; ctx.stroke();
                 } else { // Entity / Aphorist: Solid elemental particle
-                    ctx.arc(n.x, n.y, r * 0.9, 0, Math.PI * 2); ctx.fillStyle = hsl(h, 90, 70, 1); ctx.fill();
+                    ctx.arc(n.x, n.y, r * 1.1, 0, Math.PI * 2); ctx.fillStyle = hsl(h, 90, 70, 1); ctx.fill();
                 }
 
                 if (isSel) {
@@ -2201,15 +2210,29 @@
                     ctx.strokeStyle = hsl(h, 85, 65, .65); ctx.lineWidth = 2; ctx.stroke();
                 }
 
-                if (n.op === 'site' || showL.has(n)) {
-                    ctx.textAlign = 'center';
-                    // Text scales physically as user zooms (molecular label sizing)
-                    ctx.font = `${n.draft ? 'italic' : '600'} ${(isSel ? 9 : 6)}px 'IBM Plex Mono',monospace`;
-                    ctx.fillStyle = isLight ? hsl(h, 60, 20, (.7 + (isSel ? .3 : 0)) * draftFader) : hsl(h, 30, 90, (.85 + (isSel ? .15 : 0)) * draftFader);
-                    const isPOML = (n.op === 'site' || n.op === 'inverter' || n.op === 'aphorist' || n.op === 'analyst');
-                    let shortName = isPOML ? n.text : opLbl(n.op);
-                    if (shortName.length > 30) shortName = shortName.slice(0, 30) + '…';
-                    ctx.fillText(n.draft ? `[DRAFT]` : shortName, n.x, n.y - (r * 2.5) - 4);
+                // Always show labels for all nodes — focused nodes bigger
+                const isFocused = n.op === 'site' || showL.has(n) || isSel || isHov;
+                const fontSize = isSel ? 11 : (isFocused ? 8 : 6);
+                const labelAlpha = isFocused ? 1.0 : 0.6;
+                ctx.textAlign = 'center';
+                ctx.font = `${n.draft ? 'italic' : '600'} ${fontSize}px 'IBM Plex Mono',monospace`;
+                ctx.fillStyle = isLight 
+                    ? hsl(h, 60, 20, (.5 + (isSel ? .5 : 0)) * draftFader * labelAlpha)
+                    : hsl(h, 30, 90, (.6 + (isSel ? .4 : 0)) * draftFader * labelAlpha);
+                
+                // Use fullTitle or text content for the label
+                let shortName = n.fullTitle || n.text || opLbl(n.op);
+                shortName = shortName.replace(/<[^>]*>?/gm, '').replace(/\n/g, ' ');
+                if (shortName.length > 28) shortName = shortName.slice(0, 28) + '…';
+                ctx.fillText(n.draft ? `[DRAFT]` : shortName, n.x, n.y - (r * 2.5) - 4);
+                
+                // For selected node, also show a subtitle hint
+                if (isSel && n.text && n.text !== n.fullTitle) {
+                    ctx.font = `italic 5px 'Cormorant Garamond',serif`;
+                    ctx.fillStyle = isLight ? hsl(h, 40, 30, 0.5) : hsl(h, 20, 80, 0.4);
+                    let sub = n.text.replace(/<[^>]*>?/gm, '').replace(/\n/g, ' ').slice(0, 50);
+                    if (n.text.length > 50) sub += '…';
+                    ctx.fillText(sub, n.x, n.y - (r * 2.5) - 4 + fontSize + 3);
                 }
                 ctx.restore();
             });
@@ -2583,8 +2606,18 @@
                 });
 
                 opNode.run = 0;
+                // Select the first fork result and center on it
+                if (forkBlocks.length > 0) {
+                    const firstFork = nodes[nodes.length - forkBlocks.length];
+                    if (firstFork) {
+                        camX = VW * 0.35 - firstFork.x * camZ;
+                        camY = VH * 0.5 - firstFork.y * camZ;
+                        selectNode(firstFork);
+                    }
+                }
                 computeV(); redrawV();
-                setMsg(`Garden expanded with ${forkBlocks.length} new paths.`);
+                if (typeof renderTimeline === 'function') renderTimeline();
+                setMsg(`<strong>⑂ ${forkBlocks.length} paths forked</strong> · click any path → <em>shift+drag</em> to fork deeper`);
                 document.getElementById('tDot').className = 'tdot';
                 
             } catch (err) {
@@ -2819,10 +2852,25 @@
         function bKey(e) { if (e.key === 'Enter') { e.preventDefault(); spawnInput(); } }
         function spawnInput() {
             const inp = document.getElementById('bIn'); const t = inp.value.trim(); if (!t) return;
-            const vr = document.getElementById('vp').getBoundingClientRect();
-            const x = 60 + Math.random() * (vr.width - 130); const y = 60 + Math.random() * (vr.height - 120);
-            const n = addNode(t, curOp, x, y, tryMode); hapSpawnNode(n, 7); sndSpawn(); hapSpawn(); inp.value = '';
-            setMsg(`<strong>${opLbl(curOp)} N${n.id}</strong> spawned · shift+drag to aim`);
+            // Place near center of visible canvas area
+            const cx = (VW * 0.4 - camX) / camZ;
+            const cy = (VH * 0.5 - camY) / camZ;
+            const x = cx + (Math.random() - 0.5) * 100;
+            const y = cy + (Math.random() - 0.5) * 80;
+            const n = addNode(t, 'root', x, y, tryMode);
+            n.fullTitle = t;
+            hapSpawnNode(n, 7); sndSpawn(); hapSpawn(); inp.value = '';
+            
+            // Center camera on new node + select + glow
+            camX = VW * 0.35 - n.x * camZ;
+            camY = VH * 0.5 - n.y * camZ;
+            selectNode(n);
+            n.glow = 1.0;
+            fireRipple(nodes.indexOf(n), .8);
+            computeV(); redrawV();
+            if (typeof renderTimeline === 'function') renderTimeline();
+            
+            setMsg(`<strong>ROOT "${t.slice(0, 40)}"</strong> planted · <em>shift+drag</em> to fork paths`);
         }
         function setMode(m) {
             mode = m;
@@ -3122,8 +3170,6 @@
                             links: p.links || []
                         }));
                     } catch(e) { setMsg('JSON parse error: ' + e.message); return; }
-                }
-
                 } else if (fname.endsWith('.md')) {
                     // Parse exported epistemic-accounting-log markdown format
                     // Format: ## [OP_NAME] timestamp\n**Source:** N123 "title"\n\ncontent\n---
