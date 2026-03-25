@@ -1847,7 +1847,7 @@
             rel.forEach(({ pct }) => sndNeighbor(pct / 100));
             return '\n\nSPATIAL CONTEXT — neighboring nodes (higher % = stronger influence on output):\n' +
                 rel.map(({ node, pct }) => `- ${opLbl(node.op)} N${node.id} (${pct}% border affinity): "${node.text.slice(0, 110)}"`).join('\n') +
-                '\nLet these contexts inflect the texture and angle of your redesign without being mentioned explicitly.';
+                '\nLet these contexts inflect the direction of your narrative analysis.';
         }
 
         // ══════════════════════════════
@@ -2628,6 +2628,7 @@
 <div class="wsecs" id="secs-${rec.id}"></div>
 <div class="oacts">
   <button class="oa" onclick="routeCard(this)">↑ Route</button>
+  <button class="oa" onclick="sendToScene(this)" style="color:var(--gold)">⊕ Scene</button>
   <button class="oa" onclick="cpCard(this)">Copy</button>
   <button class="oa" onclick="pruneCard(this)">Prune</button>
   <button class="oa" onclick="colCard(this)">−</button>
@@ -2922,6 +2923,7 @@
             if (!roots.length) { tlBar.innerHTML = '<span class="tl-depth">NO PATHS</span>'; return; }
             
             tlBar.innerHTML = '';
+            const branchVisited = new Set();
             
             function addBranch(node, depth) {
                 const btn = document.createElement('button');
@@ -2957,18 +2959,25 @@
                     tlBar.appendChild(fork);
                 }
                 
-                // Follow the selected path or first child
-                if (children.length > 0) {
+                // Follow the selected path or first child (max depth 20)
+                if (children.length > 0 && depth < 20) {
                     const selChild = children.find(c => c === selNode || hasDescendant(c, selNode));
-                    addBranch(selChild || children[0], depth + 1);
+                    const next = selChild || children[0];
+                    if (!branchVisited.has(next.id)) {
+                        branchVisited.add(next.id);
+                        addBranch(next, depth + 1);
+                    }
                 }
             }
             
-            function hasDescendant(node, target) {
+            function hasDescendant(node, target, visited) {
                 if (!target) return false;
+                if (!visited) visited = new Set();
+                if (visited.has(node.id)) return false;
+                visited.add(node.id);
                 const kids = edges.filter(e => e.from === node).map(e => e.to);
                 for (const k of kids) {
-                    if (k === target || hasDescendant(k, target)) return true;
+                    if (k === target || hasDescendant(k, target, visited)) return true;
                 }
                 return false;
             }
@@ -3107,6 +3116,55 @@
             };
             reader.readAsText(file);
             event.target.value = ''; // Reset so same file can be re-imported
+        }
+
+    
+        function sendToScene(btn) {
+            const card = btn.closest('.ocard');
+            const oid = parseInt(card.dataset.oid, 10);
+            const rec = ops.find(o => o.id === oid);
+            if (!rec) return;
+            
+            // Find the node and center + select it
+            const n = rec.resNode;
+            if (n) {
+                // Center on this node
+                camX = VW * 0.35 - n.x * camZ;
+                camY = VH * 0.5 - n.y * camZ;
+                selectNode(n);
+                n.glow = 1.0;
+                fireRipple(nodes.indexOf(n), .8);
+                computeV(); redrawV();
+                
+                // Visual feedback
+                btn.textContent = '✓ Focused';
+                btn.classList.add('ok');
+                setTimeout(() => { btn.textContent = '⊕ Scene'; btn.classList.remove('ok'); }, 1400);
+                
+                setMsg(`Focused on <em>${(n.fullTitle || opLbl(n.op))}</em> N${n.id}`);
+            }
+        }
+
+        function forkFromCard(btn) {
+            const card = btn.closest('.ocard');
+            const oid = parseInt(card.dataset.oid, 10);
+            const rec = ops.find(o => o.id === oid);
+            if (!rec || !rec.resNode) return;
+            
+            // Create a fork op node and fire it
+            const src = rec.resNode;
+            const fx = src.x + 100 + Math.random() * 60;
+            const fy = src.y + Math.random() * 60 - 30;
+            const opNode = addNode('FORK', 'fork', fx, fy, tryMode);
+            edges.push({ from: src, to: opNode });
+            fireRipple(nodes.indexOf(opNode), .4);
+            
+            // Run the fork operation
+            setTimeout(() => fireTo(src, opNode, 'fork'), 100);
+            
+            btn.textContent = '✓';
+            btn.classList.add('ok');
+            setTimeout(() => { btn.textContent = '⊕ Scene'; btn.classList.remove('ok'); }, 1400);
         }
 
     </script>
