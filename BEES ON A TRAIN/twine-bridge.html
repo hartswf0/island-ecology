@@ -1273,13 +1273,14 @@
                 <div class="wthd">
                     <span class="wtttl">Forking Paths</span>
                     <button class="wz" id="docBtn" onclick="togDocMode()" title="Reader Mode">▤</button>
-                    <button class="wz" onclick="exportDoc()" title="Export to Markdown">⭳</button>
+                    <button class="wz" onclick="exportDoc()" title="Export to Markdown">⭳ MD</button>
+                    <button class="wz" onclick="exportDoc('twee')" title="Export as Twee (Twine)">⭳ Twee</button>
                     <button class="wz" onclick="wtZ(1.1)" title="Zoom In">+</button>
                     <button class="wz" onclick="wtZ(.9)" title="Zoom Out">−</button>
                     <button class="wz" onclick="wtZ(0)" title="Reset Zoom">·</button>
                     <button class="wz" id="lkBtn" onclick="togLinks()" style="color:var(--gold)"
                         title="Transclusion Links">⌁</button>
-                    <input type="file" id="twineFileInput" accept=".html,.twee,.tw,.json" style="display:none" onchange="importTwineFile(event)">
+                    <input type="file" id="twineFileInput" accept=".html,.twee,.tw,.json,.md" style="display:none" onchange="importTwineFile(event)">
                     <button class="wz" onclick="document.getElementById('twineFileInput').click()" title="Import Twine File">⬆ Twine</button>
                 </div>
                 <div class="wtbd" id="wtBd">
@@ -1676,12 +1677,18 @@
             docModeAnim = requestAnimationFrame(step);
         }
 
-        function exportDoc() {
+        function exportDoc(format) {
             if (!ops.length) return alert("Nothing to export yet.");
+            
+            if (format === 'twee') {
+                return exportTwee();
+            }
+            
+            // Default: markdown export
             let txt = "# Epistemic Interface Generation Log\n\n";
             ops.forEach(r => {
                 txt += `## [${opLbl(r.opKey)}] ${new Date(r.ts).toLocaleString()}\n`;
-                txt += `**Source:** N${r.srcNode.id} "${r.srcNode.text.replace(/\n/g, ' ')}"\n\n`;
+                txt += `**Source:** N${r.srcNode.id} "${r.srcNode.text.replace(/\n/g, ' ').slice(0, 120)}"\n\n`;
                 if (r.sections && r.sections.length > 0) {
                     r.sections.forEach(s => {
                         let plain = s.html.replace(/<[^>]*>?/gm, '');
@@ -1703,6 +1710,54 @@
             a.download = 'epistemic-accounting-log.md';
             a.click();
             URL.revokeObjectURL(url);
+        }
+        
+        function exportTwee() {
+            let txt = "";
+            // Map node IDs to passage names
+            const passageNames = new Map();
+            nodes.forEach(n => {
+                const name = (n.fullTitle || n.text || opLbl(n.op) + ' N' + n.id).replace(/\n/g, ' ').slice(0, 80);
+                passageNames.set(n.id, name);
+            });
+            
+            // StoryTitle
+            txt += ":: StoryTitle\nGarden of Forking Paths\n\n";
+            
+            // StoryData
+            txt += ':: StoryData\n{"ifid":"' + crypto.randomUUID().toUpperCase() + '","format":"Harlowe","format-version":"3.3.8"}\n\n';
+            
+            // Each node becomes a passage
+            nodes.forEach(n => {
+                const name = passageNames.get(n.id);
+                const tags = n.op || '';
+                txt += `:: ${name} [${tags}]\n`;
+                
+                // Body text
+                const body = (n.text || n.fullTitle || '').replace(/<[^>]*>?/gm, '');
+                txt += body + '\n';
+                
+                // Add [[links]] for edges going out from this node
+                const outgoing = edges.filter(e => e.from === n);
+                if (outgoing.length > 0) {
+                    txt += '\n';
+                    outgoing.forEach(e => {
+                        const targetName = passageNames.get(e.to.id);
+                        if (targetName) txt += `[[${targetName}]]\n`;
+                    });
+                }
+                
+                txt += '\n';
+            });
+            
+            const blob = new Blob([txt], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'garden-of-forking-paths.twee';
+            a.click();
+            URL.revokeObjectURL(url);
+            setMsg('Exported ' + nodes.length + ' passages as Twee.');
         }
 
         // ══════════════════════════════
@@ -3062,6 +3117,40 @@
                             links: p.links || []
                         }));
                     } catch(e) { setMsg('JSON parse error: ' + e.message); return; }
+                }
+
+                } else if (fname.endsWith('.md')) {
+                    // Parse exported epistemic-accounting-log markdown format
+                    // Format: ## [OP_NAME] timestamp\n**Source:** N123 "title"\n\ncontent\n---
+                    const blocks = text.split(/^---$/m).filter(b => b.trim());
+                    blocks.forEach(block => {
+                        const headerMatch = block.match(/^##\s*\[([^\]]+)\]\s*(.+)$/m);
+                        const sourceMatch = block.match(/^\*\*Source:\*\*\s*N(\d+)\s*"([^"]*)"$/m);
+                        if (headerMatch) {
+                            const opName = headerMatch[1].trim();
+                            const timestamp = headerMatch[2].trim();
+                            const title = sourceMatch ? sourceMatch[2].trim().slice(0, 60) : opName + ' ' + timestamp;
+                            // Get body: everything after the Source line
+                            let body = block;
+                            const sourceIdx = body.search(/^\*\*Source:\*\*.+$/m);
+                            if (sourceIdx >= 0) {
+                                const afterSource = body.indexOf('\n', sourceIdx);
+                                body = afterSource >= 0 ? body.slice(afterSource + 1).trim() : '';
+                            } else {
+                                // Fallback: everything after the ## header
+                                const headerIdx = body.indexOf('\n');
+                                body = headerIdx >= 0 ? body.slice(headerIdx + 1).trim() : '';
+                            }
+                            if (body) {
+                                passages.push({
+                                    title: title || 'Untitled',
+                                    body: body,
+                                    tags: opName.toLowerCase(),
+                                    links: []
+                                });
+                            }
+                        }
+                    });
                 }
 
                 if (!passages.length) { setMsg('No passages found in file.'); return; }
