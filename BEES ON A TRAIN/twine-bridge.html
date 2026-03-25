@@ -3042,8 +3042,14 @@
                     replEmit('  <span class="repl-entity">/leaves</span>         List leaf nodes (no children)');
                     replEmit('  <span class="repl-entity">/fork</span> [id]      Fork from selected or specified node');
                     replEmit('  <span class="repl-entity">/prune</span> [id]     Remove a node');
+                    replEmit('  <span class="repl-entity">/cd</span> [name|id]   Navigate into a node (show children)');
+                    replEmit('  <span class="repl-entity">/find</span> [term]    Search node titles');
+                    replEmit('  <span class="repl-entity">/neighbors</span> [id] Show spatial neighbors');
+                    replEmit('  <span class="repl-entity">/honey</span> [id]     LLM narrative analysis of node');
+                    replEmit('  <span class="repl-entity">/compile</span> [text]  Natural language → command');
+                    replEmit('  <span class="repl-entity">/drill</span> [id]     Chain honey across node + children');
                     replEmit('  <span class="repl-entity">/clear</span>          Clear REPL output');
-                    replEmit('  <span class="repl-dim">Type without / to plant a root node.</span>');
+                    replEmit('  <span class="repl-dim">Type without / to plant a root. Natural language works too.</span>');
                     break;
                     
                 case 'ls':
@@ -3173,8 +3179,173 @@
                     document.getElementById('replOut').innerHTML = '';
                     break;
                     
+                case 'cd': case 'nav':
+                    if (!args) { replEmit('Usage: /cd [node name or id]', 'repl-err'); break; }
+                    const cdId = parseInt(args);
+                    let cdNode = cdId ? nodes.find(n => n.id === cdId) : null;
+                    if (!cdNode) {
+                        const q = args.toLowerCase();
+                        cdNode = nodes.find(n => (n.fullTitle || n.text || '').toLowerCase().includes(q));
+                    }
+                    if (!cdNode) { replEmit(`No node matching "${args}".`, 'repl-err'); break; }
+                    replFly(cdNode.id);
+                    replEmit(`Navigated to <span class="repl-entity" onclick="replFly(${cdNode.id})">${(cdNode.fullTitle || cdNode.text || opLbl(cdNode.op)).replace(/<[^>]*>?/gm, '').slice(0, 50)}</span>`);
+                    // Show children
+                    const cdKids = edges.filter(e => e.from === cdNode).map(e => e.to);
+                    if (cdKids.length) {
+                        replEmit(`<span class="repl-dim">Children (${cdKids.length}):</span>`);
+                        cdKids.forEach(k => {
+                            const kn = (k.fullTitle || k.text || opLbl(k.op)).replace(/<[^>]*>?/gm, '').slice(0, 45);
+                            replEmit(`  <span class="repl-entity" onclick="replFly(${k.id})">N${k.id}</span> ${kn}`);
+                        });
+                    }
+                    // Show parent
+                    const cdParents = edges.filter(e => e.to === cdNode).map(e => e.from);
+                    if (cdParents.length) {
+                        cdParents.forEach(p => {
+                            const pn = (p.fullTitle || p.text || opLbl(p.op)).replace(/<[^>]*>?/gm, '').slice(0, 45);
+                            replEmit(`<span class="repl-dim">Parent:</span> <span class="repl-entity" onclick="replFly(${p.id})">N${p.id}</span> ${pn}`);
+                        });
+                    }
+                    break;
+                    
+                case 'find':
+                    if (!args) { replEmit('Usage: /find [term] — searches node titles', 'repl-err'); break; }
+                    const findQ = args.toLowerCase();
+                    const findMs = nodes.filter(n => {
+                        const name = (n.fullTitle || '').toLowerCase();
+                        return name.includes(findQ);
+                    });
+                    if (!findMs.length) { replEmit(`No titles match "${args}".`, 'repl-dim'); break; }
+                    findMs.forEach(n => {
+                        const name = (n.fullTitle || n.text || opLbl(n.op)).replace(/<[^>]*>?/gm, '').slice(0, 50);
+                        const kids = edges.filter(e => e.from === n).length;
+                        const parents = edges.filter(e => e.to === n).length;
+                        replEmit(`  <span class="repl-entity" onclick="replFly(${n.id})">N${n.id}</span> [${opLbl(n.op)}] ${name} <span class="repl-dim">${kids}↓ ${parents}↑</span>`);
+                    });
+                    replEmit(`<span class="repl-dim">${findMs.length} found</span>`);
+                    break;
+                    
+                case 'neighbors': case 'nb': case 'nbs':
+                    const nbNode = args ? nodes.find(n => n.id === parseInt(args)) : selNode;
+                    if (!nbNode) { replEmit('Select a node or /neighbors [id].', 'repl-err'); break; }
+                    const nbs = getNbs(nbNode);
+                    const nbTitle = (nbNode.fullTitle || nbNode.text || opLbl(nbNode.op)).replace(/<[^>]*>?/gm, '').slice(0, 40);
+                    replEmit(`<strong>Neighbors of ${nbTitle} N${nbNode.id}</strong>`);
+                    if (!nbs.length) { replEmit('<span class="repl-dim">No spatial neighbors.</span>'); break; }
+                    nbs.forEach(({node: nb, len}) => {
+                        const nbName = (nb.fullTitle || nb.text || opLbl(nb.op)).replace(/<[^>]*>?/gm, '').slice(0, 40);
+                        replEmit(`  <span class="repl-entity" onclick="replFly(${nb.id})">N${nb.id}</span> ${nbName} <span class="repl-dim">(dist: ${Math.round(len)})</span>`);
+                    });
+                    break;
+                    
+                case 'honey':
+                    const honeyNode = args ? nodes.find(n => n.id === parseInt(args)) : selNode;
+                    if (!honeyNode) { replEmit('Select a node or /honey [id].', 'repl-err'); break; }
+                    if (!API_KEY) { replEmit('Set OpenAI key first (top bar).', 'repl-err'); break; }
+                    const honTitle = (honeyNode.fullTitle || honeyNode.text || opLbl(honeyNode.op)).replace(/<[^>]*>?/gm, '').slice(0, 60);
+                    const honText = (honeyNode.text || '').replace(/<[^>]*>?/gm, '').slice(0, 500);
+                    const honNbs = getNbs(honeyNode);
+                    const honCtx = honNbs.slice(0, 3).map(({node: nb}) => 
+                        (nb.fullTitle || nb.text || '').replace(/<[^>]*>?/gm, '').slice(0, 100)
+                    ).join('; ');
+                    
+                    replEmit(`<span class="repl-dim">🍯 Synthesizing honey for ${honTitle}...</span>`);
+                    
+                    (async () => {
+                        try {
+                            const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
+                                body: JSON.stringify({
+                                    model: CONFIG.model,
+                                    messages: [
+                                        { role: 'system', content: 'You are a POML narrative analyst. Synthesize a dense 2-3 sentence analysis of this narrative node. Reference specific entities, events, and causal chains by name. Zero metaphors about UI or design. Only factual, data-grounded narrative analysis.' },
+                                        { role: 'user', content: `NODE: "${honTitle}"\nTEXT: ${honText}\nNEIGHBORS: ${honCtx}\n\nAnalyze this node.` }
+                                    ],
+                                    temperature: 0.4, max_tokens: 200
+                                })
+                            });
+                            const data = await r.json();
+                            const honey = data.choices?.[0]?.message?.content || 'Error';
+                            replEmit(`<div style="border-left:2px solid var(--gold2);padding-left:8px;margin:4px 0;font-family:'Cormorant Garamond',serif;font-size:12px;line-height:1.5;color:var(--ink1)">🍯 ${honey}</div>`);
+                        } catch(e) { replEmit('Honey synthesis failed: ' + e.message, 'repl-err'); }
+                    })();
+                    break;
+                    
+                case 'compile':
+                    if (!args) { replEmit('Usage: /compile [natural language query]', 'repl-err'); break; }
+                    if (!API_KEY) {
+                        // Local fallback
+                        const ct = args.toLowerCase();
+                        if (ct.includes('tree') || ct.includes('structure')) replCmd('tree');
+                        else if (ct.includes('find') || ct.includes('search') || ct.includes('where')) replCmd('grep ' + args.replace(/find|search|where|is|the|for/gi, '').trim());
+                        else if (ct.includes('go to') || ct.includes('fly to') || ct.includes('navigate')) replCmd('cd ' + args.replace(/go to|fly to|navigate|the/gi, '').trim());
+                        else if (ct.includes('stat')) replCmd('stats');
+                        else if (ct.includes('root')) replCmd('roots');
+                        else if (ct.includes('leaf') || ct.includes('end')) replCmd('leaves');
+                        else if (ct.includes('list') || ct.includes('all')) replCmd('ls');
+                        else replEmit('Set API key for full compilation. Try: /grep, /find, /tree', 'repl-dim');
+                        break;
+                    }
+                    
+                    replEmit('<span class="repl-dim">Compiling to structured query...</span>');
+                    (async () => {
+                        try {
+                            const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
+                                body: JSON.stringify({
+                                    model: CONFIG.model,
+                                    messages: [
+                                        { role: 'system', content: 'You are a semantic compiler. Convert natural language into REPL commands for a narrative graph. Available commands: ls [filter], cat [id], fly [id], grep [term], find [term], tree, sort [name|depth|id], stats, roots, leaves, neighbors [id], honey [id], fork [id], prune [id]. Output ONLY the command (without / prefix), nothing else.' },
+                                        { role: 'user', content: args }
+                                    ],
+                                    max_tokens: 50, temperature: 0.2
+                                })
+                            });
+                            const data = await r.json();
+                            if (data.choices?.[0]) {
+                                const compiled = data.choices[0].message.content.trim();
+                                replEmit(`<span class="repl-dim">→ ${compiled}</span>`);
+                                replCmd(compiled);
+                            }
+                        } catch(e) { replEmit('Compilation failed: ' + e.message, 'repl-err'); }
+                    })();
+                    break;
+                    
+                case 'drill':
+                    const drillNode = args ? nodes.find(n => n.id === parseInt(args)) : selNode;
+                    if (!drillNode) { replEmit('Select a node or /drill [id].', 'repl-err'); break; }
+                    if (!API_KEY) { replEmit('Set OpenAI key first.', 'repl-err'); break; }
+                    replEmit(`<span class="repl-dim">Drilling from ${(drillNode.fullTitle || opLbl(drillNode.op)).replace(/<[^>]*>?/gm, '').slice(0, 40)}...</span>`);
+                    // Run honey on current node, then auto-chain to children
+                    (async () => {
+                        replCmd('honey ' + drillNode.id);
+                        const drillKids = edges.filter(e => e.from === drillNode).map(e => e.to);
+                        for (const kid of drillKids.slice(0, 3)) {
+                            await new Promise(r => setTimeout(r, 2000));
+                            replCmd('honey ' + kid.id);
+                        }
+                        replEmit(`<span class="repl-dim">Drill complete: analyzed ${1 + Math.min(drillKids.length, 3)} nodes.</span>`);
+                    })();
+                    break;
+                    
                 default:
-                    replEmit(`Unknown command: "${cmd}". Type <span class="repl-entity" onclick="document.getElementById(\'bIn\').value=\'/help\';bKey({key:\'Enter\',preventDefault:()=>{}});">/help</span> for commands.`, 'repl-err');
+                    // Natural language fallback
+                    const nl = cmd.toLowerCase();
+                    if (nl.match(/show|list|all/)) { replCmd('ls' + (args ? ' ' + args : '')); }
+                    else if (nl.match(/go|fly|visit|enter|navigate/)) { replCmd('cd ' + (args || cmd)); }
+                    else if (nl.match(/search|look|where/)) { replCmd('grep ' + (args || '')); }
+                    else if (nl.match(/back|up|parent/)) {
+                        if (selNode) {
+                            const par = edges.find(e => e.to === selNode);
+                            if (par) replFly(par.from.id);
+                            else replEmit('No parent node.', 'repl-dim');
+                        }
+                    }
+                    else if (nl.match(/analyze|synth/)) { replCmd('honey' + (args ? ' ' + args : '')); }
+                    else {
+                        replEmit(`Unknown: "${cmd}". Type <span class="repl-entity" onclick="document.getElementById('bIn').value='/help';bKey({key:'Enter',preventDefault:()=>{}});">/help</span> for commands.`, 'repl-err');
+                    }
             }
         }
         
