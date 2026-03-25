@@ -84,7 +84,7 @@
         }
 
         .top {
-            height: 32px;
+            height: 38px;
             background: var(--bg2);
             border-bottom: 1px solid var(--rule);
             display: flex;
@@ -112,7 +112,7 @@
 
         /* TOP */
         .tlogo {
-            font-size: 8px;
+            font-size: 10px;
             font-weight: 600;
             letter-spacing: .2em;
             color: var(--gold);
@@ -128,7 +128,7 @@
         }
 
         .tlbl {
-            font-size: 5px;
+            font-size: 7px;
             letter-spacing: .1em;
             text-transform: uppercase;
             color: var(--ink3);
@@ -136,7 +136,7 @@
         }
 
         .tval {
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--ink2);
             white-space: nowrap
@@ -145,7 +145,7 @@
         .tmsg {
             flex: 1;
             padding: 0 10px;
-            font-size: 8px;
+            font-size: 10px;
             color: var(--ink3);
             white-space: nowrap;
             overflow: hidden;
@@ -202,23 +202,24 @@
             background: none;
             border: none;
             border-left: 1px solid var(--rule2);
-            color: var(--ink3);
+            color: var(--ink2);
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 7px;
+            font-size: 10px;
             font-weight: 600;
-            letter-spacing: .1em;
+            letter-spacing: .08em;
             text-transform: uppercase;
-            padding: 0 10px;
-            height: 32px;
+            padding: 0 14px;
+            height: 36px;
             cursor: pointer;
-            transition: color .12s;
+            transition: color .12s, background .12s;
             white-space: nowrap;
             touch-action: manipulation
         }
 
         .tb:hover,
         .tb.on {
-            color: var(--gold)
+            color: var(--gold);
+            background: var(--bg3);
         }
 
         /* SOUND PANEL */
@@ -319,7 +320,7 @@
         }
 
         .wthd {
-            height: 30px;
+            height: 38px;
             border-bottom: 1px solid var(--rule);
             display: flex;
             align-items: center;
@@ -331,28 +332,32 @@
         }
 
         .wtttl {
-            font-size: 7px;
+            font-size: 10px;
             font-weight: 600;
-            letter-spacing: .14em;
+            letter-spacing: .12em;
             text-transform: uppercase;
-            color: var(--ink3);
+            color: var(--ink2);
             flex: 1
         }
 
         .wz {
-            background: none;
+            background: var(--bg3);
             border: 1px solid var(--rule);
-            color: var(--ink3);
+            color: var(--ink2);
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 9px;
-            padding: 1px 5px;
+            font-size: 10px;
+            font-weight: 500;
+            padding: 3px 8px;
             cursor: pointer;
-            transition: color .1s;
-            touch-action: manipulation
+            transition: color .1s, background .1s, border-color .1s;
+            touch-action: manipulation;
+            border-radius: 2px;
         }
 
         .wz:hover {
-            color: var(--gold)
+            color: var(--gold);
+            border-color: var(--gold2);
+            background: var(--bg2);
         }
 
         .wtbd {
@@ -509,7 +514,7 @@
         }
 
         .obadge {
-            font-size: 6px;
+            font-size: 8px;
             font-weight: 600;
             letter-spacing: .1em;
             text-transform: uppercase;
@@ -525,7 +530,7 @@
         }
 
         .ofrom {
-            font-size: 7px;
+            font-size: 9px;
             color: var(--ink3);
             overflow: hidden;
             text-overflow: ellipsis;
@@ -701,13 +706,13 @@
             background: none;
             border: none;
             border-right: 1px solid var(--rule2);
-            color: var(--ink3);
+            color: var(--ink2);
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 7px;
+            font-size: 9px;
             font-weight: 600;
-            letter-spacing: .07em;
+            letter-spacing: .06em;
             text-transform: uppercase;
-            padding: 3px 0;
+            padding: 5px 0;
             cursor: pointer;
             transition: all .1s;
         }
