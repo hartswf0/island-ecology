@@ -1258,7 +1258,161 @@
             margin-bottom: 8px;
         }
         .light .chem-raw { background: rgba(255,255,255,0.4); color: rgba(0,0,0,0.6); }
-    </style>
+
+        /* ═══ FULLSCREEN MODE ═══ */
+        .fullscreen .top,
+        .fullscreen .bot,
+        .fullscreen .div,
+        .fullscreen .wtp,
+        .fullscreen #quiver { display: none !important; }
+        .fullscreen .main { flex: 1; }
+        .fullscreen .vp { width: 100% !important; }
+        
+        #fsBtn {
+            position: fixed;
+            bottom: 50px;
+            right: 10px;
+            z-index: 200;
+            background: var(--bg2);
+            border: 1px solid var(--rule);
+            color: var(--ink2);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            opacity: 0.6;
+            transition: opacity .2s;
+        }
+        #fsBtn:hover { opacity: 1; color: var(--gold); }
+
+        /* ═══ MOBILE: ≤768px ═══ */
+        @media (max-width: 768px) {
+            .top {
+                height: auto;
+                min-height: 38px;
+                flex-wrap: wrap;
+                padding: 2px 0;
+            }
+            .tlogo { font-size: 9px; padding: 0 6px; }
+            .tstat { display: none !important; }
+            .tmsg { display: none !important; }
+            #api-hud { display: none !important; }
+            .tb { font-size: 9px; padding: 0 8px; height: 32px; }
+            .tr { flex-wrap: wrap; }
+            
+            /* Stack main vertically on mobile */
+            .main {
+                flex-direction: column !important;
+            }
+            .vp {
+                flex: 1;
+                min-height: 45vh;
+                width: 100% !important;
+            }
+            .div { display: none !important; }
+            .wtp {
+                width: 100% !important;
+                min-width: 100% !important;
+                max-height: 40vh;
+                border-left: none !important;
+                border-top: 1px solid var(--rule);
+            }
+            .wthd {
+                height: 34px;
+            }
+            .wz { font-size: 9px; padding: 3px 6px; }
+            .wtttl { font-size: 9px; }
+
+            /* Bottom panel */
+            .bot { min-height: 44px; }
+            .bot.expanded { height: 160px; }
+            .bin { font-size: 14px !important; padding: 6px 10px !important; }
+            .brun { font-size: 12px !important; padding: 0 14px !important; }
+            
+            /* Quiver */
+            #quiver {
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 44px !important;
+                max-height: 35vh !important;
+            }
+            
+            /* Timeline */
+            .timeline-bar {
+                min-height: 36px !important;
+                padding: 4px 6px !important;
+            }
+            .tl-node {
+                font-size: 8px !important;
+                padding: 3px 6px !important;
+                max-width: 100px !important;
+            }
+            
+            /* Cards */
+            .ocard { margin: 4px; }
+            .oa { font-size: 8px; padding: 6px 0; }
+            
+            /* Fullscreen button */
+            #fsBtn { bottom: 48px; right: 6px; font-size: 10px; padding: 8px 12px; opacity: 0.8; }
+        }
+
+        /* ═══ MOBILE: ≤480px (small phones) ═══ */
+        @media (max-width: 480px) {
+            .vp { min-height: 40vh; }
+            .wtp { max-height: 35vh; }
+            .top .iso-btn { font-size: 8px; padding: 0 5px; }
+            .tb { font-size: 8px; padding: 0 5px; height: 28px; }
+            .wz { font-size: 8px; padding: 2px 5px; }
+        }
+
+        /* ═══ MOBILE OVERLAY PANELS ═══ */
+        @media (max-width: 768px) {
+            .mob-tab-bar {
+                display: flex !important;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 44px;
+                background: var(--bg2);
+                border-top: 1px solid var(--rule);
+                z-index: 150;
+                align-items: center;
+                justify-content: space-around;
+            }
+            .mob-tab {
+                background: none;
+                border: none;
+                color: var(--ink3);
+                font-family: 'IBM Plex Mono', monospace;
+                font-size: 10px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: .06em;
+                padding: 8px 12px;
+                cursor: pointer;
+                flex: 1;
+                text-align: center;
+            }
+            .mob-tab.active { color: var(--gold); }
+            
+            /* Hide REPL on mobile — use tab bar instead */
+            .bot { display: none !important; }
+            .bot.mob-show { display: flex !important; position: fixed; left: 0; right: 0; bottom: 44px; z-index: 140; height: 55vh; max-height: 55vh; }
+            .wtp.mob-hide { display: none !important; }
+            .wtp.mob-show { 
+                display: flex !important; 
+                position: fixed; left: 0; right: 0; bottom: 44px; top: auto;
+                z-index: 140; height: 55vh; max-height: 55vh;
+                width: 100% !important; min-width: 100% !important;
+            }
+        }
+        @media (min-width: 769px) {
+            .mob-tab-bar { display: none !important; }
+        }
+
+        </style>
     <script src="data.js"></script>
 </head>
 
@@ -1352,6 +1506,16 @@
             </div>
         </div>
     </div>
+
+    <!-- MOBILE TAB BAR -->
+    <div class="mob-tab-bar" id="mobTabBar">
+        <button class="mob-tab active" onclick="mobTab('canvas')">◉ Map</button>
+        <button class="mob-tab" onclick="mobTab('cards')">▤ Cards</button>
+        <button class="mob-tab" onclick="mobTab('repl')">⌘ REPL</button>
+    </div>
+    
+    <!-- FULLSCREEN BUTTON -->
+    <button id="fsBtn" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶ Full</button>
 
     <!-- REDESIGNED QUIVER -->
     <div id="quiver" class="compact">
@@ -3642,6 +3806,164 @@
             redrawV();
             setReady();
         }
+
+
+        // ══════════════════════════════
+        // FULLSCREEN + MOBILE TABS
+        // ══════════════════════════════
+        function toggleFullscreen() {
+            const app = document.getElementById('app');
+            const btn = document.getElementById('fsBtn');
+            if (app.classList.contains('fullscreen')) {
+                app.classList.remove('fullscreen');
+                btn.textContent = '⛶ Full';
+                if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+            } else {
+                app.classList.add('fullscreen');
+                btn.textContent = '✕ Exit';
+                if (app.requestFullscreen) app.requestFullscreen().catch(() => {});
+            }
+            setTimeout(resize, 100);
+        }
+        
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                document.getElementById('app').classList.remove('fullscreen');
+                document.getElementById('fsBtn').textContent = '⛶ Full';
+                setTimeout(resize, 100);
+            }
+        });
+        
+        function mobTab(view) {
+            const tabs = document.querySelectorAll('.mob-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            const wtp = document.getElementById('wtp');
+            const bot = document.getElementById('botPanel');
+            
+            // Reset
+            wtp.classList.remove('mob-show', 'mob-hide');
+            bot.classList.remove('mob-show');
+            
+            if (view === 'canvas') {
+                wtp.classList.add('mob-hide');
+                tabs[0].classList.add('active');
+            } else if (view === 'cards') {
+                wtp.classList.add('mob-show');
+                tabs[1].classList.add('active');
+            } else if (view === 'repl') {
+                wtp.classList.add('mob-hide');
+                bot.classList.add('mob-show', 'expanded');
+                tabs[2].classList.add('active');
+                document.getElementById('bIn').focus();
+            }
+            setTimeout(resize, 50);
+        }
+        
+        // ══════════════════════════════
+        // TOUCH SUPPORT
+        // ══════════════════════════════
+        let touchPanStart = null, touchPinchDist = null;
+        
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                const t = e.touches[0];
+                const p = { x: t.clientX, y: t.clientY };
+                const wp = toWorld(p);
+                const n = nodeAt(wp.x, wp.y);
+                
+                if (n) {
+                    // Long press detection for fork (like shift+drag)
+                    touchPanStart = null;
+                    n._touchStart = Date.now();
+                    n._touchP = p;
+                    
+                    // Immediate select
+                    selectNode(n);
+                    
+                    // Set up potential drag
+                    setTimeout(() => {
+                        if (n._touchStart && Date.now() - n._touchStart > 300) {
+                            // Long press — start aim/fork mode
+                            aiming = { srcNode: n, sx: p.x, sy: p.y, ex: p.x, ey: p.y };
+                            setMsg('Drag to fork target…', 'aim');
+                        }
+                    }, 300);
+                } else {
+                    touchPanStart = { x: p.x - camX, y: p.y - camY };
+                }
+            } else if (e.touches.length === 2) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                touchPinchDist = Math.sqrt(dx * dx + dy * dy);
+                touchPanStart = null;
+            }
+        }, { passive: true });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (e.touches.length === 1) {
+                const t = e.touches[0];
+                const p = { x: t.clientX, y: t.clientY };
+                
+                if (aiming) {
+                    aiming.ex = (p.x - camX) / camZ;
+                    aiming.ey = (p.y - camY) / camZ;
+                    const wp = toWorld(p);
+                    hovNode = nodeAt(wp.x, wp.y);
+                    redrawV();
+                } else if (touchPanStart) {
+                    camX = p.x - touchPanStart.x;
+                    camY = p.y - touchPanStart.y;
+                    computeV(); redrawV();
+                } else {
+                    // Check if dragging a node
+                    const sel = selNode;
+                    if (sel && sel._touchStart) {
+                        const wp = toWorld(p);
+                        sel.x = wp.x;
+                        sel.y = wp.y;
+                        computeV(); redrawV();
+                    }
+                }
+            } else if (e.touches.length === 2 && touchPinchDist) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const scale = dist / touchPinchDist;
+                
+                const mid = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                };
+                const wp = toWorld(mid);
+                camZ = Math.max(0.3, Math.min(5, camZ * scale));
+                camX = mid.x - wp.x * camZ;
+                camY = mid.y - wp.y * camZ;
+                
+                touchPinchDist = dist;
+                computeV(); redrawV();
+            }
+        }, { passive: false });
+        
+        canvas.addEventListener('touchend', (e) => {
+            if (aiming) {
+                const snap = { ...aiming }; aiming = null; hovNode = null;
+                const tgt = nodeAt(snap.ex, snap.ey);
+                if (tgt && tgt !== snap.srcNode) {
+                    fireTo(snap.srcNode, tgt, curOp);
+                } else if (Math.sqrt((snap.ex - snap.sx) ** 2 + (snap.ey - snap.sy) ** 2) > 15) {
+                    const opN = addNode(opLbl(curOp), curOp, snap.ex, snap.ey);
+                    hapSpawnNode(opN, 3);
+                    edges.push({ from: snap.srcNode, to: opN });
+                    setTimeout(() => fireTo(snap.srcNode, opN, curOp), 50);
+                }
+                redrawV();
+            }
+            touchPanStart = null;
+            touchPinchDist = null;
+            if (selNode) selNode._touchStart = null;
+        }, { passive: true });
 
         // ══════════════════════════════
         // INIT
