@@ -395,13 +395,13 @@
         .timeline-bar {
             display: flex;
             align-items: center;
-            gap: 2px;
-            padding: 6px 8px;
+            gap: 3px;
+            padding: 8px 10px;
             border-bottom: 1px solid var(--rule);
             background: var(--bg2);
             overflow-x: auto;
             flex-shrink: 0;
-            min-height: 32px;
+            min-height: 42px;
         }
         .timeline-bar::-webkit-scrollbar { height: 2px; }
         .timeline-bar::-webkit-scrollbar-thumb { background: var(--rule); }
@@ -410,32 +410,36 @@
             border: 1px solid var(--rule);
             color: var(--ink3);
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 7px;
+            font-size: 9px;
             font-weight: 600;
-            letter-spacing: .05em;
-            padding: 2px 6px;
+            letter-spacing: .06em;
+            padding: 4px 10px;
             cursor: pointer;
             white-space: nowrap;
             transition: all .15s;
             flex-shrink: 0;
-            max-width: 100px;
+            max-width: 140px;
             overflow: hidden;
             text-overflow: ellipsis;
+            border-radius: 2px;
         }
         .tl-node:hover { color: var(--ink2); border-color: var(--ink3); }
         .tl-node.active { color: var(--gold); border-color: var(--gold); background: var(--gold2); }
         .tl-node.root { border-color: var(--gold); color: var(--gold); }
         .tl-arrow {
-            color: var(--ink4);
-            font-size: 8px;
+            color: var(--ink3);
+            font-size: 10px;
             flex-shrink: 0;
         }
         .tl-fork {
             color: var(--gold);
-            font-size: 7px;
+            font-size: 9px;
             font-weight: 600;
             flex-shrink: 0;
-            opacity: .6;
+            opacity: .7;
+            background: var(--gold2);
+            padding: 1px 4px;
+            border-radius: 2px;
         }
         .tl-depth {
             font-size: 5px;
@@ -1224,8 +1228,7 @@
                 <div class="tval" id="sSel">—</div>
             </div>
             <div class="tmsg">
-                <div class="tdot" id="tDot"></div><span id="tMsg">Spawn a bad component · select principle · shift+drag
-                    to redesign</span>
+                <div class="tdot" id="tDot"></div><span id="tMsg">Plant a story root · shift+drag to fork paths</span>
             </div>
             <div id="api-hud"
                 style="display:flex;align-items:center;margin-left:auto;padding-right:10px;gap:6px;border-left:1px solid var(--rule);padding-left:10px">
@@ -1268,7 +1271,7 @@
             <div class="div" id="divider"></div>
             <div class="wtp" id="wtp">
                 <div class="wthd">
-                    <span class="wtttl">Document Accounting</span>
+                    <span class="wtttl">Forking Paths</span>
                     <button class="wz" id="docBtn" onclick="togDocMode()" title="Reader Mode">▤</button>
                     <button class="wz" onclick="exportDoc()" title="Export to Markdown">⭳</button>
                     <button class="wz" onclick="wtZ(1.1)" title="Zoom In">+</button>
@@ -1276,19 +1279,14 @@
                     <button class="wz" onclick="wtZ(0)" title="Reset Zoom">·</button>
                     <button class="wz" id="lkBtn" onclick="togLinks()" style="color:var(--gold)"
                         title="Transclusion Links">⌁</button>
+                    <input type="file" id="twineFileInput" accept=".html,.twee,.tw,.json" style="display:none" onchange="importTwineFile(event)">
+                    <button class="wz" onclick="document.getElementById('twineFileInput').click()" title="Import Twine File">⬆ Twine</button>
                 </div>
                 <div class="wtbd" id="wtBd">
                     <div class="wtinner" id="wtIn">
                         <canvas id="lkc"></canvas>
                         <div class="wtlist" id="wtL">
-                            <div
-                                style="padding:24px 12px;font-family:'Cormorant Garamond',serif;font-size:15px;font-style:italic;color:var(--ink3);line-height:1.9">
-                                <strong>Tool for Accounting:</strong><br><br>
-                                Spawn a starting component<br>or let the map load naturally.<br>
-                                Each section acts as a structural boundary.<br><br>
-                                • <strong>Shift+drag</strong> between nodes to redesign.<br>
-                                • <strong>Copy / Prune</strong> below to guide iterations.
-                            </div>
+                            <!-- onboarding is dynamic via renderWT() -->
                         </div>
                     </div>
                 </div>
@@ -1620,7 +1618,7 @@
         let VW = 0, VH = 0;
         const CONFIG = { model: "gpt-4o", storageKey: "epistemic_openai_key" };
         let API_KEY = "";
-        function saveApiKey() { API_KEY = document.getElementById('api-key-input').value.trim(); localStorage.setItem(CONFIG.storageKey, API_KEY); setApiStatus('ok'); }
+        function saveApiKey() { API_KEY = document.getElementById('api-key-input').value.trim(); try { localStorage.setItem(CONFIG.storageKey, API_KEY); } catch(e) { console.warn('localStorage full:', e); } setApiStatus('ok'); }
         function loadApiKey() { API_KEY = localStorage.getItem(CONFIG.storageKey) || ""; if (document.getElementById('api-key-input')) document.getElementById('api-key-input').value = API_KEY; if (API_KEY) setApiStatus('ok'); }
         function setApiStatus(s) { const d = document.getElementById('dot-api'); if (d) d.className = 'tdot ' + s; }
 
@@ -1774,7 +1772,7 @@
                     };
                     btn.onmouseenter = () => {
                         if (selNode && AC && soundMode !== 'silent') {
-                            bell(SCALES[id][0], 0, 0.015, 0.5);
+                            if (SCALES[id]) bell(SCALES[id][0], 0, 0.015, 0.5);
                         }
                     };
                     grpEl.appendChild(btn);
@@ -1836,7 +1834,7 @@
 
         function buildCtx(opNode) {
             const nbs = getNbs(opNode); if (!nbs.length) return '';
-            const mL = Math.max(...nbs.map(x => x.len), 1);
+            let mL = Math.max(...nbs.map(x => x.len), 1);
             // If all neighbors are roughly equal, force the scale up to create relative difference
             const allLens = nbs.map(x => x.len);
             const deviation = Math.max(...allLens) - Math.min(...allLens);
@@ -1883,7 +1881,7 @@
                 n.glow = Math.max(n.glow, .35 * rs);
                 sndRipple(opH(n.op)); hapRipple();
                 if (rs > .1) {
-                    const nbs = getNbs(n); const mL = Math.max(...nbs.map(x => x.len), 1);
+                    const nbs = getNbs(n); let mL = Math.max(...nbs.map(x => x.len), 1);
                     nbs.forEach(({ node: nb, len }) => {
                         const j = nodes.indexOf(nb);
                         if (j >= 0 && !visited.has(j)) { visited.add(j); q.push({ ni: j, t: t + 1, s: rs * (.25 + len / mL * .35) }); }
@@ -2062,7 +2060,7 @@
 
         function drawAff() {
             const nbs = getNbs(selNode); if (!nbs.length) return;
-            const mL = Math.max(...nbs.map(x => x.len), 1);
+            let mL = Math.max(...nbs.map(x => x.len), 1);
             nbs.forEach(({ node, len }) => {
                 const pct = len / mL; if (pct < .08) return;
                 const h1 = selNode.hue !== undefined ? selNode.hue : opH(selNode.op);
@@ -2931,7 +2929,15 @@
                 const label = (node.fullTitle || node.text || opLbl(node.op)).replace(/<[^>]*>?/gm, '').slice(0, 14);
                 btn.textContent = label;
                 btn.title = node.text.replace(/<[^>]*>?/gm, '').slice(0, 80);
-                btn.onclick = () => { selectNode(node); renderTimeline(); scrollToCard(node.id); };
+                btn.onclick = () => { 
+                    selectNode(node); 
+                    renderTimeline(); 
+                    scrollToCard(node.id);
+                    // Center this node on the canvas
+                    camX = VW * 0.35 - node.x * camZ;
+                    camY = VH * 0.5 - node.y * camZ;
+                    computeV(); redrawV();
+                };
                 
                 if (depth > 0) {
                     const arrow = document.createElement('span');
@@ -2983,6 +2989,124 @@
             // Auto-scroll to active
             const active = tlBar.querySelector('.active');
             if (active) active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+
+    
+        // ══════════════════════════════
+        // TWINE FILE IMPORT
+        // ══════════════════════════════
+        function importTwineFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                const fname = file.name.toLowerCase();
+                let passages = [];
+
+                if (fname.endsWith('.twee') || fname.endsWith('.tw')) {
+                    // Parse Twee format: :: PassageName [tags]\nContent
+                    const blocks = text.split(/^::\s*/m).filter(b => b.trim());
+                    blocks.forEach(block => {
+                        const lines = block.split('\n');
+                        const headerMatch = lines[0].match(/^([^\[\{]+)(?:\[([^\]]*)])?/);
+                        if (headerMatch) {
+                            const title = headerMatch[1].trim();
+                            const tags = headerMatch[2] || '';
+                            const body = lines.slice(1).join('\n').trim();
+                            // Extract [[links]]
+                            const links = [];
+                            body.replace(/\[\[([^\]]+)\]\]/g, (m, link) => {
+                                const parts = link.split('|');
+                                links.push(parts[parts.length - 1].trim());
+                            });
+                            if (title && title !== 'StoryTitle' && title !== 'StoryData') {
+                                passages.push({ title, body, tags, links });
+                            }
+                        }
+                    });
+                } else if (fname.endsWith('.html')) {
+                    // Parse Twine 2 HTML: <tw-passagedata> elements
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(text, 'text/html');
+                    const pEls = doc.querySelectorAll('tw-passagedata');
+                    pEls.forEach(el => {
+                        const title = el.getAttribute('name') || 'Untitled';
+                        const tags = el.getAttribute('tags') || '';
+                        const body = el.textContent.trim();
+                        const links = [];
+                        body.replace(/\[\[([^\]]+)\]\]/g, (m, link) => {
+                            const parts = link.split('|');
+                            links.push(parts[parts.length - 1].trim());
+                        });
+                        passages.push({ title, body, tags, links });
+                    });
+                } else if (fname.endsWith('.json')) {
+                    // JSON array of {title, body} objects
+                    try {
+                        const data = JSON.parse(text);
+                        const arr = Array.isArray(data) ? data : (data.passages || []);
+                        arr.forEach(p => passages.push({
+                            title: p.title || p.name || 'Untitled',
+                            body: p.body || p.text || p.content || '',
+                            tags: p.tags || '',
+                            links: p.links || []
+                        }));
+                    } catch(e) { setMsg('JSON parse error: ' + e.message); return; }
+                }
+
+                if (!passages.length) { setMsg('No passages found in file.'); return; }
+
+                // Clear and build nodes from passages
+                clearAll();
+                const nodeMap = {};
+                const cols = Math.ceil(Math.sqrt(passages.length));
+                
+                passages.forEach((p, idx) => {
+                    const col = idx % cols;
+                    const row = Math.floor(idx / cols);
+                    const x = 200 + col * 220 + (Math.random() - 0.5) * 40;
+                    const y = 200 + row * 180 + (Math.random() - 0.5) * 40;
+                    
+                    const n = addNode(p.title, 'root', x, y);
+                    n.text = p.body;
+                    n.fullTitle = p.title;
+                    n.ctx = p.body;
+                    nodeMap[p.title] = n;
+                    
+                    // Add as an op card
+                    const rec = { id: ++oid, srcNode: n, opNode: n, resNode: n, opKey: 'root', nb: 0, text: p.body, ts: Date.now(), title: p.title };
+                    ops.push(rec);
+                });
+
+                // Build edges from [[links]]
+                passages.forEach(p => {
+                    const src = nodeMap[p.title];
+                    if (!src) return;
+                    p.links.forEach(linkTitle => {
+                        const tgt = nodeMap[linkTitle];
+                        if (tgt && tgt !== src) {
+                            edges.push({ from: src, to: tgt });
+                        }
+                    });
+                });
+
+                computeV(); redrawV(); renderWT();
+                setMsg(`Imported ${passages.length} passages from ${file.name}`);
+                
+                // Center on first node
+                if (passages.length > 0) {
+                    const first = nodeMap[passages[0].title];
+                    if (first) {
+                        camX = VW * 0.35 - first.x * camZ;
+                        camY = VH * 0.5 - first.y * camZ;
+                        selectNode(first);
+                        computeV(); redrawV();
+                    }
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset so same file can be re-imported
         }
 
     </script>
