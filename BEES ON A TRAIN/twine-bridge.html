@@ -2559,6 +2559,38 @@
             setMsg(`<em>${op.lbl}</em> generating paths…`, 'run');
             document.getElementById('tDot').className = 'tdot run';
 
+            // ── LOADING CONTEXT CARD: show territory info while LLM works ──
+            const loadingRec = { id: ++oid, srcNode, opNode, resNode: opNode, opKey, nb: 0, text: '', ts: Date.now(), title: 'Loading…', isLoading: true };
+            ops.push(loadingRec);
+            addCard(loadingRec);
+            
+            // Build the loading context display
+            const srcText = srcNode.text.replace(/<[^>]*>?/gm, '').slice(0, 200);
+            const srcTitle = (srcNode.fullTitle || srcNode.text || opLbl(srcNode.op)).replace(/<[^>]*>?/gm, '').slice(0, 50);
+            const nbCtx = spCtx ? spCtx.replace('\\n\\nSPATIAL CONTEXT', '<strong>SPATIAL CONTEXT</strong>').replace(/- /g, '<br>• ') : '';
+            
+            const loadingHtml = `
+<div style="padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:9px;line-height:1.7;color:var(--ink2)">
+  <div style="color:var(--gold);font-size:8px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">
+    ⟩ ${op.lbl} · ${op.verb} <span class="blink">▸</span>
+  </div>
+  <div style="border-left:2px solid ${hsl(opH(opKey), 60, 50, 0.4)};padding-left:8px;margin-bottom:8px">
+    <div style="font-size:7px;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase">SOURCE TERRITORY</div>
+    <div style="font-size:10px;color:var(--gold);font-weight:600;margin:2px 0">${srcTitle}</div>
+    <div style="font-style:italic;font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--ink2);line-height:1.5">${srcText}${srcNode.text.length > 200 ? '…' : ''}</div>
+  </div>
+  <div style="border-left:2px solid ${hsl(opH(opKey), 40, 40, 0.3)};padding-left:8px;margin-bottom:6px">
+    <div style="font-size:7px;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase">RECEIVING TERRITORY</div>
+    <div style="font-size:10px;color:var(--ink2);font-weight:600;margin:2px 0">${opLbl(opNode.op)} N${opNode.id}</div>
+  </div>
+  ${nbCtx ? `<div style="font-size:8px;color:var(--ink3);line-height:1.6;margin-top:4px">${nbCtx}</div>` : ''}
+  <div style="margin-top:8px;font-size:7px;color:var(--ink4);letter-spacing:.1em">GENERATING <span class="blink">●●●</span></div>
+</div>`;
+            
+            updateCard(loadingRec.id, loadingHtml, false);
+            const secEl = document.getElementById('secs-' + loadingRec.id);
+            if (secEl) secEl.innerHTML = loadingHtml;
+
             try {
                 let text = '';
                 if (!API_KEY) {
@@ -2576,6 +2608,11 @@
                     const data = await r.json();
                     text = data.choices?.[0]?.message?.content || 'Error: ' + (data.error?.message || JSON.stringify(data));
                 }
+
+                // Remove loading context card now that results are in
+                const loadingCard = document.querySelector(`.ocard[data-oid="${loadingRec.id}"]`);
+                if (loadingCard) loadingCard.remove();
+                ops = ops.filter(o => o.id !== loadingRec.id);
 
                 // PARSE MULTIPLE FORKS
                 const forkBlocks = text.split(/FORK \d+:/g).filter(b => b.trim());
