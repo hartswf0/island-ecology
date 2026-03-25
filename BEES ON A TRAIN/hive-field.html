@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>HIVE FIELD — Retarded Vector Field Lattice</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}
+        body{font-family:'IBM Plex Mono',monospace;font-size:11px;user-select:none;background:#020408;color:#8ab0c4}
+        :root{--bg:#020408;--bg2:#060a14;--ink:#8ab0c4;--ink2:#c0d8e8;--ink3:rgba(140,180,210,.25);--gold:#d4a84b;--cyan:#22d3ee;--rule:rgba(140,180,210,.06)}
+        #app{display:flex;flex-direction:column;height:100vh}
+        .topbar{height:38px;background:var(--bg2);border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 14px;gap:14px;flex-shrink:0;z-index:50}
+        .logo{font-size:10px;font-weight:600;letter-spacing:.3em;color:var(--cyan);text-transform:uppercase;text-shadow:0 0 10px rgba(34,211,238,.3)}
+        .stat{font-size:8px;color:var(--ink3)}.stat b{color:var(--ink2)}
+        .topbar-spacer{flex:1}
+        .t-btn{background:none;border:1px solid var(--rule);color:var(--ink3);font-family:inherit;font-size:7px;padding:4px 12px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .2s}
+        .t-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+        .t-btn.active{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.08)}
+
+        .main{flex:1;display:flex;overflow:hidden;min-height:0}
+
+        /* FIELD CANVAS */
+        .field-wrap{flex:1;position:relative;overflow:hidden;cursor:crosshair}
+        #field{position:absolute;inset:0}
+
+        /* RIGHT PANEL */
+        .panel{width:320px;background:var(--bg2);border-left:1px solid var(--rule);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+        .p-header{height:26px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 10px;flex-shrink:0}
+        .p-title{font-size:7px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
+        .p-body{flex:1;overflow-y:auto;scrollbar-width:thin;padding:0}
+        .p-body::-webkit-scrollbar{width:2px}.p-body::-webkit-scrollbar-thumb{background:var(--rule)}
+
+        .node-hd{padding:12px 12px 6px;border-bottom:1px solid rgba(140,180,210,.04)}
+        .node-name{font-size:12px;font-weight:600;color:var(--cyan);margin-bottom:2px}
+        .node-meta{font-size:7px;color:var(--ink3);letter-spacing:.08em}
+        .node-desc{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--ink2);line-height:1.6;padding:8px 12px;border-bottom:1px solid rgba(140,180,210,.03)}
+
+        .field-data{padding:8px 12px;font-size:9px}
+        .fd-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(140,180,210,.02)}
+        .fd-label{color:var(--ink3)}.fd-val{color:var(--ink2);font-weight:600}
+        .fd-val.hot{color:#ef4444}.fd-val.warm{color:var(--gold)}.fd-val.cool{color:var(--cyan)}
+
+        .sec-hd{font-size:6px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--ink3);padding:8px 12px 3px}
+        .wave-log{padding:4px 12px;font-size:11px}
+        .wl-entry{padding:5px 0;border-bottom:1px solid rgba(140,180,210,.04);color:var(--ink);line-height:1.5}
+        .wl-entry b{color:var(--cyan);font-weight:600}
+
+        .honey-block{padding:10px 12px;border-top:1px solid var(--rule);background:linear-gradient(180deg,rgba(212,168,75,.03),transparent)}
+        .honey-hd{font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+        .honey-text{font-family:ui-monospace,'IBM Plex Mono',monospace;font-size:13px;color:var(--ink2);line-height:1.7;white-space:pre-line}
+        .honey-copy{background:none;border:1px solid rgba(212,168,75,.15);color:var(--gold);font-family:inherit;font-size:6px;padding:2px 6px;cursor:pointer;letter-spacing:.1em;opacity:.3;transition:opacity .15s}
+        .honey-copy:hover{opacity:.8}
+        .wl-click{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(34,211,238,.15);text-underline-offset:2px;transition:all .12s}
+        .wl-click:hover{color:var(--cyan);text-decoration-color:var(--cyan);background:rgba(34,211,238,.06)}
+        .ent-click{cursor:pointer;transition:all .12s}
+        .ent-click:hover{color:var(--gold);text-shadow:0 0 6px rgba(212,168,75,.3)}
+
+        /* EMIT BAR */
+        .emit-bar{height:40px;border-top:1px solid var(--rule);display:flex;background:var(--bg);flex-shrink:0}
+        .emit-input{flex:1;background:transparent;border:none;color:var(--ink2);font-family:inherit;font-size:12px;padding:0 12px;outline:none;caret-color:var(--cyan)}
+        .emit-input::placeholder{color:rgba(34,211,238,.12)}
+        .emit-send{background:rgba(34,211,238,.06);border:none;border-left:1px solid var(--rule);color:var(--cyan);font-family:inherit;font-size:7px;font-weight:600;letter-spacing:.15em;padding:0 16px;cursor:pointer;text-transform:uppercase;transition:all .2s}
+        .emit-send:hover{background:rgba(34,211,238,.12)}
+
+        /* OP */
+        .op-overlay{position:fixed;inset:0;background:rgba(2,4,8,.92);z-index:200;display:none;justify-content:center;align-items:center}
+        .op-overlay.show{display:flex}
+        .op-box{background:var(--bg2);border:1px solid var(--rule);padding:20px;width:300px}
+        .op-title{font-size:7px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--cyan);margin-bottom:10px}
+        .op-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+        .op-lbl{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);width:36px;flex-shrink:0}
+        .op-inp{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:inherit;font-size:9px;padding:4px 6px;flex:1;outline:none}
+        .op-close{background:none;border:1px solid var(--cyan);color:var(--cyan);font-family:inherit;font-size:8px;padding:4px 12px;cursor:pointer;margin-top:8px}
+    </style>
+    <script src="data.js"></script>
+    <script src="route-engine.js"></script>
+    <script src="hive-logger.js"></script>
+</head>
+<body>
+<div id="app">
+    <div class="topbar">
+        <span class="logo">HIVE_FIELD</span>
+        <span class="stat">Nodes: <b id="sN">0</b></span>
+        <span class="stat">Waves: <b id="sW">0</b></span>
+        <span class="stat">Energy: <b id="sE">0</b></span>
+        <span class="stat">Splats: <b id="sS">0</b></span>
+        <span class="stat">🍯 Honey: <b id="sH" style="color:var(--gold)">0</b></span>
+        <div class="topbar-spacer"></div>
+        <button class="t-btn" id="btnDiff" onclick="toggleDiffusion()">DIFFUSION: OFF</button>
+        <button class="t-btn" onclick="el('opOverlay').classList.toggle('show')">⚙ API</button>
+    </div>
+    <div class="main">
+        <div class="field-wrap" id="fieldWrap"><canvas id="field"></canvas></div>
+        <div class="panel">
+            <div class="p-header"><span class="p-title">Field Inspector</span></div>
+            <div class="p-body" id="pBody">
+                <div style="padding:24px 12px;font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--ink3);line-height:1.7">
+                    <strong style="color:var(--cyan);font-style:normal">Retarded Vector Field Lattice</strong><br><br>
+                    Click a node to emit a wavefront. It propagates outward at finite speed — delayed by graph distance (retarded potential).<br><br>
+                    Overlapping waves <em>superpose</em>. Nodes accumulate field energy. High-energy nodes become <em>Gaussian splats</em> — persistent anchors in concept space.<br><br>
+                    Type to emit a directional pulse — the field finds matching nodes by concept vector and radiates toward them.<br><br>
+                    <em>Reality is the dataset.</em>
+                </div>
+            </div>
+            <div class="emit-bar">
+                <input class="emit-input" id="emitInput" placeholder="emit field pulse..." onkeydown="if(event.key==='Enter')emitFromInput()">
+                <button class="emit-send" onclick="emitFromInput()">▸ EMIT</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="op-overlay" id="opOverlay">
+    <div class="op-box">
+        <div class="op-title">API Configuration</div>
+        <div class="op-row"><span class="op-lbl">Key</span><input type="password" class="op-inp" id="opKey" placeholder="sk-..." oninput="saveCfg()"></div>
+        <div class="op-row"><span class="op-lbl">Model</span><input class="op-inp" id="opModel" value="gpt-4o-mini" oninput="saveCfg()"></div>
+        <div class="op-row"><span class="op-lbl">Base</span><input class="op-inp" id="opBase" value="https://api.openai.com/v1" oninput="saveCfg()"></div>
+        <button class="op-close" onclick="el('opOverlay').classList.remove('show')">Close</button>
+    </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+// HIVE FIELD — Retarded Vector Field Lattice
+//
+// Physics-first simulation of concept propagation:
+//   • Each node is a charged particle emitting E_rad
+//   • Waves propagate at finite c (graph distance / time)
+//   • Retarded potential: t_delay = distance / c
+//   • Superposition: overlapping fields add linearly
+//   • Diffusion: field energy spreads via heat equation
+//   • Gaussian splats: high-energy nodes become persistent anchors
+//   • Semantic guidance: concept vector similarity = field strength
+// ════════════════════════════════════════════════
+
+let worlds=[],routes=[],worldByUid={};
+let canvas,ctx,dpr;
+let nodes=[];
+let waves=[]; // propagating wavefronts
+let selectedNode=null;
+let waveCount=0,splatCount=0,totalEnergy=0,honeyCount=0;
+let diffusionOn=false;
+const HEX_R=38,AT=15;
+const C=120; // speed of light in lattice units per second
+
+function assemblyIndex(w){return(w.entities.length*2)+(w.relations.length*3)+(w.events.length*4)+w.states.length}
+
+// ═══════════════════
+// NODE GRAPH
+// ═══════════════════
+function buildNodes(){
+    nodes=[];
+    const cols=Math.ceil(Math.sqrt(worlds.length*1.35));
+    worlds.forEach((w,i)=>{
+        const row=Math.floor(i/cols),col=i%cols;
+        const off=(row%2)?HEX_R*.87:0;
+        const ai=assemblyIndex(w);
+        nodes.push({
+            x:col*HEX_R*1.76+off+HEX_R*1.5,
+            y:row*(HEX_R*1.52)+HEX_R*1.5,
+            world:w, idx:i, ai, alive:ai>AT,
+            energy:0,       // accumulated field energy
+            fieldE:0,       // instantaneous E_rad
+            splat:false,    // becomes Gaussian splat when energy > threshold
+            waveLog:[],     // history of received waves
+            _sx:0,_sy:0
+        });
+    });
+}
+
+// conceptVector for directional emission
+function conceptVec(text){
+    const words=text.toLowerCase().split(/\W+/).filter(w=>w.length>2);
+    const v={};words.forEach(w=>{v[w]=(v[w]||0)+1;});return v;
+}
+function cosSim(a,b){
+    const keys=new Set([...Object.keys(a),...Object.keys(b)]);
+    let d=0,ma=0,mb=0;
+    keys.forEach(k=>{const av=a[k]||0,bv=b[k]||0;d+=av*bv;ma+=av*av;mb+=bv*bv;});
+    return ma&&mb?d/Math.sqrt(ma*mb):0;
+}
+function worldVec(w){
+    return conceptVec([w.name.replace(/([A-Z])/g,' $1'),w.genre,w.description,...w.entities.map(e=>e.name),...w.events.map(e=>e.name)].join(' '));
+}
+
+// ═══════════════════
+// WAVE EMISSION
+// ═══════════════════
+// A wave is a circular wavefront expanding from a source node
+// It carries semantic content and deposits energy on nodes it passes through
+function emitWave(sourceIdx, strength, conceptText, color){
+    waveCount++;
+    waves.push({
+        sourceIdx,
+        cx: nodes[sourceIdx]._sx || nodes[sourceIdx].x*.3,
+        cy: nodes[sourceIdx]._sy || nodes[sourceIdx].y*.3,
+        radius: 0,
+        maxRadius: 800,
+        speed: C/60, // pixels per frame
+        strength: strength || (nodes[sourceIdx].ai/10),
+        concept: conceptText || '',
+        conceptVecData: conceptText ? conceptVec(conceptText) : worldVec(nodes[sourceIdx].world),
+        color: color || `hsla(${185+Math.random()*30},80%,60%,.5)`,
+        deposited: new Set(), // track which nodes already received
+        time: Date.now()
+    });
+}
+
+// ═══════════════════
+// WAVE PHYSICS TICK
+// ═══════════════════
+function physicsTick(){
+    const dt=1/60;
+
+    // Propagate waves
+    waves=waves.filter(wave=>{
+        wave.radius += wave.speed;
+        if(wave.radius > wave.maxRadius) return false;
+
+        // Check which nodes the wavefront is passing through NOW
+        // Retarded potential: the wave reaches each node at t_delay = dist / C
+        nodes.forEach(node=>{
+            if(wave.deposited.has(node.idx)) return;
+            if(node.idx === wave.sourceIdx) return;
+
+            const dist = Math.hypot(
+                (node._sx||node.x*.3) - wave.cx,
+                (node._sy||node.y*.3) - wave.cy
+            );
+
+            // Wave front width = 15px
+            if(Math.abs(dist - wave.radius) < 15){
+                wave.deposited.add(node.idx);
+
+                // Compute field strength at this node:
+                // 1/r falloff + concept similarity boost
+                const r = Math.max(1, dist);
+                const falloff = wave.strength / (r * 0.02);
+                const sim = cosSim(wave.conceptVecData, worldVec(node.world));
+                const fieldStrength = falloff * (1 + sim * 5);
+
+                // Deposit energy (superposition — linear addition)
+                node.fieldE += fieldStrength;
+                node.energy += fieldStrength * 0.3;
+
+                // Check for Gaussian splat threshold
+                if(node.energy > 8 && !node.splat){
+                    node.splat = true;
+                    splatCount++;
+                    // Auto-LLM on splat creation
+                    llmSplatSynth(node, wave);
+                }
+
+                // Log
+                node.waveLog.push({
+                    from: nodes[wave.sourceIdx].world.name.replace(/([A-Z])/g,' $1').trim(),
+                    strength: fieldStrength.toFixed(2),
+                    sim: sim.toFixed(3),
+                    time: Date.now()
+                });
+            }
+        });
+
+        return true;
+    });
+
+    // Diffusion: spread energy to neighbors (heat equation)
+    if(diffusionOn){
+        const cols=Math.ceil(Math.sqrt(worlds.length*1.35));
+        const snapshot=nodes.map(n=>n.energy);
+        nodes.forEach((n,i)=>{
+            const nbrs=[i-1,i+1,i-cols,i+cols,i-cols+1,i+cols-1].filter(j=>j>=0&&j<nodes.length);
+            let avg=0;
+            nbrs.forEach(j=>{avg+=snapshot[j];});
+            if(nbrs.length) avg/=nbrs.length;
+            // Blend toward neighbor average (thermal diffusion)
+            n.energy += (avg - n.energy) * 0.02;
+        });
+    }
+
+    // Decay field E (instantaneous field decays fast, energy persists)
+    nodes.forEach(n=>{
+        n.fieldE *= 0.92;
+        n.energy *= 0.998; // very slow energy decay
+    });
+
+    totalEnergy=nodes.reduce((s,n)=>s+n.energy,0);
+}
+
+// ═══════════════════
+// RENDERING
+// ═══════════════════
+let drawT=0;
+function drawLoop(){drawT++;physicsTick();drawField();requestAnimationFrame(drawLoop);}
+
+function drawField(){
+    const W=canvas.width,H=canvas.height;
+    // Dark background with slight persistence (motion blur)
+    ctx.fillStyle='rgba(2,4,8,.15)';
+    ctx.fillRect(0,0,W,H);
+
+    if(!nodes.length) return;
+    const totalW=Math.max(...nodes.map(c=>c.x))+HEX_R*2;
+    const totalH=Math.max(...nodes.map(c=>c.y))+HEX_R*2;
+    const scale=Math.min(W/totalW,H/totalH)*.88;
+    const offX=(W-totalW*scale)/2,offY=(H-totalH*scale)/2;
+    ctx.save();ctx.translate(offX,offY);ctx.scale(scale,scale);
+
+    // Draw wave rings
+    waves.forEach(wave=>{
+        const scx=(wave.cx-offX)/scale, scy=(wave.cy-offY)/scale;
+        ctx.beginPath();
+        ctx.arc(scx,scy,wave.radius/scale,0,Math.PI*2);
+        const alpha=Math.max(0,.4*(1-wave.radius/wave.maxRadius));
+        ctx.strokeStyle=wave.color.replace(/[\d.]+\)$/,alpha+')');
+        ctx.lineWidth=2;
+        ctx.stroke();
+    });
+
+    // Draw nodes
+    nodes.forEach((node,i)=>{
+        const isSel=node===selectedNode;
+        const r=HEX_R;
+
+        // Gaussian splat glow
+        if(node.splat || node.energy>3){
+            const glowR=r*(1.2+node.energy*.08);
+            const grad=ctx.createRadialGradient(node.x,node.y,0,node.x,node.y,glowR);
+            const hue=node.alive?40:200;
+            grad.addColorStop(0,`hsla(${hue},70%,50%,${Math.min(.15,node.energy*.01)})`);
+            grad.addColorStop(1,'transparent');
+            ctx.fillStyle=grad;
+            ctx.fillRect(node.x-glowR,node.y-glowR,glowR*2,glowR*2);
+        }
+
+        // Hex
+        ctx.beginPath();
+        for(let k=0;k<6;k++){const a=Math.PI/3*k+Math.PI/6;ctx.lineTo(node.x+r*Math.cos(a),node.y+r*Math.sin(a));}
+        ctx.closePath();
+
+        // Fill based on field energy
+        const eAlpha=Math.min(.12,node.fieldE*.02+node.energy*.005);
+        ctx.fillStyle=isSel?'rgba(34,211,238,.08)':`rgba(34,211,238,${eAlpha})`;
+        ctx.fill();
+
+        // Stroke — energy determines brightness
+        const eBright=Math.min(1,.15+node.energy*.03+node.fieldE*.05);
+        if(isSel){ctx.strokeStyle='#22d3ee';ctx.lineWidth=2.5;ctx.shadowBlur=10;ctx.shadowColor='#22d3ee';}
+        else if(node.splat){ctx.strokeStyle=`rgba(212,168,75,${eBright})`;ctx.lineWidth=1.5;}
+        else{ctx.strokeStyle=`rgba(34,211,238,${eBright*.5})`;ctx.lineWidth=.5;}
+        ctx.stroke();ctx.shadowBlur=0;
+
+        // Labels
+        const name=node.world.name.replace(/([A-Z])/g,' $1').trim();
+        const short=name.length>10?name.slice(0,8)+'…':name;
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.font=isSel?'bold 7px IBM Plex Mono':'500 5px IBM Plex Mono';
+        ctx.fillStyle=isSel?'#22d3ee':node.splat?`rgba(212,168,75,${eBright})`:`rgba(34,211,238,${eBright*.6})`;
+        ctx.fillText(short,node.x,node.y-5);
+
+        // Energy readout
+        if(node.energy>.5){
+            ctx.font='bold 6px IBM Plex Mono';
+            ctx.fillStyle=node.energy>8?'rgba(239,68,68,.5)':node.energy>4?'rgba(212,168,75,.4)':'rgba(34,211,238,.3)';
+            ctx.fillText(node.energy.toFixed(1),node.x,node.y+7);
+        }
+
+        // Splat marker
+        if(node.splat){ctx.font='7px serif';ctx.fillText('◉',node.x+r*.4,node.y-r*.35);}
+
+        node._sx=node.x*scale+offX;node._sy=node.y*scale+offY;
+    });
+
+    ctx.restore();
+
+    // Stats
+    el('sN').textContent=nodes.length;
+    el('sW').textContent=waveCount;
+    el('sE').textContent=totalEnergy.toFixed(0);
+    el('sS').textContent=splatCount;
+}
+
+function resize(){const vp=el('fieldWrap');const w=vp.clientWidth,h=vp.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+
+// ═══════════════════
+// INTERACTION
+// ═══════════════════
+function onFieldClick(e){
+    const rect=canvas.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*dpr,my=(e.clientY-rect.top)*dpr;
+    let closest=null,dMin=Infinity;
+    nodes.forEach(n=>{const d=Math.hypot(n._sx*dpr-mx,n._sy*dpr-my);if(d<HEX_R*3&&d<dMin){dMin=d;closest=n;}});
+    if(closest){
+        selectedNode=closest;
+        const strength=closest.alive?closest.ai/8:closest.ai/15;
+        emitWave(closest.idx,strength,'','hsla(190,80%,60%,.5)');
+        renderInspector(closest);
+        // LLM synthesis on click if API key exists
+        const key=el('opKey').value.trim();
+        if(key) llmNodeSynth(closest);
+    }
+}
+
+function emitFromInput(){
+    const input=el('emitInput'),text=input.value.trim();
+    if(!text)return;
+    input.value='';
+
+    // Concept-directed emission
+    const promptVec=conceptVec(text);
+
+    // Find top matching nodes and emit from them
+    const scored=nodes.map((n,i)=>({idx:i,score:cosSim(promptVec,worldVec(n.world))})).sort((a,b)=>b.score-a.score);
+    const topN=scored.filter(s=>s.score>.01).slice(0,5);
+
+    if(!topN.length){
+        // Emit from selected or random
+        const src=selectedNode||nodes[Math.floor(Math.random()*nodes.length)];
+        emitWave(src.idx,2,text,'hsla(45,80%,55%,.5)');
+    } else {
+        topN.forEach((t,i)=>{
+            setTimeout(()=>{
+                emitWave(t.idx, 1.5+t.score*3, text, `hsla(${45-i*15},80%,55%,.5)`);
+            },i*300);
+        });
+    }
+
+    // LLM field synthesis — fall back to best match if no selectedNode
+    const key=el('opKey').value.trim();
+    if(key){
+        const src = selectedNode || (topN.length ? nodes[topN[0].idx] : null);
+        if(src) llmFieldSynth(text,src,topN);
+    }
+}
+
+async function llmFieldSynth(prompt,sourceNode,targets){
+    const key=el('opKey').value.trim();if(!key)return;
+    const base=el('opBase').value.trim(),model=el('opModel').value.trim();
+    const w=sourceNode.world;
+    const targetNames=targets.slice(0,3).map(t=>nodes[t.idx].world.name.replace(/([A-Z])/g,' $1').trim()+'(sim:'+t.score.toFixed(2)+')');
+
+    const sysPrompt=`You describe narrative field states. Output as structured lines, one fact per line:
+ENTITY: Name[Type] — role here
+RELATION: A→type→B — significance
+FIELD: energy/wave observation
+You MUST name at least 2 entities by exact NAME[TYPE]. Zero metaphors. Data-grounded only. 3-5 lines.`;
+    const waveHistory = sourceNode.waveLog.slice(-3).filter(w=>!w.honey).map(w=>`←${w.from}(E:${w.strength})`).join(', ');
+    const userPrompt=`PULSE: "${prompt}"
+SOURCE: "${w.name.replace(/([A-Z])/g,' $1').trim()}" (AI:${sourceNode.ai}, ${w.genre})
+${w.description}
+Entities: ${w.entities.map(e=>`${e.name}[${e.type}]`).join(', ')}
+Relations: ${w.relations.map(r=>`${r.from}→${r.type}→${r.to}`).join(', ')}
+Events: ${w.events.map(e=>e.name).join(', ')}
+States: ${w.states.map(s=>(s.entity||'')+':'+(s.value||s.state||'')).join(', ')}
+Field energy: ${sourceNode.energy.toFixed(1)} | Splat: ${sourceNode.splat?'YES':'no'}
+${waveHistory?'Recent waves: '+waveHistory:''}
+RESONANCE: ${targetNames.join(', ')}`;
+
+    try{
+        const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages:[{role:'system',content:sysPrompt},{role:'user',content:userPrompt}],max_tokens:200,temperature:.4})});;;
+        const data=await resp.json();
+        if(data.choices?.[0]){
+            const honey=data.choices[0].message.content;
+            honeyCount++; el('sH').textContent=honeyCount;
+            if(typeof HiveLogger!=='undefined'){HiveLogger.logLLM(userPrompt,honey,model,{cellIdx:sourceNode.idx,type:'field_pulse'});if(HiveLogger.ttsEnabled)HiveLogger.speak(honey);}
+            sourceNode.waveLog.push({from:'FIELD_SYNTHESIS',strength:'∞',sim:'—',time:Date.now(),honey});
+            if(selectedNode===sourceNode) renderInspector(sourceNode);
+        }
+    }catch(e){}
+}
+
+// LLM synthesis when a node is clicked (no text input needed)
+async function llmNodeSynth(node){
+    const key=el('opKey').value.trim();if(!key)return;
+    const base=el('opBase').value.trim(),model=el('opModel').value.trim();
+    const w=node.world;
+
+    const sysPrompt=`You report on a narrative node. Output as structured lines, one fact per line:
+ENTITY: Name[Type] — what it does here
+RELATION: A→type→B — causal link
+FIELD: energy/wave state
+You MUST reference at least 2 entities by exact NAME[TYPE]. Zero metaphors. 3-5 lines.`;
+    const waveHistory = node.waveLog.slice(-5).filter(wl=>!wl.honey).map(wl=>`←${wl.from}(E:${wl.strength}, sim:${wl.sim})`).join(', ');
+    const userPrompt=`NODE: "${w.name.replace(/([A-Z])/g,' $1').trim()}" (AI:${node.ai}, ${w.genre})
+${w.description}
+Entities: ${w.entities.map(e=>`${e.name}[${e.type}]`).join(', ')}
+Relations: ${w.relations.map(r=>`${r.from}→${r.type}→${r.to}`).join(', ')}
+Events: ${w.events.map(e=>e.name).join(', ')}
+States: ${w.states.map(s=>(s.entity||'')+':'+(s.value||s.state||'')).join(', ')}
+Field energy: ${node.energy.toFixed(1)} | E_rad: ${node.fieldE.toFixed(3)} | Splat: ${node.splat?'YES':'no'}
+Waves received: ${node.waveLog.length}${waveHistory?' | Recent: '+waveHistory:''}`;
+
+    try{
+        const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages:[{role:'system',content:sysPrompt},{role:'user',content:userPrompt}],max_tokens:150,temperature:.35})});;;
+        const data=await resp.json();
+        if(data.choices?.[0]){
+            const honey=data.choices[0].message.content;
+            honeyCount++; el('sH').textContent=honeyCount;
+            if(typeof HiveLogger!=='undefined') HiveLogger.logLLM(userPrompt,honey,model,{cellIdx:node.idx,type:'node_probe'});
+            node.waveLog.push({from:'NODE_PROBE',strength:'∞',sim:'—',time:Date.now(),honey});
+            renderInspector(node);
+        }
+    }catch(e){}
+}
+
+// Auto-LLM when a node becomes a Gaussian splat
+async function llmSplatSynth(node, wave){
+    const key=el('opKey').value.trim();if(!key)return;
+    const base=el('opBase').value.trim(),model=el('opModel').value.trim();
+    const w=node.world;
+    const sourceName=nodes[wave.sourceIdx].world.name.replace(/([A-Z])/g,' $1').trim();
+
+    const sysPrompt=`A node crystallized into a Gaussian splat. Report what anchored. Output as structured lines:
+ANCHOR: what crystallized and why
+ENTITY: Name[Type] — role in convergence
+SOURCE: triggering wave origin
+You MUST name at least 2 entities. Zero metaphors. 3-4 lines.`;
+    const userPrompt=`SPLAT: "${w.name.replace(/([A-Z])/g,' $1').trim()}" (AI:${node.ai}, ${w.genre})
+${w.description}
+Entities: ${w.entities.map(e=>`${e.name}[${e.type}]`).join(', ')}
+Relations: ${w.relations.map(r=>`${r.from}→${r.type}→${r.to}`).join(', ')}
+Events: ${w.events.map(e=>e.name).join(', ')}
+Energy: ${node.energy.toFixed(1)} | Waves received: ${node.waveLog.length}
+Triggering wave from: ${sourceName}
+Concept: "${wave.concept.slice(0,80) || 'ambient emission'}"`;
+
+    try{
+        const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages:[{role:'system',content:sysPrompt},{role:'user',content:userPrompt}],max_tokens:150,temperature:.4})});;
+        const data=await resp.json();
+        if(data.choices?.[0]){
+            const honey=data.choices[0].message.content;
+            honeyCount++; el('sH').textContent=honeyCount;
+            if(typeof HiveLogger!=='undefined') HiveLogger.logLLM(userPrompt,honey,model,{cellIdx:node.idx,type:'splat_formed'});
+            node.waveLog.push({from:'SPLAT_FORMED',strength:'∞',sim:'—',time:Date.now(),honey});
+            if(selectedNode===node) renderInspector(node);
+        }
+    }catch(e){}
+}
+
+function selectNodeByIdx(idx){
+    if(idx>=0 && idx<nodes.length){
+        selectedNode=nodes[idx];
+        renderInspector(nodes[idx]);
+    }
+}
+
+function emitFromEntity(name){
+    el('emitInput').value=name;
+    emitFromInput();
+}
+
+function renderInspector(node){
+    const w=node.world;
+    const name=w.name.replace(/([A-Z])/g,' $1').trim();
+    let html=`<div class="node-hd"><div class="node-name">${esc(name)}</div><div class="node-meta">POML.${w.uid.slice(0,8)} // ${w.genre} // AI:${node.ai} ${node.alive?'◆ ALIVE':'○ ABIOTIC'}</div></div>`;
+    html+=`<div class="node-desc">${esc(w.description.slice(0,180))}</div>`;
+
+    html+=`<div class="field-data">`;
+    html+=`<div class="fd-row"><span class="fd-label">Field Energy</span><span class="fd-val ${node.energy>8?'hot':node.energy>4?'warm':'cool'}">${node.energy.toFixed(2)}</span></div>`;
+    html+=`<div class="fd-row"><span class="fd-label">Instantaneous E_rad</span><span class="fd-val">${node.fieldE.toFixed(3)}</span></div>`;
+    html+=`<div class="fd-row"><span class="fd-label">Assembly Index</span><span class="fd-val">${node.ai}</span></div>`;
+    html+=`<div class="fd-row"><span class="fd-label">Gaussian Splat</span><span class="fd-val">${node.splat?'◉ ANCHORED':'—'}</span></div>`;
+    html+=`<div class="fd-row"><span class="fd-label">Waves Received</span><span class="fd-val">${node.waveLog.length}</span></div>`;
+    html+=`</div>`;
+
+    if(w.entities.length){
+        html+=`<div class="sec-hd">Entities</div><div class="wave-log">${w.entities.slice(0,6).map(e=>`<div class="wl-entry"><b class="ent-click" onclick="emitFromEntity('${esc(e.name)}')">◆ ${esc(e.name)}</b> [${e.type}]</div>`).join('')}</div>`;
+    }
+
+    if(node.waveLog.length){
+        html+=`<div class="sec-hd">Wave Log (${node.waveLog.length})</div><div class="wave-log">`;
+        node.waveLog.slice(-10).reverse().forEach(wl=>{
+            if(wl.honey){
+                const label = wl.from==='NODE_PROBE'?'🗣 Voice':'🍯 '+(wl.from==='SPLAT_FORMED'?'Crystallization':'Field Synthesis');
+                html+=`<div class="honey-block"><div class="honey-hd"><span>${label}</span><button class="honey-copy" onclick="navigator.clipboard.writeText(this.closest('.honey-block').querySelector('.honey-text').textContent);this.textContent='✓';setTimeout(()=>this.textContent='COPY',1200)">COPY</button></div><div class="honey-text">${linkifyHoney(wl.honey)}</div></div>`;
+            } else {
+                // Find the source node idx for clickable navigation
+                const srcIdx = nodes.findIndex(n=>n.world.name.replace(/([A-Z])/g,' $1').trim()===wl.from);
+                if(srcIdx>=0){
+                    html+=`<div class="wl-entry">← <b class="wl-click" onclick="selectNodeByIdx(${srcIdx})">${esc(wl.from)}</b> E:${wl.strength} sim:${wl.sim}</div>`;
+                } else {
+                    html+=`<div class="wl-entry">← <b>${esc(wl.from)}</b> E:${wl.strength} sim:${wl.sim}</div>`;
+                }
+            }
+        });
+        html+=`</div>`;
+    }
+
+    el('pBody').innerHTML=html;
+}
+
+// ═══════════════════
+// DIFFUSION TOGGLE
+// ═══════════════════
+function toggleDiffusion(){
+    diffusionOn=!diffusionOn;
+    el('btnDiff').textContent=`DIFFUSION: ${diffusionOn?'ON':'OFF'}`;
+    el('btnDiff').classList.toggle('active',diffusionOn);
+}
+
+// ═══════════════════
+// AMBIENT EMISSION
+// ═══════════════════
+setInterval(()=>{
+    if(Math.random()>.7) return;
+    const alive=nodes.filter(n=>n.alive);
+    if(!alive.length) return;
+    const src=alive[Math.floor(Math.random()*alive.length)];
+    emitWave(src.idx, src.ai/20, '', `hsla(${180+Math.random()*40},60%,50%,.3)`);
+},6000);
+
+// ═══════════════════
+// UTIL
+// ═══════════════════
+function el(id){return document.getElementById(id)}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+
+// ── linkifyHoney: scan text for world names, wrap in clickable spans ──
+let _fieldNameIdx=null;
+function buildFieldNameIdx(){
+    if(_fieldNameIdx) return _fieldNameIdx;
+    _fieldNameIdx=[];
+    nodes.forEach(n=>{
+        const display=n.world.name.replace(/([A-Z])/g,' $1').trim();
+        _fieldNameIdx.push({display, search:display.toLowerCase(), idx:n.idx});
+    });
+    _fieldNameIdx.sort((a,b)=>b.display.length-a.display.length);
+    return _fieldNameIdx;
+}
+function linkifyHoney(text){
+    const idx=buildFieldNameIdx();
+    let safe=esc(text);
+    const used=new Set();
+    idx.forEach(w=>{
+        if(used.has(w.idx)) return;
+        const re=new RegExp('(?<![\\w])'+w.display.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?![\\w])','gi');
+        if(re.test(safe)){
+            used.add(w.idx);
+            safe=safe.replace(re,`<span class="wl-click" onclick="selectNodeByIdx(${w.idx})">${w.display}</span>`);
+        }
+    });
+    return safe;
+}
+function saveCfg(){['opKey','opModel','opBase'].forEach(id=>localStorage.setItem('hivefield_'+id,el(id).value));}
+function loadCfg(){['opKey','opModel','opBase'].forEach(id=>{const v=localStorage.getItem('hivefield_'+id);if(v)el(id).value=v;});}
+
+// ═══════════════════
+// INIT
+// ═══════════════════
+function init(){
+    canvas=el('field');ctx=canvas.getContext('2d');dpr=devicePixelRatio;
+    worlds=RouteEngine.parseAll(WORLDS_DATA);
+    routes=RouteEngine.computeRoutes(worlds);
+    worlds.forEach(w=>{worldByUid[w.uid]=w;});
+    buildNodes();loadCfg();
+    window.addEventListener('resize',resize);
+    canvas.addEventListener('click',onFieldClick);
+    resize();
+    requestAnimationFrame(drawLoop);
+}
+init();
+if(typeof HiveLogger!=='undefined')HiveLogger.init('hive-field');
+</script>
+</body>
+</html>

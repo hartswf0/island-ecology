@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>HIVE DREAM — Dream It Before Building</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}
+        body{font-family:'IBM Plex Mono',monospace;font-size:11px;user-select:none;background:#050510;color:#8ab0c4}
+        :root{--bg:#050510;--bg2:#0a0d1a;--ink:#8ab0c4;--ink2:#c0d8e8;--ink3:rgba(140,180,210,.3);--gold:#d4a84b;--gold2:rgba(212,168,75,.3);--dream:#7c3aed;--dream2:rgba(124,58,237,.2);--dreamglow:rgba(124,58,237,.4);--honey:#e8a832;--rule:rgba(140,180,210,.08);--rule2:rgba(140,180,210,.04)}
+        #app{display:flex;flex-direction:column;height:100vh}
+
+        /* HEADER */
+        .topbar{height:42px;background:var(--bg2);border-bottom:1px solid var(--rule);display:flex;align-items:center;flex-shrink:0;z-index:50;padding:0 16px;gap:16px}
+        .logo{font-size:9px;font-weight:600;letter-spacing:.25em;color:var(--dream);text-transform:uppercase}
+        .logo-sub{font-size:6px;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;margin-left:8px}
+        .stat{font-size:8px;color:var(--ink3);letter-spacing:.08em}.stat b{color:var(--ink2)}
+        .topbar-spacer{flex:1}
+        .op-select{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:inherit;font-size:8px;padding:4px 8px;border-radius:2px;outline:none;letter-spacing:.08em}
+
+        /* MAIN */
+        .main{flex:1;display:flex;overflow:hidden;min-height:0}
+
+        /* DREAM LOG (LEFT) */
+        .dream-log{width:320px;background:var(--bg2);border-right:1px solid var(--rule);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+        .dl-header{height:28px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 12px;flex-shrink:0}
+        .dl-title{font-size:7px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--dream)}
+        .dl-body{flex:1;overflow-y:auto;padding:8px 0;scrollbar-width:thin}
+        .dl-body::-webkit-scrollbar{width:2px}.dl-body::-webkit-scrollbar-thumb{background:var(--rule)}
+        .dream-entry{padding:10px 14px;border-bottom:1px solid var(--rule2);transition:background .2s;cursor:pointer}
+        .dream-entry:hover{background:var(--dream2)}
+        .dream-entry.active{background:var(--dream2);border-left:3px solid var(--dream)}
+        .de-prompt{font-family:'Cormorant Garamond',serif;font-size:14px;font-style:italic;color:var(--ink2);line-height:1.5;margin-bottom:6px}
+        .de-meta{font-size:7px;color:var(--ink3);letter-spacing:.08em;display:flex;gap:8px}
+        .de-meta .hit{color:var(--gold)}.de-meta .miss{color:var(--ink3)}
+        .de-honey{font-family:'Cormorant Garamond',serif;font-size:13px;color:rgba(232,168,50,.7);line-height:1.6;margin-top:6px;padding-left:8px;border-left:2px solid var(--gold2);display:none}
+        .dream-entry.expanded .de-honey{display:block}
+
+        /* CANVAS */
+        .hive-wrap{flex:1;position:relative;overflow:hidden}
+        #hive{position:absolute;inset:0}
+        .phero-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
+        @keyframes pDrift{0%{opacity:0;transform:translateY(0) scale(.9)}20%{opacity:.5}100%{opacity:0;transform:translateY(-90px) scale(1.1);filter:blur(3px)}}
+        .phero{position:absolute;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:rgba(124,58,237,.4);text-shadow:0 0 8px rgba(124,58,237,.2);white-space:nowrap;animation:pDrift 6s cubic-bezier(.2,.8,.2,1) forwards;pointer-events:none}
+
+        /* DREAM BAR */
+        .dream-bar{position:absolute;bottom:0;left:0;right:0;z-index:40;display:flex;padding:12px 20px;gap:8px;background:linear-gradient(to top,rgba(5,5,16,.97),rgba(5,5,16,.8),transparent)}
+        .dream-input{flex:1;background:rgba(10,13,26,.7);border:1px solid rgba(124,58,237,.25);color:var(--ink2);font-family:'Cormorant Garamond',serif;font-size:16px;font-style:italic;padding:12px 16px;outline:none;letter-spacing:.03em;transition:all .3s;border-radius:2px}
+        .dream-input:focus{border-color:var(--dream);box-shadow:0 0 20px rgba(124,58,237,.15)}
+        .dream-input::placeholder{color:rgba(124,58,237,.2);font-style:italic}
+        .dream-send{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);color:var(--dream);font-family:'IBM Plex Mono',monospace;font-size:8px;font-weight:600;padding:12px 20px;cursor:pointer;letter-spacing:.2em;text-transform:uppercase;transition:all .2s;border-radius:2px}
+        .dream-send:hover{background:rgba(124,58,237,.2);box-shadow:0 0 15px rgba(124,58,237,.15)}
+
+        /* BROOD (RIGHT) */
+        .brood{width:340px;background:var(--bg);border-left:1px solid var(--rule);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+        .brood-header{height:28px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 12px;flex-shrink:0;background:var(--bg2)}
+        .brood-title{font-size:7px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)}
+        .brood-body{flex:1;overflow-y:auto;padding:0;scrollbar-width:thin}
+        .brood-body::-webkit-scrollbar{width:2px}.brood-body::-webkit-scrollbar-thumb{background:var(--rule)}
+        .wc-name{font-size:14px;font-weight:600;color:var(--gold);letter-spacing:.06em;padding:14px 16px 4px}
+        .wc-uid{font-size:7px;color:var(--ink3);letter-spacing:.1em;padding:0 16px 4px}
+        .wc-genre{font-size:7px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink3);padding:2px 8px;background:rgba(124,58,237,.08);border-radius:2px;display:inline-block;margin:0 16px 10px}
+        .wc-desc{font-family:'Cormorant Garamond',serif;font-size:15px;font-style:italic;color:var(--ink2);line-height:1.7;padding:0 16px 12px;border-bottom:1px solid var(--rule2)}
+        .sec-hd{font-size:7px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--ink3);padding:8px 16px 4px}
+        .ent-row{padding:3px 16px;font-size:10px;color:var(--ink2)}.ent-row span{color:var(--gold);font-weight:600}
+        .dream-match{padding:12px 16px;border-top:1px solid var(--rule);background:linear-gradient(180deg,rgba(124,58,237,.04),transparent)}
+        .dm-hd{font-size:7px;letter-spacing:.15em;text-transform:uppercase;color:var(--dream);margin-bottom:6px}
+        .dm-text{font-family:'Cormorant Garamond',serif;font-size:14px;font-style:italic;color:var(--ink2);line-height:1.6}
+        .dm-score{font-size:8px;color:var(--ink3);margin-top:4px}
+
+        /* OP CONFIG */
+        .op-panel{position:absolute;top:42px;right:340px;z-index:45;background:var(--bg2);border:1px solid var(--rule);border-top:none;padding:8px 12px;display:none;width:260px}
+        .op-panel.show{display:block}
+        .op-row{display:flex;gap:6px;margin-bottom:5px;align-items:center}
+        .op-lbl{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);width:40px;flex-shrink:0}
+        .op-inp{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:inherit;font-size:9px;padding:3px 6px;border-radius:2px;flex:1;outline:none}
+
+        /* LATENT FILM */
+        .latent-film{position:fixed;inset:0;background:rgba(5,5,16,.95);z-index:200;display:none;justify-content:center;align-items:center}
+        .latent-film.show{display:flex}
+        .lf-box{background:var(--bg2);border:1px solid var(--dream);border-radius:4px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;padding:24px}
+        .lf-close{position:absolute;top:8px;right:12px;background:none;border:none;color:var(--ink3);font-size:16px;cursor:pointer}
+        .lf-title{font-size:8px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--dream);margin-bottom:12px}
+        .lf-body{font-family:'Cormorant Garamond',serif;font-size:15px;color:var(--ink2);line-height:1.8;white-space:pre-wrap}
+
+        /* SCANLINES */
+        .scanlines{position:absolute;inset:0;pointer-events:none;z-index:60;opacity:.08;background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,.3) 50%),linear-gradient(90deg,rgba(124,58,237,.02),rgba(0,255,0,.005),rgba(0,0,255,.02));background-size:100% 3px,3px 100%}
+    </style>
+    <script src="data.js"></script>
+    <script src="route-engine.js"></script>
+    <script src="hive-logger.js"></script>
+</head>
+<body>
+<div id="app">
+    <div class="topbar">
+        <span class="logo">HIVE_DREAM</span>
+        <span class="logo-sub">Prompts → Programs → Swarms → Ideas</span>
+        <span class="stat">Dreams: <b id="sDreams">0</b></span>
+        <span class="stat">Cells Hit: <b id="sHits">0</b></span>
+        <span class="stat">Honey: <b id="sHoney">0</b></span>
+        <div class="topbar-spacer"></div>
+        <select class="op-select" id="opSmoke" onchange="applySmoke()">
+            <option value="director">🎬 Director</option>
+            <option value="forensic">🔬 Forensic</option>
+            <option value="beekeeper">🐝 Beekeeper</option>
+            <option value="dialectician">🎭 Dialectician</option>
+            <option value="dreamer">💭 Dreamer</option>
+        </select>
+        <button class="dream-send" style="padding:4px 10px;font-size:7px" onclick="document.getElementById('opPanel').classList.toggle('show')">⚙ API</button>
+        <button class="dream-send" style="padding:4px 10px;font-size:7px" onclick="showLatentFilm()">◉ LATENT FILM</button>
+    </div>
+    <div class="main">
+        <div class="dream-log">
+            <div class="dl-header"><span class="dl-title">Dream Programs</span></div>
+            <div class="dl-body" id="dreamLog"></div>
+        </div>
+        <div class="hive-wrap" id="hiveWrap">
+            <canvas id="hive"></canvas>
+            <div class="phero-layer" id="pheroLayer"></div>
+            <div class="scanlines"></div>
+            <div class="dream-bar">
+                <input class="dream-input" id="dreamInput" placeholder="dream a program... the swarm will search..." onkeydown="if(event.key==='Enter')launchDream()">
+                <button class="dream-send" onclick="launchDream()">▸ DREAM</button>
+            </div>
+        </div>
+        <div class="brood" id="brood">
+            <div class="brood-header"><span class="brood-title">Cell Inspector</span></div>
+            <div class="brood-body" id="broodBody">
+                <div style="padding:30px 16px;font-family:'Cormorant Garamond',serif;font-size:15px;font-style:italic;color:var(--ink3);line-height:1.8">
+                    <strong style="color:var(--dream);font-style:normal">Dream it before building.</strong><br><br>
+                    Write a prompt. It becomes a program. The program dispatches bees across 228 POML cells, searching for worlds that match your concept vector.<br><br>
+                    Each match produces honey — synthesis grounded in the cell's data.<br><br>
+                    The accumulated dreams reveal a <em>latent film</em> — the narrative no single reading could find.<br><br>
+                    <em>"You keep bees, and the bees make the film."</em>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="op-panel" id="opPanel">
+    <div class="op-row"><span class="op-lbl">Key</span><input type="password" class="op-inp" id="opKey" placeholder="sk-..." oninput="saveCfg()"></div>
+    <div class="op-row"><span class="op-lbl">Model</span><input class="op-inp" id="opModel" value="gpt-4o-mini" oninput="saveCfg()"></div>
+    <div class="op-row"><span class="op-lbl">Base</span><input class="op-inp" id="opBase" value="https://api.openai.com/v1" oninput="saveCfg()"></div>
+</div>
+
+<div class="latent-film" id="latentFilm">
+    <div class="lf-box" style="position:relative">
+        <button class="lf-close" onclick="document.getElementById('latentFilm').classList.remove('show')">✕</button>
+        <div class="lf-title">The Latent Film — Accumulated Dream Synthesis</div>
+        <div class="lf-body" id="lfBody">No dreams yet. Speak to the swarm.</div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// HIVE DREAM ENGINE
+// Prompts → Programs → Bee Swarms → Ideas
+// ═══════════════════════════════════════════
+
+let worlds=[], routes=[], worldByUid={};
+let canvas, ctx, dpr;
+let hexCells=[], beeActors=[];
+let currentCell=-1;
+const HEX_R=44, AT=15;
+
+// ── Dream State ──
+let dreams=[], dreamId=0;
+let honeyArchive=[];
+
+// ── Smoke Templates ──
+const SMOKE={
+    director:`You are a documentary filmmaker. Analyze how this POML world would appear on screen. What is the visual grammar, the emotional temperature, the cut rhythm? 2-3 sentences.`,
+    forensic:`You are a forensic analyst. Map the causal chains in this POML data. What evidence remains? What temporal anomalies exist? 2-3 sentences, clinical.`,
+    beekeeper:`You are the Beekeeper. What is structurally load-bearing here? What must NOT be taken? What is the honey worth preserving? 2-3 sentences.`,
+    dialectician:`You are a dialectician. What is this world's thesis? What is its antithesis? What synthesis emerges? 2-3 sentences.`,
+    dreamer:`You are a dreamer operating in latent concept space. Don't describe — hallucinate connections. What does this world remind you of that doesn't exist yet? 2-3 sentences, surreal.`
+};
+
+function applySmoke(){}
+
+function assemblyIndex(w){return(w.entities.length*2)+(w.relations.length*3)+(w.events.length*4)+w.states.length}
+
+// ── Concept Vector ── (bag-of-words similarity)
+function conceptVector(text){
+    const words=text.toLowerCase().split(/\W+/).filter(w=>w.length>2);
+    const vec={}; words.forEach(w=>{vec[w]=(vec[w]||0)+1;}); return vec;
+}
+
+function cosineSim(a,b){
+    const keys=new Set([...Object.keys(a),...Object.keys(b)]);
+    let dot=0,magA=0,magB=0;
+    keys.forEach(k=>{const av=a[k]||0,bv=b[k]||0; dot+=av*bv; magA+=av*av; magB+=bv*bv;});
+    return magA&&magB ? dot/Math.sqrt(magA*magB) : 0;
+}
+
+function worldVector(w){
+    const text=[w.name.replace(/([A-Z])/g,' $1'),w.genre,w.description,...w.entities.map(e=>e.name+' '+e.type),...w.events.map(e=>e.name),...w.relations.map(r=>r.from+' '+r.type+' '+r.to)].join(' ');
+    return conceptVector(text);
+}
+
+// ═══════════════════════════
+// LAYOUT & DRAW
+// ═══════════════════════════
+function layoutHex(){
+    hexCells=[];
+    const cols=Math.ceil(Math.sqrt(worlds.length*1.35));
+    worlds.forEach((w,i)=>{
+        const row=Math.floor(i/cols),col=i%cols;
+        const off=(row%2)?HEX_R*.87:0;
+        const ai=assemblyIndex(w);
+        hexCells.push({x:col*HEX_R*1.76+off+HEX_R*1.5, y:row*(HEX_R*1.52)+HEX_R*1.5, world:w, idx:i, ai, alive:ai>AT, visited:false, dreamHits:0, _sx:0,_sy:0});
+    });
+}
+
+let drawT=0;
+function drawLoop(){drawT++;drawLattice();updateBees();requestAnimationFrame(drawLoop);}
+
+function drawLattice(){
+    const W=canvas.width,H=canvas.height;
+    ctx.clearRect(0,0,W,H);
+    const totalW=hexCells.length?Math.max(...hexCells.map(c=>c.x))+HEX_R*2:W;
+    const totalH=hexCells.length?Math.max(...hexCells.map(c=>c.y))+HEX_R*2:H;
+    const scale=Math.min(W/totalW,H/totalH)*.88;
+    const offX=(W-totalW*scale)/2,offY=(H-totalH*scale)/2;
+    ctx.save();ctx.translate(offX,offY);ctx.scale(scale,scale);
+
+    hexCells.forEach((cell,i)=>{
+        const isCur=i===currentCell, r=HEX_R;
+        ctx.beginPath();
+        for(let k=0;k<6;k++){const a=Math.PI/3*k+Math.PI/6;ctx.lineTo(cell.x+r*Math.cos(a),cell.y+r*Math.sin(a));}
+        ctx.closePath();
+
+        // Fill — dream hits glow purple
+        if(isCur) ctx.fillStyle='rgba(124,58,237,.08)';
+        else if(cell.dreamHits>0) ctx.fillStyle=`rgba(124,58,237,${Math.min(.12,cell.dreamHits*.03)})`;
+        else ctx.fillStyle='transparent';
+        ctx.fill();
+
+        // Stroke
+        let sc=cell.alive?'rgba(212,168,75,.12)':'rgba(58,62,72,.1)';
+        if(isCur) sc='#7c3aed';
+        else if(cell.dreamHits>2) sc='rgba(124,58,237,.5)';
+        else if(cell.dreamHits>0) sc='rgba(124,58,237,.25)';
+        ctx.strokeStyle=sc; ctx.lineWidth=isCur?2.5:cell.dreamHits>0?1.2:.4;
+        if(isCur||cell.dreamHits>1){ctx.shadowBlur=10;ctx.shadowColor=sc;}
+        ctx.stroke();ctx.shadowBlur=0;
+
+        // Labels
+        const name=cell.world.name.replace(/([A-Z])/g,' $1').trim();
+        const short=name.length>11?name.slice(0,9)+'…':name;
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.font=isCur?'bold 7px IBM Plex Mono,monospace':'500 5px IBM Plex Mono,monospace';
+        ctx.fillStyle=isCur?'#7c3aed':cell.dreamHits>0?'rgba(124,58,237,.5)':cell.alive?'rgba(212,168,75,.3)':'rgba(58,62,72,.2)';
+        ctx.fillText(short,cell.x,cell.y-6);
+
+        // AI
+        if(cell.alive){ctx.font='bold 6px IBM Plex Mono,monospace';ctx.fillStyle='rgba(212,168,75,.2)';ctx.fillText(cell.ai,cell.x,cell.y+6);}
+
+        // Dream hit count
+        if(cell.dreamHits>0){ctx.font='bold 8px IBM Plex Mono,monospace';ctx.fillStyle='rgba(124,58,237,.6)';ctx.fillText('×'+cell.dreamHits,cell.x+r*.35,cell.y-r*.35);}
+
+        cell._sx=cell.x*scale+offX; cell._sy=cell.y*scale+offY;
+    });
+
+    // Draw bee actors
+    beeActors.forEach(b=>{
+        const cx=b.ox+(b.tx-b.ox)*b.progress, cy=b.oy+(b.ty-b.oy)*b.progress+Math.sin(Date.now()*.015+b.id)*3;
+        ctx.beginPath();ctx.ellipse(cx,cy,5,3,Math.atan2(b.ty-b.oy,b.tx-b.ox),0,Math.PI*2);
+        ctx.fillStyle='#7c3aed';ctx.shadowBlur=6;ctx.shadowColor='#7c3aed';ctx.fill();ctx.shadowBlur=0;
+        // Trail
+        ctx.beginPath();ctx.moveTo(b.ox,b.oy);ctx.lineTo(cx,cy);ctx.strokeStyle='rgba(124,58,237,.15)';ctx.lineWidth=1;ctx.stroke();
+    });
+
+    ctx.restore();
+}
+
+function updateBees(){
+    beeActors=beeActors.filter(b=>{
+        b.progress+=b.speed;
+        if(b.progress>=1){if(b.onLand) b.onLand(); return false;}
+        return true;
+    });
+}
+
+function resize(){const vp=el('hiveWrap');const w=vp.clientWidth,h=vp.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+
+// ═══════════════════════════
+// DREAM LAUNCH — prompt becomes program
+// ═══════════════════════════
+async function launchDream(){
+    const input=el('dreamInput'), text=input.value.trim();
+    if(!text) return;
+    input.value='';
+
+    const dream={id:dreamId++, prompt:text, time:Date.now(), hits:[], honey:[]};
+    const promptVec=conceptVector(text);
+
+    // Score all cells by concept similarity
+    const scored=hexCells.map((c,i)=>({idx:i, score:cosineSim(promptVec, worldVector(c.world)), cell:c}))
+        .sort((a,b)=>b.score-a.score);
+
+    // Top N matches become targets
+    const topN=scored.filter(s=>s.score>.02).slice(0,8);
+    if(!topN.length){
+        // Fallback: pick random alive cells
+        const alive=hexCells.filter(c=>c.alive);
+        for(let i=0;i<Math.min(4,alive.length);i++) topN.push({idx:alive[i].idx, score:.01, cell:alive[i]});
+    }
+
+    dream.hits=topN.map(t=>({idx:t.idx, name:t.cell.world.name.replace(/([A-Z])/g,' $1').trim(), score:t.score, ai:t.cell.ai}));
+
+    // Dispatch bees — staggered
+    const centerX=canvas.width/dpr/2, centerY=canvas.height/dpr/2;
+    topN.forEach((target,i)=>{
+        setTimeout(()=>{
+            const cell=target.cell;
+            beeActors.push({
+                id:Math.random()*1000|0, ox:centerX, oy:centerY,
+                tx:cell._sx||cell.x*.5, ty:cell._sy||cell.y*.5,
+                progress:0, speed:.012+Math.random()*.008,
+                onLand:()=>{
+                    cell.dreamHits++;
+                    emitPheromone(cell._sx||200, cell._sy||200, cell.world.name.replace(/([A-Z])/g,' $1').trim().toUpperCase().replace(/\s+/g,'_'));
+                }
+            });
+        }, i*400);
+    });
+
+    dreams.unshift(dream);
+    renderDreamLog();
+    updateStats();
+
+    // LLM synthesis for top 3 hits
+    const key=el('opKey').value.trim();
+    if(key && topN.length){
+        const smoke=SMOKE[el('opSmoke').value]||SMOKE.dreamer;
+        for(let i=0;i<Math.min(3,topN.length);i++){
+            const cell=topN[i].cell;
+            const w=cell.world;
+            const pollen=`CELL: "${w.name.replace(/([A-Z])/g,' $1').trim()}" (AI:${cell.ai}, Genre:${w.genre})\nDescription: ${w.description}\nEntities: ${w.entities.map(e=>e.name+'['+e.type+']').join(', ')}\nEvents: ${w.events.map(e=>e.name).join(', ')}\nDREAM PROMPT: "${text}"\nConcept similarity: ${topN[i].score.toFixed(3)}`;
+            try{
+                const base=el('opBase').value.trim(), model=el('opModel').value.trim();
+                const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages:[{role:'system',content:smoke},{role:'user',content:pollen}],max_tokens:150,temperature:.85})});
+                const data=await resp.json();
+                if(data.choices?.[0]){
+                    const honey=data.choices[0].message.content;
+                    if(typeof HiveLogger!=='undefined'){HiveLogger.logLLM(pollen,honey,'dream-honey',{cellName:w.name});if(HiveLogger.ttsEnabled)HiveLogger.speak(honey);}
+                    dream.honey.push({cellIdx:cell.idx, cellName:w.name.replace(/([A-Z])/g,' $1').trim(), text:honey, score:topN[i].score});
+                    honeyArchive.push({dream:dream.id, cellIdx:cell.idx, text:honey, time:Date.now()});
+                    cell.dreamHits++;
+                    renderDreamLog();
+                    updateStats();
+                }
+            }catch(e){}
+            await new Promise(r=>setTimeout(r,3000)); // ATC cooldown
+        }
+    }
+}
+
+// ═══════════════════════════
+// DREAM LOG RENDERING
+// ═══════════════════════════
+function renderDreamLog(){
+    const log=el('dreamLog');
+    log.innerHTML=dreams.map((d,i)=>`
+        <div class="dream-entry${i===0?' expanded':''}" onclick="this.classList.toggle('expanded')">
+            <div class="de-prompt">"${d.prompt}"</div>
+            <div class="de-meta">
+                <span class="hit">◆ ${d.hits.length} cells hit</span>
+                <span>🍯 ${d.honey.length} honey</span>
+                <span>${new Date(d.time).toLocaleTimeString()}</span>
+            </div>
+            ${d.honey.length?`<div class="de-honey">${d.honey.map(h=>`<div style="margin-bottom:8px"><span style="color:var(--dream);font-size:10px;font-family:IBM Plex Mono;letter-spacing:.08em">${h.cellName}</span><br>${h.text}</div>`).join('')}</div>`:''}
+        </div>
+    `).join('');
+}
+
+// ═══════════════════════════
+// CELL INSPECTOR
+// ═══════════════════════════
+function inspectCell(idx){
+    if(idx<0||idx>=hexCells.length) return;
+    currentCell=idx;
+    const cell=hexCells[idx], w=cell.world;
+    const name=w.name.replace(/([A-Z])/g,' $1').trim();
+    const cellHoney=honeyArchive.filter(h=>h.cellIdx===idx);
+
+    let html=`<div class="wc-name">${name}</div><div class="wc-uid">POML.${w.uid} // AI:${cell.ai} ${cell.alive?'◆ ALIVE':'○ ABIOTIC'}</div><div class="wc-genre">${w.genre}</div><div class="wc-desc">${w.description}</div>`;
+    if(w.entities.length) html+=`<div class="sec-hd">Entities</div>${w.entities.map(e=>`<div class="ent-row"><span>◆ ${e.name}</span> ${e.type}</div>`).join('')}`;
+    if(w.events.length) html+=`<div class="sec-hd">Events</div>${w.events.map(e=>`<div class="ent-row">⚡ ${e.name}</div>`).join('')}`;
+    if(cell.dreamHits>0) html+=`<div style="padding:8px 16px;font-size:8px;color:var(--dream)">DREAM HITS: ×${cell.dreamHits}</div>`;
+    cellHoney.forEach(h=>{html+=`<div class="dream-match"><div class="dm-hd">🍯 Dream Honey</div><div class="dm-text">${h.text}</div></div>`;});
+    el('broodBody').innerHTML=html;
+}
+
+// ═══════════════════════════
+// LATENT FILM — accumulated dream synthesis
+// ═══════════════════════════
+function showLatentFilm(){
+    if(!dreams.length){el('lfBody').textContent='No dreams yet.';el('latentFilm').classList.add('show');return;}
+    let film=`LATENT FILM — ${dreams.length} dreams, ${honeyArchive.length} honey fragments\n${'═'.repeat(50)}\n\n`;
+    dreams.forEach(d=>{
+        film+=`DREAM: "${d.prompt}"\n`;
+        film+=`  Cells: ${d.hits.map(h=>h.name).join(', ')}\n`;
+        d.honey.forEach(h=>{film+=`  [${h.cellName}] ${h.text}\n`;});
+        film+='\n';
+    });
+    // Reading genome
+    const topCells=[...hexCells].sort((a,b)=>b.dreamHits-a.dreamHits).filter(c=>c.dreamHits>0).slice(0,10);
+    film+=`${'═'.repeat(50)}\nDREAM TOPOLOGY — Most Dreamed Cells:\n`;
+    topCells.forEach(c=>{film+=`  ${c.world.name.replace(/([A-Z])/g,' $1').trim()} ×${c.dreamHits} (AI:${c.ai})\n`;});
+    el('lfBody').textContent=film;
+    el('latentFilm').classList.add('show');
+}
+
+// ═══════════════════════════
+// CANVAS CLICK
+// ═══════════════════════════
+function onCanvasClick(e){
+    const rect=canvas.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*dpr,my=(e.clientY-rect.top)*dpr;
+    let closest=-1,closestD=Infinity;
+    hexCells.forEach((c,i)=>{const d=Math.hypot(c._sx*dpr-mx,c._sy*dpr-my);if(d<HEX_R*2&&d<closestD){closest=i;closestD=d;}});
+    if(closest>=0) inspectCell(closest);
+}
+
+// ═══════════════════════════
+// PHEROMONES
+// ═══════════════════════════
+function emitPheromone(x,y,text){
+    const layer=el('pheroLayer');if(!layer)return;
+    const d=document.createElement('div');d.className='phero';d.textContent=text;
+    d.style.left=Math.max(10,Math.min(x,layer.clientWidth-120))+'px';
+    d.style.top=Math.max(10,Math.min(y,layer.clientHeight-40))+'px';
+    layer.appendChild(d);setTimeout(()=>d.remove(),6500);
+}
+
+// Ambient
+setInterval(()=>{if(Math.random()>.6||!hexCells.length)return;const hit=hexCells.filter(c=>c.dreamHits>0);if(!hit.length)return;const c=hit[Math.floor(Math.random()*hit.length)];emitPheromone(c._sx||200,c._sy||200,['LATENT_FLUX','CONCEPT_VECTOR','DREAM_RESIDUE','CAUSAL_MANIFOLD','POLLEN_TRACE'][Math.floor(Math.random()*5)]);},4000);
+
+// ═══════════════════════════
+// UTIL
+// ═══════════════════════════
+function el(id){return document.getElementById(id)}
+function updateStats(){el('sDreams').textContent=dreams.length;el('sHits').textContent=hexCells.filter(c=>c.dreamHits>0).length;el('sHoney').textContent=honeyArchive.length;}
+function saveCfg(){['opKey','opModel','opBase'].forEach(id=>localStorage.setItem('hivedream_'+id,el(id).value));}
+function loadCfg(){['opKey','opModel','opBase'].forEach(id=>{const v=localStorage.getItem('hivedream_'+id);if(v)el(id).value=v;});}
+
+// ═══════════════════════════
+// INIT
+// ═══════════════════════════
+function init(){
+    canvas=el('hive');ctx=canvas.getContext('2d');dpr=devicePixelRatio;
+    worlds=RouteEngine.parseAll(WORLDS_DATA);
+    routes=RouteEngine.computeRoutes(worlds);
+    worlds.forEach(w=>{worldByUid[w.uid]=w;});
+    layoutHex();loadCfg();
+    window.addEventListener('resize',resize);
+    canvas.addEventListener('click',onCanvasClick);
+    resize();updateStats();
+    requestAnimationFrame(drawLoop);
+}
+init();
+if(typeof HiveLogger!=='undefined')HiveLogger.init('hive-dream');
+</script>
+</body>
+</html>

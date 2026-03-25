@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>HIVE SIM — Bee Swarm Simulation</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}
+        body{font-family:'IBM Plex Mono',monospace;font-size:11px;user-select:none;background:#07090f;color:#a0c4d8}
+        :root{--bg:#07090f;--bg2:#0b0f18;--bg3:#0f1322;--ink:#a0c4d8;--ink2:#d0e4f0;--ink3:rgba(160,196,216,.35);--ink4:rgba(160,196,216,.12);--gold:#d4a84b;--gold2:rgba(212,168,75,.3);--rule:rgba(160,196,216,.1);--rule2:rgba(160,196,216,.05);--halo:rgba(212,168,75,.07);--alive:#d4a84b;--abiotic:#444a54;--bee:#e8c832;--pollen:hsl(45,85%,60%);--honey:#e8a832;--stage:hsl(210,55%,50%);--actor:hsl(15,75%,55%);--glass1:hsla(280,50%,55%,.08);--glass2:hsla(160,50%,45%,.06);--glass3:hsla(30,60%,50%,.05)}
+        #app{display:flex;flex-direction:column;height:100vh}
+        .topbar{height:40px;background:var(--bg2);border-bottom:1px solid var(--rule);display:flex;align-items:center;flex-shrink:0;z-index:50;gap:4px;padding:0 6px}
+        .logo{font-size:9px;font-weight:600;letter-spacing:.25em;color:var(--bee);text-transform:uppercase;padding:0 12px;border-right:1px solid var(--rule);white-space:nowrap}
+        .hex-stat{display:flex;flex-direction:column;align-items:center;padding:0 10px;border-right:1px solid var(--rule2)}
+        .hex-stat-lbl{font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+        .hex-stat-val{font-size:10px;font-weight:600;color:var(--ink2)}
+        .topbar-spacer{flex:1}
+        .hex-btn{display:inline-flex;align-items:center;justify-content:center;padding:5px 14px;background:var(--bg3);color:var(--ink2);font-family:inherit;font-size:9px;font-weight:600;letter-spacing:.06em;border:none;cursor:pointer;clip-path:polygon(8% 0%,92% 0%,100% 50%,92% 100%,8% 100%,0% 50%);transition:all .2s;min-width:54px}
+        .hex-btn:hover{background:var(--halo);color:var(--gold)}
+        .hex-btn.on{background:var(--gold2);color:var(--gold)}
+        .main{flex:1;display:flex;overflow:hidden;min-height:0}
+        /* ATC TERRAIN */
+        .terrain-wrap{flex:1;position:relative;overflow:hidden;min-width:0}
+        #terrain{display:block;position:absolute;inset:0}
+        .bee-status{position:absolute;bottom:10px;left:10px;right:10px;display:flex;gap:6px;z-index:20;pointer-events:none}
+        .bs-card{background:rgba(11,15,24,.88);border:1px solid var(--rule);border-radius:3px;padding:6px 10px;pointer-events:auto}
+        .bs-lbl{font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:2px}
+        .bs-val{font-size:11px;font-weight:600;color:var(--ink2)}
+        .bs-bar{height:4px;background:var(--rule2);border-radius:2px;margin-top:3px;overflow:hidden}.bs-fill{height:100%;border-radius:2px;transition:width .4s}
+        /* DIVIDER */
+        .divider{width:3px;background:var(--rule2);cursor:col-resize;flex-shrink:0}.divider:hover{background:var(--rule)}
+        /* RIGHT PANEL */
+        .panel{width:420px;min-width:260px;display:flex;flex-direction:column;background:var(--bg);border-left:1px solid var(--rule);z-index:10}
+        /* CHAT */
+        .chat-header{height:30px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 14px;background:var(--bg2);flex-shrink:0}
+        .chat-title{font-size:7px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--bee);flex:1}
+        .chat-body{flex:1;overflow-y:auto;padding:8px 0;-webkit-overflow-scrolling:touch}
+        .chat-body::-webkit-scrollbar{width:2px}.chat-body::-webkit-scrollbar-thumb{background:var(--rule)}
+        .msg{padding:6px 14px;margin:2px 0}
+        .msg.system{color:var(--ink3);font-size:9px;font-style:italic;border-left:2px solid var(--rule2);margin-left:10px}
+        .msg.narrator{color:var(--ink2);font-family:'Cormorant Garamond',serif;font-size:15px;font-style:italic;line-height:1.7;border-left:2px solid var(--gold2);margin-left:10px;padding-left:12px}
+        .msg.user-msg{color:var(--bee);font-weight:600;border-left:2px solid var(--bee);margin-left:10px;padding-left:12px;font-size:10px}
+        .msg.expert-vote{color:var(--ink3);font-size:8px;border-left:2px solid var(--glass1);margin-left:10px;padding-left:12px}
+        .msg.reflection{color:hsla(280,50%,70%,.9);font-family:'Cormorant Garamond',serif;font-size:14px;font-style:italic;line-height:1.6;border-left:2px solid hsla(280,50%,55%,.3);margin-left:10px;padding-left:12px}
+        .msg.log{color:var(--ink4);font-size:7px;margin-left:10px;font-family:'IBM Plex Mono',monospace}
+        /* MEMORY PANEL */
+        .memory-panel{position:absolute;top:0;left:0;bottom:0;width:280px;background:rgba(11,15,24,.94);border-right:1px solid var(--rule);z-index:30;display:none;overflow-y:auto;padding:12px}
+        .memory-panel.show{display:block}
+        .mem-hd{font-size:7px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:hsla(280,50%,60%,1);margin-bottom:8px}
+        .mem-entry{display:flex;align-items:baseline;gap:4px;padding:4px 0;border-bottom:1px solid var(--rule2);font-size:8px;line-height:1.4;transition:opacity .3s}
+        .mem-icon{font-size:10px;flex-shrink:0}.mem-imp{font-size:7px;color:var(--gold);font-weight:600;width:12px;flex-shrink:0;text-align:center}
+        .mem-text{flex:1;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .mem-age{font-size:6px;color:var(--ink4);flex-shrink:0}
+        /* INPUT */
+        .chat-input-wrap{border-top:1px solid var(--rule);padding:8px 12px;display:flex;gap:6px;background:var(--bg2);flex-shrink:0;align-items:center}
+        .chat-input{flex:1;background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:'Cormorant Garamond',serif;font-size:15px;font-style:italic;padding:8px 12px;border-radius:3px;outline:none}
+        .chat-input:focus{border-color:var(--gold2)}
+        .chat-input::placeholder{color:var(--ink4);font-style:italic}
+        .send-btn{background:var(--gold2);border:none;color:var(--gold);font-family:inherit;font-size:9px;font-weight:600;padding:8px 14px;cursor:pointer;border-radius:3px;clip-path:polygon(8% 0%,92% 0%,100% 50%,92% 100%,8% 100%,0% 50%);min-width:48px;transition:all .15s}
+        .send-btn:hover{background:var(--gold);color:#07090f}
+        /* GLASS MAP */
+        .glass-toggle{position:absolute;top:6px;right:6px;z-index:20}
+        .glass-panel{position:absolute;top:0;right:0;bottom:0;width:260px;background:rgba(11,15,24,.94);border-left:1px solid var(--rule);z-index:30;display:none;overflow-y:auto;padding:12px}
+        .glass-panel.show{display:block}
+        .glass-hd{font-size:7px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--stage);margin-bottom:8px}
+        .glass-entry{padding:5px 0;border-bottom:1px solid var(--rule2);font-size:8px;color:var(--ink3);line-height:1.5}
+        .glass-entry .ge-time{color:var(--ink4);font-size:6px}.glass-entry .ge-action{color:var(--ink2)}.glass-entry .ge-result{color:var(--gold);font-style:italic}
+        /* OP CONFIG */
+        .op-config{border-bottom:1px solid var(--rule);background:var(--bg2);overflow:hidden;transition:max-height .3s}
+        .op-config.collapsed{max-height:28px}.op-config.expanded{max-height:300px}
+        .op-toggle{display:flex;align-items:center;height:28px;padding:0 14px;cursor:pointer;justify-content:space-between}
+        .op-toggle-label{font-size:7px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+        .op-toggle-arrow{font-size:9px;color:var(--ink3)}
+        .op-body{padding:6px 14px 10px}
+        .op-row{display:flex;gap:6px;margin-bottom:5px;align-items:center}
+        .op-label{font-size:7px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);width:48px;flex-shrink:0}
+        .op-input{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:inherit;font-size:10px;padding:4px 8px;border-radius:2px;flex:1;outline:none}
+    </style>
+    <script src="data.js"></script>
+    <script src="route-engine.js"></script>
+    <script src="hive-logger.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="topbar">
+            <span class="logo">🐝 Hive Sim</span>
+            <div class="hex-stat"><div class="hex-stat-lbl">Cell</div><div class="hex-stat-val" id="sCell">—</div></div>
+            <div class="hex-stat"><div class="hex-stat-lbl">Pollen</div><div class="hex-stat-val" id="sPollen">0</div></div>
+            <div class="hex-stat"><div class="hex-stat-lbl">Honey</div><div class="hex-stat-val" id="sHoney">0</div></div>
+            <div class="hex-stat"><div class="hex-stat-lbl">Energy</div><div class="hex-stat-val" id="sEnergy">100</div></div>
+            <div class="hex-stat"><div class="hex-stat-lbl">Steps</div><div class="hex-stat-val" id="sSteps">0</div></div>
+            <div class="hex-stat"><div class="hex-stat-lbl">Memory</div><div class="hex-stat-val" id="sMemory">0</div></div>
+            <div class="hex-stat"><div class="hex-stat-lbl">Reflect</div><div class="hex-stat-val" id="sReflect">0</div></div>
+            <div class="topbar-spacer"></div>
+            <button class="hex-btn" onclick="toggleMemory()">🧠 Memory</button>
+            <button class="hex-btn" id="btnGlass" onclick="toggleGlass()">🔍 Glass Map</button>
+        </div>
+        <div class="main">
+            <div class="terrain-wrap" id="terrainWrap">
+                <canvas id="terrain"></canvas>
+                <div class="bee-status">
+                    <div class="bs-card"><div class="bs-lbl">Energy</div><div class="bs-bar" style="width:80px"><div class="bs-fill" id="energyFill" style="width:100%;background:var(--bee)"></div></div></div>
+                    <div class="bs-card"><div class="bs-lbl">Pollen Load</div><div class="bs-bar" style="width:60px"><div class="bs-fill" id="pollenFill" style="width:0%;background:var(--pollen)"></div></div></div>
+                    <div class="bs-card"><div class="bs-lbl">Honey Stock</div><div class="bs-bar" style="width:60px"><div class="bs-fill" id="honeyFill" style="width:0%;background:var(--honey)"></div></div></div>
+                </div>
+                <div class="glass-toggle"><button class="hex-btn" onclick="toggleGlass()">🗺</button></div>
+                <div class="glass-panel" id="glassPanel">
+                    <div class="glass-hd">🔍 Glass Map — Decision Trace</div>
+                    <div id="glassEntries"></div>
+                </div>
+                <div class="memory-panel" id="memoryPanel">
+                    <div class="mem-hd">🧠 Memory Stream — Biographic Database</div>
+                    <div id="memoryEntries"></div>
+                </div>
+            </div>
+            <div class="divider" id="divider"></div>
+            <div class="panel" id="panel">
+                <div class="op-config collapsed" id="opConfig">
+                    <div class="op-toggle" onclick="toggleOp()"><span class="op-toggle-label">⚙ API Config</span><span class="op-toggle-arrow" id="opArrow">▸</span></div>
+                    <div class="op-body">
+                        <div class="op-row"><span class="op-label">API Key</span><input type="password" class="op-input" id="opKey" placeholder="sk-..." oninput="saveCfg()"></div>
+                        <div class="op-row"><span class="op-label">Model</span><input class="op-input" id="opModel" value="gpt-4o-mini" oninput="saveCfg()"></div>
+                        <div class="op-row"><span class="op-label">Base</span><input class="op-input" id="opBase" value="https://api.openai.com/v1" oninput="saveCfg()"></div>
+                    </div>
+                </div>
+                <div class="chat-header"><span class="chat-title">🐝 Swarm Console — Language as Control Surface</span></div>
+                <div class="chat-body" id="chatBody"></div>
+                <div class="chat-input-wrap">
+                    <input class="chat-input" id="chatInput" placeholder="What do you do? (fly, forage, synthesize, look, smell...)" onkeydown="if(event.key==='Enter')sendCommand()">
+                    <button class="send-btn" onclick="sendCommand()">▸</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="sim-engine.js"></script>
+</body>
+</html>

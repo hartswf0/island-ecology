@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>WAGYO HIVE — World Assembly Engine</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}
+        body{font-family:'IBM Plex Mono',monospace;font-size:11px;user-select:none;background:#020406;color:#8ab0c4}
+        :root{--bg:#020406;--bg2:#060a12;--bg3:#0a0e18;--ink:#8ab0c4;--ink2:#c0d8e8;--ink3:rgba(140,180,210,.25);--gold:#d4a84b;--gold2:rgba(212,168,75,.25);--amber:#f59e0b;--cyan:#22d3ee;--rule:rgba(140,180,210,.06)}
+        #app{display:flex;flex-direction:column;height:100vh}
+
+        .topbar{height:36px;background:var(--bg2);border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;z-index:50}
+        .logo{font-size:9px;font-weight:600;letter-spacing:.25em;color:var(--cyan);text-transform:uppercase;text-shadow:0 0 10px rgba(34,211,238,.3)}
+        .stat{font-size:8px;color:var(--ink3)}.stat b{color:var(--ink2)}
+        .topbar-spacer{flex:1}
+        .world-nav{display:flex;gap:2px;align-items:center}
+        .nav-btn{background:none;border:1px solid var(--rule);color:var(--ink3);font-family:inherit;font-size:8px;padding:3px 8px;cursor:pointer;transition:all .15s}
+        .nav-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+        .nav-btn.active{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.06)}
+        .t-btn{background:none;border:1px solid var(--rule);color:var(--ink3);font-family:inherit;font-size:7px;padding:4px 10px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .2s}
+        .t-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+
+        .main{flex:1;display:flex;overflow:hidden;min-height:0}
+
+        /* THREE.JS VIEWPORT */
+        .viewport{flex:1;position:relative;overflow:hidden}
+        #threeCanvas{position:absolute;inset:0}
+        .vp-overlay{position:absolute;top:0;left:0;right:0;padding:10px 16px;background:linear-gradient(to bottom,rgba(2,4,6,.85),transparent);pointer-events:none;z-index:5}
+        .vp-name{font-size:16px;font-weight:600;color:var(--cyan);text-shadow:0 0 20px rgba(34,211,238,.3);letter-spacing:.08em}
+        .vp-genre{font-size:7px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink3);margin-top:2px}
+        .vp-desc{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--ink2);line-height:1.5;margin-top:6px;max-width:500px;opacity:.7}
+        .vp-ai{font-size:11px;font-weight:600;color:var(--gold);margin-top:4px}
+        .vp-narration{font-family:'Cormorant Garamond',serif;font-size:14px;font-style:italic;color:var(--gold);line-height:1.5;margin-top:8px;max-width:500px;opacity:0;transition:opacity 1s;border-left:2px solid var(--gold2);padding-left:10px}
+        .vp-narration.show{opacity:.8}
+
+        /* HONEY blocks in scene graph */
+        .sg-honey{padding:6px 10px;background:linear-gradient(180deg,rgba(212,168,75,.04),transparent);border-bottom:1px solid var(--rule)}
+        .sg-honey-hd{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+        .sg-honey-text{font-family:'Cormorant Garamond',serif;font-size:12px;font-style:italic;color:var(--ink2);line-height:1.5}
+        .sg-honey-copy{background:none;border:1px solid rgba(212,168,75,.15);color:var(--gold);font-family:inherit;font-size:6px;padding:2px 5px;cursor:pointer;opacity:.3;transition:opacity .15s}
+        .sg-honey-copy:hover{opacity:.8}
+        .sg-ent-click{cursor:pointer;transition:all .12s}
+        .sg-ent-click:hover{text-shadow:0 0 6px rgba(34,211,238,.4)}
+
+        /* SCENE GRAPH PANEL (RIGHT) */
+        .panel{width:300px;background:var(--bg2);border-left:1px solid var(--rule);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+        .p-header{height:26px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 10px;flex-shrink:0}
+        .p-title{font-size:7px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
+        .p-body{flex:1;overflow-y:auto;scrollbar-width:thin;padding:4px 0}
+        .p-body::-webkit-scrollbar{width:2px}.p-body::-webkit-scrollbar-thumb{background:var(--rule)}
+
+        .sec-hd{font-size:6px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);padding:6px 10px 2px}
+        .sg-node{padding:4px 10px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:9px;transition:background .15s;border-left:2px solid transparent}
+        .sg-node:hover{background:rgba(34,211,238,.04);border-color:var(--cyan)}
+        .sg-node.sel{background:rgba(34,211,238,.06);border-color:var(--cyan)}
+        .sg-icon{font-size:10px;flex-shrink:0;width:16px;text-align:center}
+        .sg-name{color:var(--ink2);font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .sg-type{font-size:7px;color:var(--ink3)}
+        .sg-color{width:8px;height:8px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.1)}
+
+        .rel-line{padding:3px 10px 3px 20px;font-size:8px;color:var(--ink3);border-left:1px solid rgba(34,211,238,.08)}
+        .rel-line b{color:var(--ink2);font-weight:600}
+
+        .world-list{max-height:160px;overflow-y:auto;border-top:1px solid var(--rule);scrollbar-width:thin}
+        .wl-item{padding:3px 10px;font-size:8px;color:var(--ink);cursor:pointer;display:flex;justify-content:space-between;transition:background .15s}
+        .wl-item:hover{background:rgba(34,211,238,.04)}
+        .wl-item.cur{color:var(--cyan);font-weight:600}
+        .wl-ai{color:var(--gold);font-size:7px}
+
+        /* CHAT BAR */
+        .chat-bar{height:38px;border-top:1px solid var(--rule);display:flex;background:var(--bg);flex-shrink:0}
+        .chat-input{flex:1;background:transparent;border:none;color:var(--ink2);font-family:inherit;font-size:11px;padding:0 12px;outline:none;caret-color:var(--cyan)}
+        .chat-input::placeholder{color:rgba(34,211,238,.12)}
+        .chat-send{background:rgba(34,211,238,.06);border:none;border-left:1px solid var(--rule);color:var(--cyan);font-family:inherit;font-size:7px;font-weight:600;letter-spacing:.12em;padding:0 14px;cursor:pointer;text-transform:uppercase}
+
+        /* OP */
+        .op-overlay{position:fixed;inset:0;background:rgba(2,4,6,.92);z-index:200;display:none;justify-content:center;align-items:center}
+        .op-overlay.show{display:flex}
+        .op-box{background:var(--bg2);border:1px solid var(--rule);padding:20px;width:300px}
+        .op-title{font-size:7px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--cyan);margin-bottom:10px}
+        .op-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+        .op-lbl{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);width:40px;flex-shrink:0}
+        .op-inp{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:inherit;font-size:9px;padding:4px 6px;flex:1;outline:none}
+        .op-close{background:none;border:1px solid var(--cyan);color:var(--cyan);font-family:inherit;font-size:8px;padding:4px 12px;cursor:pointer;margin-top:8px}
+    </style>
+    <script src="data.js"></script>
+    <script src="route-engine.js"></script>
+    <script src="hive-logger.js"></script>
+</head>
+<body>
+<div id="app">
+    <div class="topbar">
+        <span class="logo">WAGYO_HIVE</span>
+        <span class="stat">World: <b id="sWorld">—</b></span>
+        <span class="stat">Objects: <b id="sObj">0</b></span>
+        <span class="stat">AI: <b id="sAI">0</b></span>
+        <span class="stat">🍯 <b id="sHoney" style="color:var(--gold)">0</b></span>
+        <span class="stat">💬 <b id="sChats">0</b></span>
+        <div class="topbar-spacer"></div>
+        <div class="world-nav">
+            <button class="nav-btn" onclick="prevWorld()">◂</button>
+            <span class="stat" style="padding:0 4px"><b id="sIdx">0</b>/<b id="sTotal">0</b></span>
+            <button class="nav-btn" onclick="nextWorld()">▸</button>
+            <button class="nav-btn" onclick="randomWorld()">⟳</button>
+        </div>
+        <button class="t-btn" onclick="el('opOverlay').classList.toggle('show')">⚙ API</button>
+    </div>
+    <div class="main">
+        <div class="viewport" id="viewport">
+            <canvas id="threeCanvas"></canvas>
+            <div class="vp-overlay">
+                <div class="vp-name" id="vpName">—</div>
+                <div class="vp-genre" id="vpGenre">—</div>
+                <div class="vp-desc" id="vpDesc"></div>
+                <div class="vp-ai" id="vpAI"></div>
+                <div class="vp-narration" id="vpNarr"></div>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="p-header"><span class="p-title">Scene Graph</span></div>
+            <div class="p-body" id="pBody"></div>
+            <div class="sec-hd" style="border-top:1px solid var(--rule)">World Navigator</div>
+            <div class="world-list" id="worldList"></div>
+            <div class="chat-bar">
+                <input class="chat-input" id="chatInput" placeholder="modify the scene..." onkeydown="if(event.key==='Enter')sceneChat()">
+                <button class="chat-send" onclick="sceneChat()">▸ BUILD</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="op-overlay" id="opOverlay">
+    <div class="op-box">
+        <div class="op-title">API Configuration</div>
+        <div class="op-row"><span class="op-lbl">Key</span><input type="password" class="op-inp" id="opKey" placeholder="sk-..." oninput="saveCfg()"></div>
+        <div class="op-row"><span class="op-lbl">Model</span><input class="op-inp" id="opModel" value="gpt-4o-mini" oninput="saveCfg()"></div>
+        <div class="op-row"><span class="op-lbl">Base</span><input class="op-inp" id="opBase" value="https://api.openai.com/v1" oninput="saveCfg()"></div>
+        <button class="op-close" onclick="el('opOverlay').classList.remove('show')">Close</button>
+    </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+// WAGYO HIVE — World Assembly Engine
+//
+// Translates POML worlds into 3D scene graphs:
+//   Entity → Primitive geometry (cylinder, box, sphere, cone)
+//   Relation → Glowing connection line
+//   Event → Particle burst
+//   State → Material property (color, emissive, opacity)
+//   Assembly Index → Scene complexity / scale
+//
+// Chat bar lets you modify the scene via natural language.
+// Navigate between 228 world-scenes.
+// ════════════════════════════════════════════════
+
+let worlds=[],routes=[];
+let currentIdx=0;
+let scene,camera,renderer,ambientLight,pointLight;
+let sceneObjects=[]; // tracking scene graph nodes
+let orbitAngle=0;
+let particles=[];
+let honeyCount=0, chatCount=0;
+let worldHoney={}; // per-world honey cache
+const AT=15;
+
+// ── Type → Geometry mapping ──
+const TYPE_GEO = {
+    'character':    'cylinder',
+    'person':       'cylinder',
+    'creature':     'cylinder',
+    'animal':       'sphere',
+    'plant':        'cone',
+    'location':     'box',
+    'place':        'box',
+    'room':         'box',
+    'building':     'box',
+    'object':       'sphere',
+    'item':         'sphere',
+    'artifact':     'dodecahedron',
+    'vehicle':      'box',
+    'concept':      'tetrahedron',
+    'idea':         'tetrahedron',
+    'emotion':      'icosahedron',
+    'force':        'octahedron',
+    'event':        'torus',
+    'state':        'torusknot',
+    'default':      'sphere'
+};
+
+// ── Type → Color palette ──
+const TYPE_COLOR = {
+    'character':    0x22d3ee,
+    'person':       0x22d3ee,
+    'creature':     0x4af626,
+    'animal':       0x4af626,
+    'plant':        0x34d399,
+    'location':     0xd4a84b,
+    'place':        0xd4a84b,
+    'room':         0xd4a84b,
+    'building':     0xf59e0b,
+    'object':       0x8b5cf6,
+    'item':         0x8b5cf6,
+    'artifact':     0xec4899,
+    'vehicle':      0xf59e0b,
+    'concept':      0xa855f7,
+    'idea':         0xa855f7,
+    'emotion':      0xf43f5e,
+    'force':        0xef4444,
+    'event':        0xfbbf24,
+    'state':        0x06b6d4,
+    'default':      0x8ab0c4
+};
+
+function assemblyIndex(w){return(w.entities.length*2)+(w.relations.length*3)+(w.events.length*4)+w.states.length}
+
+// ═══════════════════
+// THREE.JS SETUP
+// ═══════════════════
+function initThree(){
+    const vp=el('viewport');
+    scene=new THREE.Scene();
+    scene.background=new THREE.Color(0x020406);
+    scene.fog=new THREE.FogExp2(0x020406,.012);
+
+    camera=new THREE.OrthographicCamera(-20,20,12,-12,.1,500);
+    // Isometric angle: 35.264° elevation, 45° azimuth
+    camera.position.set(15,18,15);
+    camera.lookAt(0,0,0);
+    camera.zoom=1.2;
+    camera.updateProjectionMatrix();
+
+    renderer=new THREE.WebGLRenderer({canvas:el('threeCanvas'),antialias:true,alpha:false});
+    renderer.setSize(vp.clientWidth,vp.clientHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.shadowMap.enabled=true;
+    renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure=1.2;
+
+    // Lights
+    ambientLight=new THREE.AmbientLight(0x1a2040,.4);
+    scene.add(ambientLight);
+    pointLight=new THREE.PointLight(0x22d3ee,1.2,60);
+    pointLight.position.set(0,12,0);
+    pointLight.castShadow=true;
+    scene.add(pointLight);
+
+    const rimLight=new THREE.DirectionalLight(0xd4a84b,.3);
+    rimLight.position.set(-10,8,-5);
+    scene.add(rimLight);
+
+    // Ground plane
+    const groundGeo=new THREE.PlaneGeometry(80,80);
+    const groundMat=new THREE.MeshStandardMaterial({color:0x060a14,roughness:.95,metalness:.1});
+    const ground=new THREE.Mesh(groundGeo,groundMat);
+    ground.rotation.x=-Math.PI/2;ground.position.y=-.5;
+    ground.receiveShadow=true;
+    scene.add(ground);
+
+    // Grid
+    const grid=new THREE.GridHelper(40,40,0x0d1a2a,0x0a1020);
+    grid.position.y=-.49;
+    scene.add(grid);
+
+    window.addEventListener('resize',()=>{
+        const aspect=vp.clientWidth/vp.clientHeight;
+        camera.left=-20*aspect;camera.right=20*aspect;camera.top=12;camera.bottom=-12;
+        camera.updateProjectionMatrix();
+        renderer.setSize(vp.clientWidth,vp.clientHeight);
+    });
+}
+
+// ═══════════════════
+// GEOMETRY FACTORY
+// ═══════════════════
+function createGeometry(type, scale){
+    const s=scale||1;
+    switch(type){
+        case 'cylinder': return new THREE.CylinderGeometry(s*.4,s*.5,s*1.6,8);
+        case 'box': return new THREE.BoxGeometry(s*1.2,s*1,s*1.2);
+        case 'sphere': return new THREE.SphereGeometry(s*.5,12,12);
+        case 'cone': return new THREE.ConeGeometry(s*.5,s*1.4,6);
+        case 'tetrahedron': return new THREE.TetrahedronGeometry(s*.6);
+        case 'octahedron': return new THREE.OctahedronGeometry(s*.5);
+        case 'icosahedron': return new THREE.IcosahedronGeometry(s*.5);
+        case 'dodecahedron': return new THREE.DodecahedronGeometry(s*.5);
+        case 'torus': return new THREE.TorusGeometry(s*.4,s*.15,8,16);
+        case 'torusknot': return new THREE.TorusKnotGeometry(s*.3,s*.1,32,8);
+        default: return new THREE.SphereGeometry(s*.5,12,12);
+    }
+}
+
+// ═══════════════════
+// ASSEMBLE WORLD → 3D SCENE
+// ═══════════════════
+function assembleWorld(w){
+    // Clear previous
+    sceneObjects.forEach(obj=>{scene.remove(obj.mesh);if(obj.line)scene.remove(obj.line);if(obj.base)scene.remove(obj.base);});
+    sceneObjects=[];
+    particles.forEach(p=>scene.remove(p));particles=[];
+
+    const ai=assemblyIndex(w);
+    const name=w.name.replace(/([A-Z])/g,' $1').trim();
+    const count=w.entities.length;
+    const radius=Math.max(3,count*.8);
+
+    // Place entities on a hex grid layout (isometric-locked)
+    const entityMeshMap={};
+    const hexR=2.2; // spacing between hex cells
+    const cols=Math.ceil(Math.sqrt(count*1.5));
+    w.entities.forEach((ent,i)=>{
+        const row=Math.floor(i/cols),col=i%cols;
+        const off=(row%2)?hexR*.87:0;
+        const x=col*hexR*1.73+off-cols*hexR*.86;
+        const z=row*hexR*1.5-Math.floor(count/cols)*hexR*.75;
+        const typeLower=(ent.type||'default').toLowerCase();
+        const geoType=TYPE_GEO[typeLower]||TYPE_GEO.default;
+        const color=TYPE_COLOR[typeLower]||TYPE_COLOR.default;
+        const scale=.6+Math.random()*.4;
+
+        const geo=createGeometry(geoType,scale);
+        const mat=new THREE.MeshStandardMaterial({
+            color,
+            roughness:.3,
+            metalness:.6,
+            emissive:color,
+            emissiveIntensity:.15
+        });
+        const mesh=new THREE.Mesh(geo,mat);
+        mesh.position.set(x, scale*.5, z);
+        mesh.castShadow=true;
+        mesh.receiveShadow=true;
+        scene.add(mesh);
+
+        // Hex base platform
+        const baseGeo=new THREE.CylinderGeometry(hexR*.42,hexR*.42,.06,6);
+        const baseMat=new THREE.MeshStandardMaterial({color:0x0d1a2a,roughness:.8,metalness:.3,emissive:color,emissiveIntensity:.03});
+        const baseMesh=new THREE.Mesh(baseGeo,baseMat);
+        baseMesh.position.set(x,-.47,z);
+        baseMesh.receiveShadow=true;
+        scene.add(baseMesh);
+
+        const obj={mesh,entity:ent,geoType,color,scale,origY:scale*.5,base:baseMesh};
+        sceneObjects.push(obj);
+        entityMeshMap[ent.name.toLowerCase()]=obj;
+    });
+
+    // Relations → glowing lines
+    w.relations.forEach(rel=>{
+        const fromObj=entityMeshMap[rel.from.toLowerCase()];
+        const toObj=entityMeshMap[rel.to.toLowerCase()];
+        if(!fromObj||!toObj)return;
+        const pts=[fromObj.mesh.position.clone(),toObj.mesh.position.clone()];
+        pts[0].y+=.3;pts[1].y+=.3;
+        const geo=new THREE.BufferGeometry().setFromPoints(pts);
+        const mat=new THREE.LineBasicMaterial({color:0x22d3ee,transparent:true,opacity:.3});
+        const line=new THREE.Line(geo,mat);
+        scene.add(line);
+        fromObj.line=line;
+    });
+
+    // Events → particle clouds
+    w.events.forEach((evt,i)=>{
+        const angle=(i/Math.max(1,w.events.length))*Math.PI*2+.5;
+        const x=Math.cos(angle)*radius*.5;
+        const z=Math.sin(angle)*radius*.5;
+        for(let p=0;p<8;p++){
+            const pGeo=new THREE.SphereGeometry(.06,4,4);
+            const pMat=new THREE.MeshBasicMaterial({color:0xfbbf24,transparent:true,opacity:.5});
+            const pMesh=new THREE.Mesh(pGeo,pMat);
+            pMesh.position.set(x+Math.random()*2-1,Math.random()*3+.5,z+Math.random()*2-1);
+            pMesh.userData={vx:(Math.random()-.5)*.01,vy:Math.random()*.005+.002,vz:(Math.random()-.5)*.01,life:0};
+            scene.add(pMesh);
+            particles.push(pMesh);
+        }
+    });
+
+    // States → ambient light color shift
+    if(w.states.length){
+        const stateText=w.states.map(s=>(s.value||s.state||'')).join(' ').toLowerCase();
+        if(stateText.includes('dark')||stateText.includes('night')) ambientLight.intensity=.2;
+        else if(stateText.includes('bright')||stateText.includes('day')) ambientLight.intensity=.6;
+        else ambientLight.intensity=.4;
+    }
+
+    // Point light color based on genre
+    const genreColors={noir:0x6366f1,western:0xf59e0b,scifi:0x22d3ee,horror:0xef4444,romance:0xec4899,comedy:0x4af626,drama:0xd4a84b,fantasy:0xa855f7,thriller:0x14b8a6,mystery:0x8b5cf6,adventure:0xf59e0b};
+    const gc=Object.keys(genreColors).find(g=>w.genre.toLowerCase().includes(g));
+    pointLight.color.set(gc?genreColors[gc]:0x22d3ee);
+
+    // Update overlay
+    el('vpName').textContent=name;
+    el('vpGenre').textContent=w.genre;
+    el('vpDesc').textContent=w.description.slice(0,180);
+    el('vpAI').textContent=`Assembly Index: ${ai} ${ai>AT?'◆ ALIVE':'○ ABIOTIC'}`;
+    el('sWorld').textContent=name.slice(0,20);
+    el('sObj').textContent=sceneObjects.length;
+    el('sAI').textContent=ai;
+    el('sIdx').textContent=currentIdx+1;
+
+    renderSceneGraph(w);
+    // Isometric zoom based on entity count
+    const spread=Math.max(3,count*1.2);
+    camera.zoom=Math.min(2,18/spread);
+    camera.position.set(spread*.8,spread*1.1,spread*.8);
+    camera.lookAt(0,0,0);
+    camera.updateProjectionMatrix();
+
+    // Show cached narration or auto-narrate
+    const narrEl=el('vpNarr');
+    narrEl.classList.remove('show');
+    if(worldHoney[idx]){
+        narrEl.textContent=worldHoney[idx];
+        setTimeout(()=>narrEl.classList.add('show'),100);
+    }
+}
+
+// ═══════════════════
+// SCENE GRAPH PANEL
+// ═══════════════════
+function renderSceneGraph(w){
+    let html=`<div class="sec-hd">Entities → Primitives (${w.entities.length})</div>`;
+    w.entities.forEach((e,i)=>{
+        const typeLower=(e.type||'default').toLowerCase();
+        const geoType=TYPE_GEO[typeLower]||TYPE_GEO.default;
+        const color=TYPE_COLOR[typeLower]||TYPE_COLOR.default;
+        const icons={cylinder:'⬡',box:'◼',sphere:'●',cone:'▲',tetrahedron:'△',octahedron:'◆',icosahedron:'◇',dodecahedron:'⬟',torus:'◎',torusknot:'∞'};
+        html+=`<div class="sg-node" onclick="selectObject(${i})" id="sg${i}"><span class="sg-icon">${icons[geoType]||'●'}</span><span class="sg-name sg-ent-click">${esc(e.name)}</span><span class="sg-type">${geoType}</span><span class="sg-color" style="background:#${color.toString(16).padStart(6,'0')}"></span></div>`;
+    });
+
+    if(w.relations.length){
+        html+=`<div class="sec-hd">Relations → Connections (${w.relations.length})</div>`;
+        w.relations.forEach(r=>{html+=`<div class="rel-line"><b>${esc(r.from)}</b> →${r.type}→ <b>${esc(r.to)}</b></div>`;});
+    }
+
+    if(w.events.length){
+        html+=`<div class="sec-hd">Events → Particles (${w.events.length})</div>`;
+        w.events.forEach(e=>{html+=`<div class="rel-line">⚡ ${esc(e.name)}</div>`;});
+    }
+
+    // Show honey if available
+    if(worldHoney[currentIdx]){
+        html+=`<div class="sg-honey"><div class="sg-honey-hd"><span>🍯 Scene Narration</span><button class="sg-honey-copy" onclick="navigator.clipboard.writeText(worldHoney[${currentIdx}]);this.textContent='✓';setTimeout(()=>this.textContent='COPY',1200)">COPY</button></div><div class="sg-honey-text">${esc(worldHoney[currentIdx])}</div></div>`;
+    }
+
+    el('pBody').innerHTML=html;
+}
+
+function selectObject(idx){
+    document.querySelectorAll('.sg-node').forEach(n=>n.classList.remove('sel'));
+    const el2=document.getElementById(`sg${idx}`);if(el2)el2.classList.add('sel');
+    if(sceneObjects[idx]){
+        const obj=sceneObjects[idx];
+        // Highlight
+        sceneObjects.forEach(o=>{o.mesh.material.emissiveIntensity=.15;});
+        obj.mesh.material.emissiveIntensity=.6;
+        // Focus camera
+        const p=obj.mesh.position;
+        camera.lookAt(p);
+    }
+}
+
+// ═══════════════════
+// WORLD NAVIGATION
+// ═══════════════════
+function loadWorld(idx){
+    if(idx<0||idx>=worlds.length)return;
+    const prevIdx=currentIdx;
+    currentIdx=idx;
+    assembleWorld(worlds[idx]);
+    if(typeof HiveLogger!=='undefined')HiveLogger.logNav(prevIdx,idx,'world-switch',{worldName:worlds[idx].name});
+    document.querySelectorAll('.wl-item').forEach((w,i)=>{w.classList.toggle('cur',i===idx);});
+    // Auto-narrate for alive worlds if API configured
+    const key=el('opKey').value.trim();
+    if(key && assemblyIndex(worlds[idx])>AT && !worldHoney[idx]){
+        autoNarrate(idx);
+    }
+}
+
+function nextWorld(){loadWorld((currentIdx+1)%worlds.length);}
+function prevWorld(){loadWorld((currentIdx-1+worlds.length)%worlds.length);}
+function randomWorld(){loadWorld(Math.floor(Math.random()*worlds.length));}
+
+function buildWorldList(){
+    const list=el('worldList');
+    list.innerHTML=worlds.map((w,i)=>{
+        const name=w.name.replace(/([A-Z])/g,' $1').trim();
+        const ai=assemblyIndex(w);
+        return `<div class="wl-item${i===currentIdx?' cur':''}" onclick="loadWorld(${i})"><span>${esc(name.slice(0,22))}</span><span class="wl-ai">${ai}</span></div>`;
+    }).join('');
+}
+
+// ═══════════════════
+// CHAT — scene modification
+// ═══════════════════
+async function sceneChat(){
+    const input=el('chatInput'),text=input.value.trim();
+    if(!text)return;
+    input.value='';
+
+    // Local commands
+    const t=text.toLowerCase();
+    if(t.includes('bigger')||t.includes('scale up')){sceneObjects.forEach(o=>{o.mesh.scale.multiplyScalar(1.3);});return;}
+    if(t.includes('smaller')||t.includes('scale down')){sceneObjects.forEach(o=>{o.mesh.scale.multiplyScalar(.7);});return;}
+    if(t.includes('spin')||t.includes('rotate')){sceneObjects.forEach(o=>{o.mesh.userData.spin=true;});return;}
+    if(t.includes('red')){sceneObjects.forEach(o=>{o.mesh.material.color.set(0xff3333);o.mesh.material.emissive.set(0xff3333);});return;}
+    if(t.includes('blue')){sceneObjects.forEach(o=>{o.mesh.material.color.set(0x3333ff);o.mesh.material.emissive.set(0x3333ff);});return;}
+    if(t.includes('gold')){sceneObjects.forEach(o=>{o.mesh.material.color.set(0xd4a84b);o.mesh.material.emissive.set(0xd4a84b);});return;}
+    if(t.includes('explode')||t.includes('scatter')){sceneObjects.forEach(o=>{o.mesh.userData.scatter=true;});return;}
+    if(t.includes('reset')){loadWorld(currentIdx);return;}
+    if(t.match(/next|forward/)){nextWorld();return;}
+    if(t.match(/prev|back/)){prevWorld();return;}
+    if(t.match(/random|shuffle/)){randomWorld();return;}
+
+    // Narrate/describe mode — diegetic scene description
+    if(t.match(/describe|narrate|tell|story|what.*see|look/)){
+        autoNarrate(currentIdx, text);
+        return;
+    }
+
+    // LLM scene modification
+    const key=el('opKey').value.trim();
+    if(!key){input.placeholder='No API key — set in ⚙ API';setTimeout(()=>input.placeholder='modify the scene...',3000);return;}
+    const base=el('opBase').value.trim(),model=el('opModel').value.trim();
+    const w=worlds[currentIdx];
+    const sgDesc=sceneObjects.map(o=>`${o.entity.name}(${o.geoType},x:${o.mesh.position.x.toFixed(1)},y:${o.mesh.position.y.toFixed(1)},z:${o.mesh.position.z.toFixed(1)})`).join(', ');
+
+    chatCount++; el('sChats').textContent=chatCount;
+    try{
+        const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages:[
+            {role:'system',content:`You modify a 3D scene graph. Current objects: ${sgDesc}. The user wants to change something. Output ONLY a JSON array of commands like: [{"action":"move","target":"entityName","x":1,"y":2,"z":3}] or [{"action":"scale","target":"entityName","factor":1.5}] or [{"action":"color","target":"entityName","hex":"#ff0000"}] or [{"action":"add","type":"sphere","x":0,"y":1,"z":0,"color":"#00ff00","name":"New Thing"}]. ONLY output valid JSON.`},
+            {role:'user',content:text}
+        ],max_tokens:200,temperature:.3})});
+        const data=await resp.json();
+        if(data.choices?.[0]){
+            if(typeof HiveLogger!=='undefined')HiveLogger.logLLM(text,data.choices[0].message.content,model,{action:'scene_modify'});
+            try{
+                const cmds=JSON.parse(data.choices[0].message.content);
+                cmds.forEach(cmd=>{
+                    if(cmd.action==='move'){
+                        const obj=sceneObjects.find(o=>o.entity.name.toLowerCase().includes((cmd.target||'').toLowerCase()));
+                        if(obj){obj.mesh.position.set(cmd.x||0,cmd.y||0,cmd.z||0);}
+                    } else if(cmd.action==='scale'){
+                        const obj=sceneObjects.find(o=>o.entity.name.toLowerCase().includes((cmd.target||'').toLowerCase()));
+                        if(obj){obj.mesh.scale.multiplyScalar(cmd.factor||1);}
+                    } else if(cmd.action==='color'){
+                        const obj=sceneObjects.find(o=>o.entity.name.toLowerCase().includes((cmd.target||'').toLowerCase()));
+                        if(obj&&cmd.hex){obj.mesh.material.color.set(cmd.hex);obj.mesh.material.emissive.set(cmd.hex);}
+                    } else if(cmd.action==='add'&&cmd.type){
+                        const geo=createGeometry(cmd.type,.8);
+                        const col=cmd.color?new THREE.Color(cmd.color):new THREE.Color(0x8ab0c4);
+                        const mat=new THREE.MeshStandardMaterial({color:col,roughness:.3,metalness:.6,emissive:col,emissiveIntensity:.15});
+                        const mesh=new THREE.Mesh(geo,mat);
+                        mesh.position.set(cmd.x||0,cmd.y||.5,cmd.z||0);
+                        mesh.castShadow=true;
+                        scene.add(mesh);
+                        sceneObjects.push({mesh,entity:{name:cmd.name||'added',type:cmd.type},geoType:cmd.type,color:col,scale:.8,origY:.5});
+                        renderSceneGraph(worlds[currentIdx]);
+                    }
+                });
+            }catch(e){input.placeholder='LLM returned invalid JSON';setTimeout(()=>input.placeholder='modify the scene...',3000);}
+        }
+    }catch(e){input.placeholder='❌ API error';setTimeout(()=>input.placeholder='modify the scene...',3000);}
+}
+
+// Auto-narrate: diegetic first-person description of the world scene
+async function autoNarrate(idx, userPrompt){
+    const key=el('opKey').value.trim();if(!key)return;
+    const base=el('opBase').value.trim(),model=el('opModel').value.trim();
+    const w=worlds[idx];
+    const name=w.name.replace(/([A-Z])/g,' $1').trim();
+    const ai=assemblyIndex(w);
+
+    const sysPrompt=`You are this place — a sentient 3D world assembled from ${w.entities.length} entities. Speak as the place itself. Describe what you contain, what your entities do, how your events unfold. Sensory, phenomenological, grounded. 2-3 sentences. First person. No meta-commentary.`;
+    const userMsg=userPrompt || `You are "${name}" (${w.genre}, AI:${ai}).
+${w.description.slice(0,150)}
+Entities: ${w.entities.map(e=>`${e.name}[${e.type}]`).join(', ')}
+Events: ${w.events.map(e=>e.name).join(', ')}
+Relations: ${w.relations.slice(0,3).map(r=>`${r.from}→${r.to}`).join(', ')}
+Speak as this place.`;
+
+    chatCount++; el('sChats').textContent=chatCount;
+    try{
+        const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages:[{role:'system',content:sysPrompt},{role:'user',content:userMsg}],max_tokens:150,temperature:.85})});
+        const data=await resp.json();
+        if(data.choices?.[0]){
+            const honey=data.choices[0].message.content;
+            worldHoney[idx]=honey;
+            honeyCount++; el('sHoney').textContent=honeyCount;
+            if(typeof HiveLogger!=='undefined') HiveLogger.logLLM(userMsg,honey,model,{worldIdx:idx,type:'auto_narrate'});
+            // Show in viewport overlay
+            const narrEl=el('vpNarr');
+            narrEl.textContent=honey;
+            narrEl.classList.remove('show');
+            setTimeout(()=>narrEl.classList.add('show'),50);
+            // Update scene graph panel
+            if(idx===currentIdx) renderSceneGraph(w);
+        }
+    }catch(e){}
+}
+
+// ═══════════════════
+// ANIMATION LOOP
+// ═══════════════════
+function animate(){
+    requestAnimationFrame(animate);
+
+    // Subtle drift (no orbit, isometric locked)
+    const t=Date.now()*.0001;
+    camera.position.x+=Math.sin(t)*.003;
+    camera.position.z+=Math.cos(t*.7)*.003;
+    camera.lookAt(0,0,0);
+
+    // Object wobble
+    sceneObjects.forEach((o,i)=>{
+        o.mesh.position.y=o.origY+Math.sin(Date.now()*.001+i)*0.04;
+        o.mesh.rotation.y+=.002;
+        if(o.mesh.userData.spin) o.mesh.rotation.y+=.02;
+        if(o.mesh.userData.scatter){
+            o.mesh.position.x+=(Math.random()-.5)*.15;
+            o.mesh.position.z+=(Math.random()-.5)*.15;
+            o.mesh.position.y+=.02;
+        }
+    });
+
+    // Particles
+    particles.forEach(p=>{
+        const d=p.userData;
+        p.position.y+=d.vy;
+        p.position.x+=d.vx+Math.sin(Date.now()*.002+d.life)*.003;
+        p.position.z+=d.vz;
+        d.life+=.01;
+        if(p.position.y>4){p.position.y=.5;d.life=0;}
+        p.material.opacity=.5-d.life*.1;
+    });
+
+    renderer.render(scene,camera);
+}
+
+
+
+// ═══════════════════
+// UTIL
+// ═══════════════════
+function el(id){return document.getElementById(id)}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+function saveCfg(){['opKey','opModel','opBase'].forEach(id=>localStorage.setItem('wagyohive_'+id,el(id).value));}
+function loadCfg(){['opKey','opModel','opBase'].forEach(id=>{const v=localStorage.getItem('wagyohive_'+id);if(v)el(id).value=v;});}
+
+// ═══════════════════
+// INIT
+// ═══════════════════
+function init(){
+    worlds=RouteEngine.parseAll(WORLDS_DATA);
+    routes=RouteEngine.computeRoutes(worlds);
+    initThree();
+    loadCfg();
+    el('sTotal').textContent=worlds.length;
+    buildWorldList();
+    loadWorld(0);
+    animate();
+}
+init();
+if(typeof HiveLogger!=='undefined')HiveLogger.init('wagyo-hive');
+</script>
+</body>
+</html>

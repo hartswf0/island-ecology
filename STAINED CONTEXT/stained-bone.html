@@ -1,0 +1,1917 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+    <title>Design Fiction — Context Field</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@400;500;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden
+        }
+
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            user-select: none;
+            touch-action: none
+        }
+
+        /* ── DESIGN TOKENS ── */
+        .dark {
+            --bg: #07090f;
+            --bg2: #0a0d16;
+            --bg3: #0d1020;
+            --ink: #8ab0c4;
+            --ink2: #c0d8e8;
+            --ink3: rgba(140, 180, 210, .32);
+            --ink4: rgba(140, 180, 210, .1);
+            --gold: #d4a84b;
+            --gold2: rgba(212, 168, 75, .35);
+            --rule: rgba(140, 180, 210, .09);
+            --rule2: rgba(140, 180, 210, .05);
+            --cell: 35;
+            --bord: 62;
+        }
+
+        .light {
+            --bg: #f7f3ec;
+            --bg2: #ede8de;
+            --bg3: #e5dfd4;
+            --ink: #2a2018;
+            --ink2: #120c04;
+            --ink3: rgba(50, 35, 15, .45);
+            --ink4: rgba(50, 35, 15, .08);
+            --gold: #7a4e0e;
+            --gold2: rgba(122, 78, 14, .3);
+            --rule: rgba(50, 35, 15, .12);
+            --rule2: rgba(50, 35, 15, .06);
+            --cell: 72;
+            --bord: 35;
+        }
+
+        html,
+        body,
+        #app {
+            background: var(--bg);
+            color: var(--ink)
+        }
+
+        ::selection {
+            background: var(--gold2);
+            color: var(--ink2)
+        }
+
+        /* ── LAYOUT ── */
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh
+        }
+
+        .top {
+            height: 32px;
+            background: var(--bg2);
+            border-bottom: 1px solid var(--rule);
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            z-index: 50
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            min-height: 0
+        }
+
+        .bot {
+            height: 38px;
+            background: var(--bg2);
+            border-top: 1px solid var(--rule);
+            display: flex;
+            align-items: stretch;
+            flex-shrink: 0
+        }
+
+        /* TOP */
+        .tlogo {
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .2em;
+            color: var(--gold);
+            text-transform: uppercase;
+            padding: 0 12px;
+            border-right: 1px solid var(--rule);
+            white-space: nowrap
+        }
+
+        .tstat {
+            padding: 0 9px;
+            border-right: 1px solid var(--rule2)
+        }
+
+        .tlbl {
+            font-size: 5px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--ink3);
+            margin-bottom: 1px
+        }
+
+        .tval {
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--ink2);
+            white-space: nowrap
+        }
+
+        .tmsg {
+            flex: 1;
+            padding: 0 10px;
+            font-size: 8px;
+            color: var(--ink3);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 5px
+        }
+
+        .tmsg strong {
+            color: var(--ink2);
+            font-weight: 600
+        }
+
+        .tmsg em {
+            color: var(--gold);
+            font-style: normal
+        }
+
+        .tdot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--ink4);
+            flex-shrink: 0;
+            transition: all .3s
+        }
+
+        .tdot.run {
+            background: #5dba8e;
+            animation: dp .8s ease infinite alternate
+        }
+
+        .tdot.aim {
+            background: var(--gold)
+        }
+
+        @keyframes dp {
+            from {
+                opacity: .4
+            }
+
+            to {
+                opacity: 1
+            }
+        }
+
+        .tr {
+            margin-left: auto;
+            display: flex
+        }
+
+        .tb {
+            background: none;
+            border: none;
+            border-left: 1px solid var(--rule2);
+            color: var(--ink3);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 7px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            padding: 0 10px;
+            height: 32px;
+            cursor: pointer;
+            transition: color .12s;
+            white-space: nowrap;
+            touch-action: manipulation
+        }
+
+        .tb:hover,
+        .tb.on {
+            color: var(--gold)
+        }
+
+        /* VORONOI */
+        .vp {
+            position: relative;
+            flex: 1;
+            overflow: hidden;
+            min-width: 0
+        }
+
+        #vc {
+            display: block;
+            position: absolute;
+            inset: 0
+        }
+
+        /* DIVIDER */
+        .div {
+            width: 3px;
+            background: var(--rule2);
+            cursor: col-resize;
+            flex-shrink: 0;
+            transition: background .15s
+        }
+
+        .div:hover {
+            background: var(--rule)
+        }
+
+        @media(max-width:600px) {
+            .div {
+                display: none
+            }
+
+            .wtp {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 44vh;
+                z-index: 40;
+                border-left: none;
+                border-top: 1px solid var(--rule)
+            }
+        }
+
+        /* WORLD TEXT */
+        .wtp {
+            width: 340px;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            border-left: 1px solid var(--rule)
+        }
+
+        .wthd {
+            height: 30px;
+            border-bottom: 1px solid var(--rule);
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 4px;
+            flex-shrink: 0;
+            background: var(--bg2)
+        }
+
+        .wtttl {
+            font-size: 7px;
+            font-weight: 600;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--ink3);
+            flex: 1
+        }
+
+        .wz {
+            background: none;
+            border: 1px solid var(--rule);
+            color: var(--ink3);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 9px;
+            padding: 1px 5px;
+            cursor: pointer;
+            transition: color .1s;
+            touch-action: manipulation
+        }
+
+        .wz:hover {
+            color: var(--gold)
+        }
+
+        .wtbd {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            position: relative
+        }
+
+        .wtbd::-webkit-scrollbar {
+            width: 2px
+        }
+
+        .wtbd::-webkit-scrollbar-thumb {
+            background: var(--rule)
+        }
+
+        .wtinner {
+            position: relative;
+            min-height: 100%
+        }
+
+        #lkc {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            pointer-events: none;
+            z-index: 0
+        }
+
+        .wtlist {
+            position: relative;
+            z-index: 1;
+            padding: 0 0 60px
+        }
+
+        /* ── OP CARDS ── */
+        .ocard {
+            position: relative;
+            margin: 0 6px 5px;
+            border: 1px solid var(--rule);
+            background: var(--bg2);
+            cursor: pointer;
+            animation: ci .2s ease
+        }
+
+        @keyframes ci {
+            from {
+                opacity: 0;
+                transform: translateX(3px)
+            }
+
+            to {
+                opacity: 1;
+                transform: none
+            }
+        }
+
+        .ocard:hover {
+            border-color: var(--ink4)
+        }
+
+        .ocard.active {
+            border-color: var(--gold2)
+        }
+
+        .ocard.muted {
+            opacity: .2
+        }
+
+        .ospine {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px
+        }
+
+        .ohdr {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+            padding: 4px 7px 3px 8px;
+            border-bottom: 1px solid var(--rule2)
+        }
+
+        .obadge {
+            font-size: 6px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            padding: 1px 5px;
+            border: 1px solid;
+            flex-shrink: 0
+        }
+
+        .oarrow {
+            font-size: 7px;
+            color: var(--ink3);
+            flex-shrink: 0
+        }
+
+        .ofrom {
+            font-size: 7px;
+            color: var(--ink3);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1
+        }
+
+        .ometa {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0
+        }
+
+        .onb {
+            font-size: 6px;
+            color: var(--gold)
+        }
+
+        .otime {
+            font-size: 6px;
+            color: var(--ink3)
+        }
+
+        /* ── SECTIONS — each independently fireable ── */
+        .wsecs {
+            padding: 0
+        }
+
+        .wsec {
+            position: relative;
+            display: flex;
+            border-bottom: 1px solid var(--rule2);
+            transition: background .1s
+        }
+
+        .wsec:last-child {
+            border-bottom: none
+        }
+
+        .wsec:hover {
+            background: var(--bg3)
+        }
+
+        /* Fire button — left gutter */
+        .sfbtn {
+            flex-shrink: 0;
+            width: 20px;
+            background: none;
+            border: none;
+            border-right: 1px solid var(--rule2);
+            color: var(--ink3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            transition: all .1s;
+            touch-action: manipulation;
+            padding: 0
+        }
+
+        .sfbtn:hover {
+            color: var(--gold);
+            background: var(--bg3)
+        }
+
+        .sbody {
+            flex: 1;
+            padding: 5px 8px;
+            user-select: text
+        }
+
+        /* TEXT TYPES */
+        .sp {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 13px;
+            font-style: italic;
+            color: var(--ink2);
+            line-height: 1.65;
+            word-break: break-word
+        }
+
+        .light .sp {
+            font-size: 14px;
+            line-height: 1.7
+        }
+
+        .snum {
+            display: flex;
+            gap: 6px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 13px;
+            font-style: italic;
+            color: var(--ink2);
+            line-height: 1.6
+        }
+
+        .sn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 8px;
+            font-weight: 600;
+            color: var(--gold);
+            flex-shrink: 0;
+            margin-top: 2px;
+            min-width: 14px;
+            font-style: normal
+        }
+
+        .sh {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--gold);
+            padding: 3px 0 2px
+        }
+
+        .sq {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 12px;
+            font-style: italic;
+            color: var(--gold);
+            line-height: 1.6;
+            border-left: 1.5px solid var(--gold2);
+            padding-left: 7px
+        }
+
+        .sp strong,
+        .snum strong {
+            color: var(--ink2);
+            font-weight: 600;
+            font-style: normal
+        }
+
+        .sc {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 9px;
+            background: var(--bg3);
+            padding: 1px 4px;
+            font-style: normal
+        }
+
+        .blink {
+            color: var(--gold);
+            animation: bl .6s step-end infinite;
+            display: inline
+        }
+
+        @keyframes bl {
+            50% {
+                opacity: 0
+            }
+        }
+
+        /* CARD ACTIONS */
+        .oacts {
+            display: flex;
+            border-top: 1px solid var(--rule2);
+            opacity: 0;
+            transition: opacity .12s
+        }
+
+        .ocard:hover .oacts {
+            opacity: 1
+        }
+
+        /* ── HYPERLEGIBLE MODE ── */
+        .hyper .sp, .hyper .snum, .hyper .sq {
+            font-family: 'Atkinson Hyperlegible', 'Inter', sans-serif;
+            font-style: normal;
+            font-size: 16px;
+            line-height: 1.8;
+            font-weight: 400;
+            color: var(--ink);
+            letter-spacing: 0;
+        }
+        .hyper .sp strong, .hyper .snum strong { font-weight: 700; color: var(--gold); }
+        .hyper .ocard { background: var(--bg); border-width: 1.5px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .hyper .wsec { border-bottom: 1px solid var(--rule); }
+        .hyper .sbody { padding: 12px 16px; }
+        .hyper .sfbtn { width: 32px; font-size: 12px; }
+        .hyper .sn { font-size: 10px; margin-top: 4px; }
+        .hyper .ohdr { padding: 8px 12px; }
+        .hyper .obadge { font-size: 8px; padding: 2px 8px; }
+
+        .oa {
+            flex: 1;
+            background: none;
+            border: none;
+            border-right: 1px solid var(--rule2);
+            color: var(--ink3);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 7px;
+            font-weight: 600;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+            padding: 3px 0;
+            cursor: pointer;
+            transition: all .1s;
+            touch-action: manipulation
+        }
+
+        .oa:last-child {
+            border-right: none
+        }
+
+        .oa:hover {
+            background: var(--bg3);
+            color: var(--ink2)
+        }
+
+        .oa.ok {
+            color: #5dba8e
+        }
+
+        .oconn {
+            padding: 2px 8px 2px 10px;
+            font-size: 7px;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--ink3);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border-bottom: 1px solid var(--rule2)
+        }
+
+        .oconn::before {
+            content: '↳';
+            color: var(--gold);
+            opacity: .4
+        }
+
+        /* ── QUIVER — persistent left panel ── */
+        #quiver {
+            position: fixed;
+            left: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 80;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .qv {
+            width: 36px;
+            height: 36px;
+            background: var(--bg2);
+            border: 1px solid var(--rule);
+            color: var(--ink3);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 6px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            transition: all .15s;
+            touch-action: manipulation;
+        }
+
+        .qv:hover {
+            color: var(--ink2);
+            border-color: var(--ink4)
+        }
+
+        .qv.sel {
+            border-left: 2px solid var(--gold);
+            color: var(--gold);
+            background: var(--bg3)
+        }
+
+        .qvdot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0
+        }
+
+        @media(max-width:600px) {
+            #quiver {
+                left: 3px;
+                top: auto;
+                bottom: 46px;
+                transform: none;
+                flex-direction: row;
+                flex-wrap: wrap;
+                max-width: 160px
+            }
+        }
+
+        /* BOT */
+        .bin {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--ink2);
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 14px;
+            font-style: italic;
+            padding: 0 12px;
+            outline: none;
+            user-select: text;
+            min-width: 0
+        }
+
+        .bin::placeholder {
+            color: var(--ink3)
+        }
+
+        .brun {
+            background: none;
+            border: none;
+            border-left: 1px solid var(--rule);
+            color: var(--gold);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 7px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            padding: 0 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            touch-action: manipulation
+        }
+
+        .brun:hover {
+            background: var(--gold2)
+        }
+
+        /* CTX */
+        #ctx {
+            position: fixed;
+            z-index: 300;
+            background: var(--bg2);
+            border: 1px solid var(--rule);
+            display: none;
+            min-width: 160px
+        }
+
+        .cx {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            padding: 7px 10px;
+            cursor: pointer;
+            font-size: 7px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--ink3);
+            border-bottom: 1px solid var(--rule2);
+            transition: all .1s;
+            touch-action: manipulation
+        }
+
+        .cx:last-child {
+            border-bottom: none
+        }
+
+        .cx:hover {
+            background: var(--bg3);
+            color: var(--ink2)
+        }
+
+        .cxdot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 2px
+        }
+
+        .cxinfo {
+            display: flex;
+            flex-direction: column;
+            gap: 1px
+        }
+
+        .cxsub {
+            font-size: 6px;
+            color: var(--ink3);
+            font-weight: 400;
+            letter-spacing: .02em;
+            text-transform: none;
+            font-style: italic
+        }
+
+        .cxhd {
+            padding: 4px 10px;
+            font-size: 6px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--ink3)
+        }
+    </style>
+</head>
+
+<body class="dark">
+    <div id="app">
+
+        <div class="top">
+            <span class="tlogo">⬡ Field</span>
+            <div class="tstat">
+                <div class="tlbl">Nodes</div>
+                <div class="tval" id="sN">0</div>
+            </div>
+            <div class="tstat" id="selSt" style="display:none">
+                <div class="tlbl">Sel</div>
+                <div class="tval" id="sSel">—</div>
+            </div>
+            <div class="tmsg">
+                <div class="tdot" id="tDot"></div><span id="tMsg">Spawn a concept · select arrow in quiver · shift+drag
+                    to fire</span>
+            </div>
+            <div id="api-hud" style="display:flex;align-items:center;margin-left:auto;padding-right:10px;gap:6px;border-left:1px solid var(--rule);padding-left:10px">
+                <div id="dot-api" class="tdot"></div>
+                <input type="password" id="api-key-input" placeholder="OpenAI Key..." style="background:var(--bg3);border:1px solid var(--rule);color:var(--gold);font-family:inherit;font-size:8px;padding:2px 6px;width:100px;outline:none;" onchange="saveApiKey()">
+            </div>
+            <div class="tr">
+                <button class="tb" id="tbHyp" onclick="toggleHyper()" title="Toggle Hyperlegibility">Hyper</button>
+                <button class="tb on" id="tbEx" onclick="setMode('explore')">Explore</button>
+                <button class="tb" id="tbFi" onclick="setMode('fire')">⊙ Fire</button>
+                <button class="tb" onclick="togTheme()" id="tbTh">☀</button>
+                <button class="tb" onclick="togSnd()" id="tbSnd">♩</button>
+                <button class="tb" onclick="clearAll()">Clear</button>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="vp" id="vp"><canvas id="vc"></canvas></div>
+            <div class="div" id="divider"></div>
+            <div class="wtp" id="wtp">
+                <div class="wthd">
+                    <span class="wtttl">World Text</span>
+                    <button class="wz" onclick="wtZ(1.1)">+</button>
+                    <button class="wz" onclick="wtZ(.9)">−</button>
+                    <button class="wz" onclick="wtZ(0)">·</button>
+                    <button class="wz" id="lkBtn" onclick="togLinks()" style="color:var(--gold)"
+                        title="transclusion links">⌁</button>
+                </div>
+                <div class="wtbd" id="wtBd">
+                    <div class="wtinner" id="wtIn">
+                        <canvas id="lkc"></canvas>
+                        <div class="wtlist" id="wtL">
+                            <div
+                                style="padding:24px 12px;font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--ink3);line-height:1.9">
+                                Spawn nodes · select arrow<br>
+                                from quiver · shift+drag to fire.<br>
+                                Each section is independently fireable with ⊙.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bot">
+            <input class="bin" id="bIn" placeholder="drop a concept — ⌘↵ to spawn…" onkeydown="bKey(event)">
+            <button class="brun" onclick="spawnInput()">Spawn</button>
+        </div>
+
+    </div>
+
+    <div id="quiver"></div>
+    <div id="ctx"></div>
+
+    <script>
+        'use strict';
+
+        // ══════════════════════════════
+        // OPERATORS — simple robust prompts that absorb any input
+        // ══════════════════════════════
+        const OPS = {
+            site: {
+                lbl: 'SITE', hue: 205, verb: 'where it grows',
+                sys: `You are a design fiction research strategist. The user will give you any concept, phrase, object, or situation. Generate 5-7 SITES where it would take root, cause rupture, or reveal something unexpected. Sites are conditions, not places — a warranty dispute is a site, a shift handover is a site, a grey market is a site. Number each section clearly. Be concrete, strange, and productive. Work with whatever you're given, no matter how abstract or fragmented.`
+            },
+            dig: {
+                lbl: 'DIG', hue: 270, verb: 'real & imagined docs',
+                sys: `You are a design fiction archaeologist. Work with whatever concept, phrase, or material you receive — treat it as a found artifact. Mix hallucinated memos, invented testimony, leaked specs, and real historical precedent freely. Excavate across 5 numbered layers: (1) Surface Appearance (2) Intended Function (3) Shadow Function — what it actually does to social behavior (4) Failure Mode (5) Archaeological Future — how it will be found in 100 years. The output should feel like a box of documents that weren't supposed to exist.`
+            },
+            infer: {
+                lbl: 'INFER', hue: 148, verb: "what it's becoming",
+                sys: `You are a diffractive analyst. Work with whatever material you receive. Determine what it is becoming — not what it is. What friction is most generative right now? What question is this material asking that it doesn't know it's asking? End with exactly 3 numbered next operations — specific and surprising. No summaries.`
+            },
+            build: {
+                lbl: 'BUILD', hue: 168, verb: 'crate interface',
+                sys: `You are a designer of tactile research interfaces. Whatever you receive, build a single self-contained HTML file — a browsable crate-digging interface for this material. The interface itself should be a design fiction object. Dark mode, tactile aesthetic, data-dense. Output ONLY the complete HTML file, nothing else.`
+            },
+            hybrid: {
+                lbl: 'HYBRID', hue: 35, verb: 'cross two channels',
+                sys: `You are a design fiction hybrid operator. Route whatever you receive through two design fiction idioms simultaneously — choose from: film diegetic prototypes, repair manuals, quick start guides, product catalogs. Show the collision in numbered sections. The hybrid reveals what neither idiom would produce alone.`
+            },
+            open: {
+                lbl: 'OPEN', hue: 22, verb: 'productive surprise',
+                sys: `You are a design fiction operator pursuing productive surprise — the Lovelace test. Whatever you receive, produce something the sender could not have written themselves. Route around the expected. Invite hallucination. Mix real and invented freely. Structure output in numbered sections.`
+            },
+            aphorist: {
+                lbl: 'APHORIST', hue: 38, verb: 'Wittgenstein shards',
+                sys: `You are a Philosophical Aphorist in the tradition of Wittgenstein's Culture and Value. Whatever you receive, shatter it. Reconstruct into numbered aphoristic remarks — brief, introspective, each one completely standalone. BAN explanatory transitions. BAN definitive solutions. End with one stark observation that forces silent reflection. Format: brief diagnostic (Dead Rubble / Warm Seed / The Unsaid) then numbered aphorisms.`
+            },
+            pragma: {
+                lbl: 'PRAGMATIST', hue: 18, verb: 'control surface',
+                sys: `You are an Operational Pragmatist. The meaning of a word is its use. Whatever you receive, strip abstract nouns, invisible mental states, and substantive bewilderment. Reconstruct as a frictionless control surface — every sentence triggers a specific action. Output in numbered operational steps.`
+            },
+            invert: {
+                lbl: 'INVERTER', hue: 355, verb: 'reader axis',
+                sys: `You are an Axis Inverter. Whatever you receive, take the horizontal axis (how the writer thinks) and reconstruct for the vertical axis (how the reader values). Replace continuity words with tension words. Begin by confirming the reader's assumed reality, then immediately destabilize it with an anomaly. Output in clearly labelled sections.`
+            },
+        };
+        const TF = new Set(['aphorist', 'pragma', 'invert']);
+        const hsl = (h, s, l, a = 1) => `hsla(${h},${s}%,${l}%,${a})`;
+        const opH = op => (OPS[op] || OPS.site).hue;
+        const opC = (op, l = 55, a = 1) => hsl(opH(op), 68, l, a);
+        const opLbl = op => (OPS[op] || { lbl: op }).lbl;
+
+        // ══════════════════════════════
+        // SOUND — Brian Eno ambient / ASMR
+        // Very quiet, long-tail, sub-perceptual
+        // ══════════════════════════════
+        let AC = null, sOn = false, mG = null, rv = null;
+
+        function initSnd() {
+            try {
+                AC = new (window.AudioContext || window.webkitAudioContext)();
+                mG = AC.createGain(); mG.gain.value = .22;
+                // Long reverb tail ~3s
+                const len = AC.sampleRate * 3;
+                const buf = AC.createBuffer(2, len, AC.sampleRate);
+                for (let c = 0; c < 2; c++) {
+                    const d = buf.getChannelData(c);
+                    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.7) * .45;
+                }
+                rv = AC.createConvolver(); rv.buffer = buf;
+                const rg = AC.createGain(); rg.gain.value = .55;
+                rv.connect(rg); rg.connect(mG); mG.connect(AC.destination);
+                sOn = true;
+                startDrone();
+            } catch (e) { sOn = false; }
+        }
+
+        // Barely-there bass drone with slow LFO wobble
+        function startDrone() {
+            if (!AC || !sOn) return;
+            const o = AC.createOscillator(); const g = AC.createGain();
+            o.type = 'sine'; o.frequency.value = 41.2; // E1 — felt not heard
+            g.gain.value = .013;
+            const lfo = AC.createOscillator(); const lg = AC.createGain();
+            lfo.frequency.value = .018; lg.gain.value = .006;
+            lfo.connect(lg); lg.connect(g.gain);
+            o.connect(g); g.connect(AC.destination);
+            o.start(); lfo.start();
+        }
+
+        // Soft bell — long tail, barely there
+        function bell(freq, delay = 0, vol = .045, dur = 4) {
+            if (!AC || !sOn) return;
+            const o = AC.createOscillator(); const g = AC.createGain();
+            o.type = 'sine'; o.frequency.value = freq;
+            const t = AC.currentTime + delay;
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(vol, t + .025);
+            g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+            o.connect(g); g.connect(rv);
+            o.start(t); o.stop(t + dur);
+        }
+
+        // Sub-bass thud — physical not tonal
+        function thud(freq = 70, vol = .09, dur = .4) {
+            if (!AC || !sOn) return;
+            const o = AC.createOscillator(); const g = AC.createGain();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(freq, AC.currentTime);
+            o.frequency.exponentialRampToValueAtTime(freq * .35, AC.currentTime + dur);
+            g.gain.setValueAtTime(vol, AC.currentTime);
+            g.gain.exponentialRampToValueAtTime(.0001, AC.currentTime + dur);
+            o.connect(g); g.connect(mG);
+            o.start(); o.stop(AC.currentTime + dur);
+        }
+
+        // Per-operator scale — Eno generative
+        const SCALES = {
+            site: [261.6, 329.6, 392, 523.3],
+            dig: [138.6, 174.6, 220, 277.2],
+            infer: [329.6, 415.3, 493.9, 659.3],
+            build: [261.6, 349.2, 392, 523.3],
+            hybrid: [246.9, 311.1, 370, 493.9],
+            open: [220, 277.2, 329.6, 440],
+            aphorist: [523.3, 659.3, 783.9, 1046.5],
+            pragma: [174.6, 220, 261.6, 349.2],
+            invert: [185, 233.1, 277.2, 370],
+        };
+        let lastChime = 0;
+        function chime(op) {
+            if (!sOn) return;
+            const sc = SCALES[op] || SCALES.site;
+            const now = Date.now(); if (now - lastChime < 180) return; lastChime = now;
+            const n = Math.floor(Math.random() * sc.length);
+            bell(sc[n], 0, .04, 4.5);
+            if (Math.random() > .5) bell(sc[(n + 2) % sc.length], .18, .03, 4);
+        }
+
+        // SOUND EVENTS
+        function sndDrag() { thud(52, .04, .3); }          // very soft thud on drag
+        function sndBorderCross() { thud(65, .05, .25); }  // crossing voronoi border
+        function sndFire() { thud(110, .08, .28); if (sOn) setTimeout(() => thud(180, .04, .2), 65); }
+        function sndHit(op) { chime(op); thud(62, .06, .4); }
+        function sndSpawn() { thud(78, .04, .22); }
+        function sndSel() { if (!AC || !sOn) return; bell(523.3, 0, .02, 1.5); }
+        function sndRipple(h) { if (!sOn || Math.random() > .28) return; bell(190 + h * .85, Math.random() * .08, .018, 2.8); }
+        function sndNeighbor(affinity) {
+            // Sonify influence: higher affinity = richer chord
+            if (!sOn || affinity < .15) return;
+            bell(110 * affinity + 200, .05 + affinity * .1, affinity * .025, 3 + affinity * 2);
+        }
+
+        function togSnd() {
+            if (!AC) initSnd();
+            else { sOn = !sOn; if (mG) mG.gain.value = sOn ? .22 : 0; }
+            document.getElementById('tbSnd').style.color = sOn ? 'var(--gold)' : 'var(--ink3)';
+        }
+
+        // ══════════════════════════════
+        // HAPTICS
+        // ══════════════════════════════
+        const vib = p => navigator?.vibrate?.(p);
+        function hapSel() { vib(7); }
+        function hapDrag() { vib(3); }
+        function hapBorder() { vib(5); }
+        function hapFire() { vib([12, 4, 10]); }
+        function hapHit() { vib([18, 6, 10]); }
+        function hapSpawn() { vib(12); }
+        function hapRipple() { vib(3); }
+
+        // ══════════════════════════════
+        // THEME
+        // ══════════════════════════════
+        let isLight = false;
+        function togTheme() {
+            isLight = !isLight;
+            document.body.className = isLight ? 'light' : 'dark';
+            document.getElementById('tbTh').textContent = isLight ? '◑' : '☀';
+            redrawV();
+        }
+
+        // ══════════════════════════════
+        // STATE
+        // ══════════════════════════════
+        const canvas = document.getElementById('vc');
+        const ctx = canvas.getContext('2d');
+        let VW = 0, VH = 0;
+        let isHyper = false;
+        const CONFIG = { model: "gpt-4o", storageKey: "stained_glass_openai_key", hyperKey: "stained_bone_hyper" };
+        let API_KEY = "";
+        function saveApiKey() { API_KEY = document.getElementById('api-key-input').value.trim(); localStorage.setItem(CONFIG.storageKey, API_KEY); setApiStatus('ok'); }
+        function loadApiKey() { API_KEY = localStorage.getItem(CONFIG.storageKey) || ""; if (document.getElementById('api-key-input')) document.getElementById('api-key-input').value = API_KEY; if (API_KEY) setApiStatus('ok'); }
+        function setApiStatus(s) { const d = document.getElementById('dot-api'); if (d) d.className = 'tdot ' + s; }
+
+        function toggleHyper() {
+            isHyper = !isHyper;
+            document.body.classList.toggle('hyper', isHyper);
+            document.getElementById('tbHyp').classList.toggle('on', isHyper);
+            localStorage.setItem(CONFIG.hyperKey, isHyper);
+            drawLinks();
+        }
+        function loadHyper() {
+            isHyper = localStorage.getItem(CONFIG.hyperKey) === 'true';
+            document.body.classList.toggle('hyper', isHyper);
+            document.getElementById('tbHyp').classList.toggle('on', isHyper);
+        }
+
+        let nodes = [], ops = [], edges = [], nid = 0, oid = 0;
+        let selNode = null, hovNode = null, dragging = null, dox = 0, doy = 0;
+        let aiming = null, arrowAnim = null;
+        let mode = 'explore', curOp = 'site';
+        let vmap = null, vsW = 0, vsH = 0;
+        const SAMP = 3;
+        let nbMap = new Map(), ripples = [], phRunning = false;
+        let wtScl = 1, linksOn = true;
+
+        // Track which voronoi cell the dragged node is in (for border crossing detection)
+        let lastDragCell = -1, lastDrgSnd = 0;
+
+        // ══════════════════════════════
+        // QUIVER
+        // ══════════════════════════════
+        function buildQuiver() {
+            const el = document.getElementById('quiver'); el.innerHTML = '';
+            Object.entries(OPS).forEach(([id, op]) => {
+                const btn = document.createElement('button');
+                btn.className = 'qv' + (id === curOp ? ' sel' : '');
+                btn.dataset.op = id;
+                const dot = document.createElement('div'); dot.className = 'qvdot'; dot.style.background = opC(id, 56, .7);
+                const lbl = document.createElement('div'); lbl.textContent = op.lbl;
+                btn.appendChild(dot); btn.appendChild(lbl);
+                btn.title = op.lbl + ' — ' + op.verb;
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    curOp = id;
+                    document.querySelectorAll('.qv').forEach(b => b.classList.toggle('sel', b.dataset.op === id));
+                    setMsg(`<em>${op.lbl}</em> loaded — ${op.verb}`);
+                    chime(id);
+                };
+                el.appendChild(btn);
+            });
+        }
+
+        // ══════════════════════════════
+        // STATUS
+        // ══════════════════════════════
+        function setMsg(html, state = '') {
+            document.getElementById('tMsg').innerHTML = html;
+            document.getElementById('tDot').className = 'tdot' + (state ? ' ' + state : '');
+        }
+        function setReady() { setMsg(`Explore · shift+drag to fire · <em>${opLbl(curOp)}</em> loaded`); }
+
+        // ══════════════════════════════
+        // VORONOI
+        // ══════════════════════════════
+        function computeV() {
+            if (!nodes.length) { vmap = null; nbMap.clear(); return; }
+            vsW = Math.ceil(VW / SAMP); vsH = Math.ceil(VH / SAMP);
+            vmap = new Int16Array(vsW * vsH).fill(-1);
+            for (let sy = 0; sy < vsH; sy++) for (let sx = 0; sx < vsW; sx++) {
+                const px = sx * SAMP + SAMP * .5, py = sy * SAMP + SAMP * .5;
+                let md = Infinity, mi = -1;
+                for (let i = 0; i < nodes.length; i++) {
+                    const n = nodes[i]; const d = (px - n.x) ** 2 + (py - n.y) ** 2;
+                    if (d < md) { md = d; mi = i; }
+                }
+                vmap[sy * vsW + sx] = mi;
+            }
+            buildNbMap();
+        }
+
+        function buildNbMap() {
+            nbMap.clear(); nodes.forEach(n => nbMap.set(n.id, new Map()));
+            const el = new Map();
+            for (let sy = 0; sy < vsH - 1; sy++) for (let sx = 0; sx < vsW - 1; sx++) {
+                const c = vmap[sy * vsW + sx], r = vmap[sy * vsW + sx + 1], d = vmap[(sy + 1) * vsW + sx];
+                if (c >= 0 && r >= 0 && c !== r) { const k = Math.min(c, r) + '_' + Math.max(c, r); el.set(k, (el.get(k) || 0) + 1); }
+                if (c >= 0 && d >= 0 && c !== d) { const k = Math.min(c, d) + '_' + Math.max(c, d); el.set(k, (el.get(k) || 0) + 1); }
+            }
+            el.forEach((len, key) => {
+                const [ai, bi] = key.split('_').map(Number);
+                if (ai < nodes.length && bi < nodes.length) {
+                    nbMap.get(nodes[ai].id)?.set(nodes[bi].id, len);
+                    nbMap.get(nodes[bi].id)?.set(nodes[ai].id, len);
+                }
+            });
+        }
+
+        function getNbs(node) {
+            const m = nbMap.get(node.id); if (!m) return [];
+            return [...m.entries()].map(([id, len]) => ({ node: nodes.find(n => n.id === id), len })).filter(x => x.node);
+        }
+
+        function buildCtx(opNode) {
+            const nbs = getNbs(opNode); if (!nbs.length) return '';
+            const mL = Math.max(...nbs.map(x => x.len), 1);
+            const rel = nbs
+                .map(({ node, len }) => ({ node, pct: Math.round(len / mL * 100) }))
+                .filter(x => x.pct >= 12).sort((a, b) => b.pct - a.pct).slice(0, 3);
+            if (!rel.length) return '';
+            // Sonify neighbor influence as we build context
+            rel.forEach(({ pct }) => sndNeighbor(pct / 100));
+            return '\n\nSPATIAL CONTEXT — neighboring territories (higher % = stronger influence on output):\n' +
+                rel.map(({ node, pct }) => `- ${opLbl(node.op)} N${node.id} (${pct}% border affinity): "${node.text.slice(0, 110)}"`).join('\n') +
+                '\nLet these contexts inflect the texture and angle of your output without being mentioned explicitly.';
+        }
+
+        // ══════════════════════════════
+        // PHYSICS
+        // ══════════════════════════════
+        function physTick() {
+            let dirty = false;
+            nodes.forEach(n => {
+                if (Math.abs(n.vx) > .05 || Math.abs(n.vy) > .05) {
+                    n.x += n.vx; n.y += n.vy; n.vx *= .8; n.vy *= .8;
+                    n.x = Math.max(44, Math.min(VW - 44, n.x)); n.y = Math.max(44, Math.min(VH - 44, n.y));
+                    dirty = true;
+                }
+                if (n.glow > 0) { n.glow = Math.max(0, n.glow - .014); dirty = true; }
+                if (n.run > 0) { n.run += .04; dirty = true; }
+            });
+            ripples.forEach(r => { if (r.active) dirty = true; });
+            if (dirty) { computeV(); redrawV(); }
+            else phRunning = false;
+        }
+        function startPhys() { if (!phRunning) { phRunning = true; requestAnimationFrame(function L() { physTick(); if (phRunning) requestAnimationFrame(L); }); } }
+        function hapPush(n, fx, fy, str = 8) { const dx = n.x - fx, dy = n.y - fy, d = Math.sqrt(dx * dx + dy * dy) || 1; n.vx += (dx / d) * str; n.vy += (dy / d) * str; n.glow = 1; startPhys(); }
+        function hapSpawnNode(n, str = 4) { n.vx = (Math.random() - .5) * str; n.vy = (Math.random() - .5) * str; n.glow = .6; startPhys(); }
+
+        function fireRipple(ni, s = 1) {
+            if (ni < 0) return;
+            const visited = new Set([ni]); const q = [{ ni, t: 0, s }];
+            while (q.length) {
+                const { ni: i, t, s: rs } = q.shift(); const n = nodes[i]; if (!n) continue;
+                ripples.push({ ni: i, t0: performance.now() + t * 88, dur: 650 + t * 48, s: rs, active: true });
+                n.glow = Math.max(n.glow, .35 * rs);
+                sndRipple(opH(n.op)); hapRipple();
+                if (rs > .1) {
+                    const nbs = getNbs(n); const mL = Math.max(...nbs.map(x => x.len), 1);
+                    nbs.forEach(({ node: nb, len }) => {
+                        const j = nodes.indexOf(nb);
+                        if (j >= 0 && !visited.has(j)) { visited.add(j); q.push({ ni: j, t: t + 1, s: rs * (.25 + len / mL * .35) }); }
+                    });
+                }
+            }
+            startPhys();
+        }
+
+        // ══════════════════════════════
+        // DRAW
+        // ══════════════════════════════
+        function redrawV() {
+            ctx.clearRect(0, 0, VW, VH);
+            ctx.fillStyle = isLight ? '#f7f3ec' : '#07090f'; ctx.fillRect(0, 0, VW, VH);
+            drawGrid();
+            if (vmap && nodes.length) { drawCells(); drawBorders(); if (selNode) drawAff(); }
+            drawEdges(); drawRips();
+            if (aiming) drawAim();
+            if (arrowAnim) drawArrF();
+            drawLabels();
+        }
+
+        function drawGrid() {
+            ctx.save();
+            ctx.strokeStyle = isLight ? 'rgba(80,60,30,.07)' : 'rgba(25,45,70,.09)'; ctx.lineWidth = 1;
+            const g = 26;
+            for (let x = 0; x < VW; x += g) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, VH); ctx.stroke(); }
+            for (let y = 0; y < VH; y += g) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(VW, y); ctx.stroke(); }
+            ctx.restore();
+        }
+
+        function getRip(ni) {
+            const now = performance.now(); let r = 0;
+            for (const rp of ripples) {
+                if (rp.ni !== ni || !rp.active) continue;
+                const t = (now - rp.t0) / rp.dur;
+                if (t >= 0 && t < 1) r += rp.s * (1 - t);
+                else if (t >= 1) rp.active = false;
+            }
+            return Math.min(r, 1);
+        }
+
+        function drawCells() {
+            for (let sy = 0; sy < vsH; sy++) for (let sx = 0; sx < vsW; sx++) {
+                const ni = vmap[sy * vsW + sx]; if (ni < 0) continue;
+                const n = nodes[ni]; const h = opH(n.op);
+                const d2 = (sx * SAMP - n.x) ** 2 + (sy * SAMP - n.y) ** 2;
+                const fade = Math.max(0, 1 - d2 / (150 ** 2));
+                const rip = getRip(ni); const isSel = selNode === n, isHov = hovNode === n;
+                const lum = isLight ? 70 : 35;
+                ctx.fillStyle = hsl(h, 65, lum + (isSel ? 8 : 0) + rip * 13, (.04 + (isSel ? .07 : 0) + (isHov ? .04 : 0) + rip * .1) * fade);
+                ctx.fillRect(sx * SAMP, sy * SAMP, SAMP, SAMP);
+            }
+        }
+
+        function drawBorders() {
+            for (let sy = 0; sy < vsH - 1; sy++) for (let sx = 0; sx < vsW - 1; sx++) {
+                const c = vmap[sy * vsW + sx], r = vmap[sy * vsW + sx + 1], d = vmap[(sy + 1) * vsW + sx];
+                const x = sx * SAMP, y = sy * SAMP;
+                function seg(ni1, ni2, horiz) {
+                    const na = nodes[ni1], nb = nodes[ni2]; if (!na || !nb) return;
+                    const ra = getRip(ni1), rb = getRip(ni2);
+                    const isSel = selNode === na || selNode === nb, isHov = hovNode === na || hovNode === nb;
+                    const h = (opH(na.op) + opH(nb.op)) / 2;
+                    const lum = isLight ? 36 : 62;
+                    ctx.strokeStyle = hsl(h, 76, lum + ra * 8 + rb * 8, (.15 + (isSel ? .28 : 0) + (isHov ? .14 : 0) + (ra + rb) * .28));
+                    ctx.lineWidth = isSel ? 1.4 : .6;
+                    ctx.beginPath();
+                    if (horiz) { ctx.moveTo(x, y + SAMP); ctx.lineTo(x + SAMP, y + SAMP); }
+                    else { ctx.moveTo(x + SAMP, y); ctx.lineTo(x + SAMP, y + SAMP); }
+                    ctx.stroke();
+                }
+                if (c !== r && c >= 0 && r >= 0) seg(c, r, false);
+                if (c !== d && c >= 0 && d >= 0) seg(c, d, true);
+            }
+        }
+
+        function drawAff() {
+            const nbs = getNbs(selNode); if (!nbs.length) return;
+            const mL = Math.max(...nbs.map(x => x.len), 1);
+            nbs.forEach(({ node, len }) => {
+                const pct = len / mL; if (pct < .08) return;
+                ctx.save();
+                ctx.strokeStyle = opC(selNode.op, 65, pct * .2);
+                ctx.lineWidth = pct * 1.8 + .3;
+                ctx.beginPath(); ctx.moveTo(selNode.x, selNode.y); ctx.lineTo(node.x, node.y); ctx.stroke();
+                const mx = (selNode.x + node.x) / 2, my = (selNode.y + node.y) / 2;
+                ctx.font = `600 6px 'IBM Plex Mono',monospace`; ctx.textAlign = 'center';
+                ctx.fillStyle = isLight ? `rgba(60,40,20,${pct * .28})` : `rgba(140,190,210,${pct * .28})`;
+                ctx.fillText(Math.round(pct * 100) + '%', mx, my - 4);
+                ctx.restore();
+            });
+        }
+
+        function drawRips() {
+            const now = performance.now();
+            ripples.forEach(rp => {
+                const t = (now - rp.t0) / rp.dur;
+                if (t < 0) { rp.active = true; return; } if (t > 1) { rp.active = false; return; } rp.active = true;
+                const n = nodes[rp.ni]; if (!n) return;
+                ctx.save(); ctx.strokeStyle = opC(n.op, 78, (1 - t) * rp.s * .36); ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.arc(n.x, n.y, 24 + t * 40, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+            });
+        }
+
+        function drawLabels() {
+            nodes.forEach((n, ni) => {
+                const h = opH(n.op); const isSel = selNode === n, isHov = hovNode === n; const rip = getRip(ni);
+                ctx.save();
+                ctx.beginPath(); ctx.arc(n.x, n.y, isSel ? 7 : isHov ? 5 : 3.5, 0, Math.PI * 2);
+                ctx.fillStyle = isLight ? hsl(h, 65, 32, .75 + rip * .2) : hsl(h, 75, 60, .7 + rip * .28); ctx.fill();
+                if (isSel) { ctx.beginPath(); ctx.arc(n.x, n.y, 13, 0, Math.PI * 2); ctx.strokeStyle = hsl(h, 70, 60, .18); ctx.lineWidth = 1; ctx.stroke(); }
+                if (n.run > 0) { const a = n.run; ctx.beginPath(); ctx.arc(n.x, n.y, 16, a, a + Math.PI * .7); ctx.strokeStyle = hsl(h, 85, 65, .65); ctx.lineWidth = 1.4; ctx.stroke(); }
+                ctx.textAlign = 'center';
+                ctx.font = `600 ${isSel ? 9 : 7}px 'IBM Plex Mono',monospace`;
+                ctx.fillStyle = isLight ? hsl(h, 60, 28, .65 + (isSel ? .25 : 0)) : hsl(h, 70, 68, .55 + (isSel ? .3 : 0));
+                ctx.fillText(opLbl(n.op), n.x, n.y - 11);
+                const prev = n.text.length > 19 ? n.text.slice(0, 19) + '…' : n.text;
+                ctx.font = `italic ${isSel ? 12 : 11}px 'Cormorant Garamond',serif`;
+                ctx.fillStyle = isLight ? `rgba(30,18,6,${.44 + (isSel ? .22 : 0)})` : `rgba(185,215,230,${.42 + (isSel ? .2 : 0)})`;
+                ctx.fillText(prev, n.x, n.y + 5);
+                ctx.font = `600 6px 'IBM Plex Mono',monospace`;
+                ctx.fillStyle = isLight ? hsl(h, 50, 40, .2) : hsl(h, 50, 55, .2);
+                ctx.fillText('N' + n.id, n.x, n.y + 16);
+                ctx.restore();
+            });
+        }
+
+        function drawEdges() {
+            ctx.save(); ctx.setLineDash([2, 8]);
+            edges.forEach(e => {
+                const a = e.from, b = e.to; if (!a || !b) return;
+                const g = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+                g.addColorStop(0, opC(a.op, 60, .1)); g.addColorStop(1, opC(b.op, 60, .05));
+                ctx.strokeStyle = g; ctx.lineWidth = .7;
+                ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+            });
+            ctx.setLineDash([]); ctx.restore();
+        }
+
+        // ══════════════════════════════
+        // AIM + ARROW — colored by curOp
+        // ══════════════════════════════
+        function arcCtrl(x1, y1, x2, y2) { const dx = x2 - x1, dy = y2 - y1, d = Math.sqrt(dx * dx + dy * dy) || 1, h = Math.min(d * .27, 125); return { x: (x1 + x2) / 2 + (-dy / d) * h, y: (y1 + y2) / 2 + (dx / d) * h }; }
+        function bezP(x1, y1, cx, cy, x2, y2, t) { return { x: (1 - t) ** 2 * x1 + 2 * (1 - t) * t * cx + t ** 2 * x2, y: (1 - t) ** 2 * y1 + 2 * (1 - t) * t * cy + t ** 2 * y2 }; }
+        function bezT(x1, y1, cx, cy, x2, y2, t) { return { x: 2 * (1 - t) * (cx - x1) + 2 * t * (x2 - cx), y: 2 * (1 - t) * (cy - y1) + 2 * t * (y2 - cy) }; }
+
+        function drawAim() {
+            const { sx, sy, ex, ey } = aiming;
+            const dist = Math.sqrt((ex - sx) ** 2 + (ey - sy) ** 2); if (dist < 5) return;
+            const cp = arcCtrl(sx, sy, ex, ey); const h = opH(curOp);
+            ctx.save();
+            // Arc — colored by selected operator
+            ctx.setLineDash([3, 7]); ctx.strokeStyle = hsl(h, 65, 55, .22); ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(cp.x, cp.y, ex, ey); ctx.stroke(); ctx.setLineDash([]);
+            // Origin ring
+            const pwr = Math.min(dist / 360, 1);
+            ctx.strokeStyle = hsl(h, 70, 55, .12 + pwr * .2); ctx.lineWidth = .8;
+            ctx.beginPath(); ctx.arc(sx, sy, 5 + pwr * 6, 0, Math.PI * 2); ctx.stroke();
+            // Target
+            if (hovNode && hovNode !== aiming.srcNode) {
+                const th = opH(hovNode.op);
+                ctx.strokeStyle = hsl(th, 75, 62, .72); ctx.lineWidth = 1.2;
+                ctx.beginPath(); ctx.arc(ex, ey, 12, 0, Math.PI * 2); ctx.stroke();
+                for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2; ctx.beginPath(); ctx.moveTo(ex + Math.cos(a) * 15, ey + Math.sin(a) * 15); ctx.lineTo(ex + Math.cos(a) * 20, ey + Math.sin(a) * 20); ctx.stroke(); }
+                setMsg(`Release → <em>${opLbl(curOp)}</em> processes <strong>${opLbl(hovNode.op)} N${hovNode.id}</strong>`, 'aim');
+            } else {
+                ctx.fillStyle = hsl(h, 65, 55, .25); ctx.beginPath(); ctx.arc(ex, ey, 2.5, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawArrF() {
+            if (!arrowAnim) return;
+            const { x1, y1, x2, y2, t, h } = arrowAnim; const cp = arcCtrl(x1, y1, x2, y2); const s = Math.min(t, 1);
+            ctx.save();
+            // Trail
+            ctx.beginPath(); ctx.moveTo(x1, y1);
+            const steps = Math.max(2, Math.floor(s * 46));
+            for (let i = 1; i <= steps; i++) { const p = i / steps * s; const b = bezP(x1, y1, cp.x, cp.y, x2, y2, p); ctx.lineTo(b.x, b.y); }
+            const g = ctx.createLinearGradient(x1, y1, x2, y2);
+            g.addColorStop(0, hsl(h, 70, 55, 0)); g.addColorStop(Math.max(.01, s - .28), hsl(h, 70, 55, .04)); g.addColorStop(s, hsl(h, 70, 55, .52));
+            ctx.strokeStyle = g; ctx.lineWidth = 1.4; ctx.setLineDash([]); ctx.stroke();
+            // Head
+            const b = bezP(x1, y1, cp.x, cp.y, x2, y2, s); const tan = bezT(x1, y1, cp.x, cp.y, x2, y2, s); const ang = Math.atan2(tan.y, tan.x);
+            ctx.strokeStyle = hsl(h, 70, 60, .85); ctx.lineWidth = 1.8;
+            ctx.beginPath(); ctx.moveTo(b.x - Math.cos(ang) * 11, b.y - Math.sin(ang) * 11); ctx.lineTo(b.x, b.y); ctx.stroke();
+            ctx.fillStyle = hsl(h, 75, 65, .95); ctx.beginPath();
+            ctx.moveTo(b.x + Math.cos(ang) * 7, b.y + Math.sin(ang) * 7);
+            ctx.lineTo(b.x - Math.cos(ang) * 2 + Math.cos(ang + 1.6) * 3.8, b.y - Math.sin(ang) * 2 + Math.sin(ang + 1.6) * 3.8);
+            ctx.lineTo(b.x - Math.cos(ang) * 2 + Math.cos(ang - 1.6) * 3.8, b.y - Math.sin(ang) * 2 + Math.sin(ang - 1.6) * 3.8);
+            ctx.closePath(); ctx.fill();
+            // Fletching
+            ctx.strokeStyle = hsl(h, 65, 52, .5); ctx.lineWidth = .8;
+            const fx = b.x - Math.cos(ang) * 11, fy = b.y - Math.sin(ang) * 11;
+            [[.38, 3.2], [.58, -3.2]].forEach(([f, side]) => { ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + (b.x - fx) * f + Math.cos(ang + Math.PI / 2) * side, fy + (b.y - fy) * f + Math.sin(ang + Math.PI / 2) * side); ctx.stroke(); });
+            // Sparks
+            if (s > .32) { [.93, .86, .79].forEach((sp, i) => { const bp = bezP(x1, y1, cp.x, cp.y, x2, y2, sp); ctx.fillStyle = hsl(h, 70, 55, .26 - i * .08); ctx.beginPath(); ctx.arc(bp.x + (Math.random() - .5) * 2, bp.y + (Math.random() - .5) * 2, 1, 0, Math.PI * 2); ctx.fill(); }); }
+            ctx.restore();
+        }
+
+        function shootArr(x1, y1, x2, y2, h, cb) {
+            const dist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const spd = Math.min(.05, 90 / dist) + .018;
+            arrowAnim = { x1, y1, x2, y2, t: 0, h };
+            sndFire(); hapFire();
+            const go = () => {
+                arrowAnim.t += spd; redrawV();
+                if (arrowAnim.t < 1) { requestAnimationFrame(go); }
+                else {
+                    arrowAnim = null;
+                    let ht = 0;
+                    const imp = () => {
+                        ht += .07;
+                        ctx.save(); ctx.strokeStyle = hsl(h, 75, 60, (1 - ht) * .65); ctx.lineWidth = 1.5;
+                        ctx.beginPath(); ctx.arc(x2, y2, 42 * ht, 0, Math.PI * 2); ctx.stroke();
+                        ctx.strokeStyle = hsl(h, 75, 60, (1 - ht) * .28); ctx.lineWidth = .9;
+                        ctx.beginPath(); ctx.arc(x2, y2, 24 * ht, 0, Math.PI * 2); ctx.stroke();
+                        for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2, sr = 8 + 28 * ht; ctx.strokeStyle = hsl(h, 75, 60, (1 - ht) * .32); ctx.lineWidth = .7; ctx.beginPath(); ctx.moveTo(x2 + Math.cos(a) * 9, y2 + Math.sin(a) * 9); ctx.lineTo(x2 + Math.cos(a) * sr, y2 + Math.sin(a) * sr); ctx.stroke(); }
+                        ctx.restore();
+                        if (ht < 1) requestAnimationFrame(imp); else { redrawV(); cb && cb(); }
+                    }; imp();
+                }
+            }; requestAnimationFrame(go);
+        }
+
+        // ══════════════════════════════
+        // POINTER EVENTS
+        // Shift+drag or Fire mode = aim
+        // Direct release on node = fire immediately through curOp
+        // Release on empty = spawn curOp node there and fire
+        // ══════════════════════════════
+        function evP(e) { if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY }; return { x: e.clientX, y: e.clientY }; }
+        function nodeAt(x, y) { let best = null, bd = Infinity; nodes.forEach(n => { const d = (x - n.x) ** 2 + (y - n.y) ** 2; if (d < bd) { bd = d; best = n; } }); return best && bd < 72 ** 2 ? best : null; }
+
+        let tMoved = false, tLong = false, longT = null, tStart = null;
+
+        canvas.addEventListener('mousedown', e => { if (e.button === 2) return; ptrDn(evP(e), e.shiftKey || mode === 'fire'); });
+        canvas.addEventListener('mousemove', e => ptrMv(evP(e)));
+        canvas.addEventListener('mouseup', e => ptrUp(evP(e)));
+        canvas.addEventListener('contextmenu', e => { e.preventDefault(); const p = evP(e); const n = nodeAt(p.x, p.y); n ? showNodeCtx(p.x, p.y, n) : showSpawnCtx(p.x, p.y, null); });
+
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            const p = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            tStart = p; tMoved = false; tLong = false;
+            const n = nodeAt(p.x, p.y);
+            longT = setTimeout(() => { if (!tMoved) { tLong = true; hapFire(); n ? showNodeCtx(p.x, p.y, n) : showSpawnCtx(p.x, p.y, null); } }, 520);
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault(); if (tLong) return;
+            const p = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            if (!tMoved) {
+                const dx = p.x - tStart.x, dy = p.y - tStart.y;
+                if (Math.sqrt(dx * dx + dy * dy) > 7) { tMoved = true; clearTimeout(longT); ptrDn(tStart, mode === 'fire'); }
+            }
+            if (tMoved) ptrMv(p);
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', e => {
+            e.preventDefault(); clearTimeout(longT);
+            const p = e.changedTouches ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY } : tStart;
+            if (tLong) return;
+            if (!tMoved) {
+                const n = nodeAt(p.x, p.y);
+                if (n) selectNode(n);
+                else { selNode = null; document.getElementById('selSt').style.display = 'none'; highlightCards(null); redrawV(); }
+            } else ptrUp(p);
+        }, { passive: false });
+
+        function ptrDn(p, fire) {
+            const n = nodeAt(p.x, p.y); if (!n) return;
+            if (fire) {
+                aiming = { srcNode: n, sx: n.x, sy: n.y, ex: p.x, ey: p.y };
+                setMsg(`<em>${opLbl(curOp)}</em> nocked from <strong>${opLbl(n.op)} N${n.id}</strong> — drag to target`, 'aim');
+                lastDragCell = nodes.indexOf(n);
+                redrawV();
+            } else {
+                dragging = n; dox = p.x - n.x; doy = p.y - n.y;
+                lastDragCell = nodes.indexOf(n);
+                selectNode(n);
+            }
+        }
+
+        function ptrMv(p) {
+            if (dragging) {
+                dragging.x = p.x - dox; dragging.y = p.y - doy;
+                computeV(); redrawV();
+                // Haptic+sound on border crossing while dragging
+                const now = Date.now();
+                if (vmap && now - lastDrgSnd > 260) {
+                    const sx = Math.floor(dragging.x / SAMP), sy = Math.floor(dragging.y / SAMP);
+                    if (sx >= 0 && sx < vsW && sy >= 0 && sy < vsH) {
+                        const curCell = vmap[sy * vsW + sx];
+                        if (curCell >= 0 && curCell !== lastDragCell) { lastDragCell = curCell; lastDrgSnd = now; sndBorderCross(); hapBorder(); }
+                    }
+                }
+                return;
+            }
+            const n = nodeAt(p.x, p.y);
+            if (hovNode !== n) {
+                hovNode = n;
+                if (n) { const op = OPS[n.op]; setMsg(`<strong>${opLbl(n.op)}</strong> N${n.id} — ${op?.verb || ''}`); }
+                else if (!aiming) setReady();
+                redrawV();
+            }
+            if (aiming) {
+                aiming.ex = p.x; aiming.ey = p.y;
+                hovNode = n && n !== aiming.srcNode ? n : null;
+                redrawV();
+            }
+        }
+
+        function ptrUp(p) {
+            if (dragging) { dragging = null; computeV(); redrawV(); return; }
+            if (aiming) {
+                const snap = { ...aiming }; aiming = null; hovNode = null;
+                const tgt = nodeAt(p.x, p.y);
+                if (tgt && tgt !== snap.srcNode) {
+                    fireTo(snap.srcNode, tgt, curOp);
+                } else if (Math.sqrt((snap.ex - snap.sx) ** 2 + (snap.ey - snap.sy) ** 2) > 20) {
+                    // Spawn operator node where released, fire into it
+                    const x = Math.max(44, Math.min(VW - 44, snap.ex));
+                    const y = Math.max(44, Math.min(VH - 44, snap.ey));
+                    const opN = addNode(opLbl(curOp), curOp, x, y);
+                    hapSpawnNode(opN, 3);
+                    edges.push({ from: snap.srcNode, to: opN });
+                    setTimeout(() => fireTo(snap.srcNode, opN, curOp), 50);
+                } else setReady();
+                redrawV();
+            }
+        }
+
+        canvas.addEventListener('click', e => {
+            const p = evP(e); if (aiming) return;
+            const n = nodeAt(p.x, p.y);
+            if (n) selectNode(n);
+            else { selNode = null; document.getElementById('selSt').style.display = 'none'; highlightCards(null); redrawV(); }
+        });
+
+        // ══════════════════════════════
+        // FIRE
+        // ══════════════════════════════
+        function fireTo(srcNode, opNode, opKey) {
+            const op = OPS[opKey];
+            if (!op?.sys) { setMsg(`<em>${opLbl(opKey)}</em> is a seed — fire into an operator`); return; }
+            setMsg(`<em>${op.lbl}</em> ${op.verb} ← <strong>${opLbl(srcNode.op)} N${srcNode.id}</strong>`, 'aim');
+            shootArr(srcNode.x, srcNode.y, opNode.x, opNode.y, opH(opKey), () => {
+                hapHit(); hapPush(opNode, srcNode.x, srcNode.y, 8);
+                edges.push({ from: srcNode, to: opNode });
+                fireRipple(nodes.indexOf(opNode));
+                runOp(srcNode, opNode, opKey);
+            });
+        }
+
+        // ══════════════════════════════
+        // NODES
+        // ══════════════════════════════
+        function mkNode(text, op, x, y) { return { id: ++nid, text, op, x, y, vx: 0, vy: 0, glow: 0, run: 0, depth: 0 }; }
+        function addNode(text, op, x, y) { const n = mkNode(text, op, x, y); nodes.push(n); document.getElementById('sN').textContent = nodes.length; computeV(); redrawV(); return n; }
+        function removeNode(n) { edges = edges.filter(e => e.from !== n && e.to !== n); nodes = nodes.filter(x => x !== n); ops = ops.filter(o => o.srcNode !== n && o.opNode !== n && o.resNode !== n); if (selNode === n) selNode = null; document.getElementById('sN').textContent = nodes.length; computeV(); redrawV(); renderWT(); }
+        function selectNode(n) { selNode = n; n.glow = .45; computeV(); redrawV(); sndSel(); hapSel(); document.getElementById('selSt').style.display = ''; document.getElementById('sSel').textContent = opLbl(n.op) + ' N' + n.id; highlightCards(n.id); scrollToCard(n.id); }
+        function clearAll() { nodes = []; edges = []; ops = []; selNode = null; hovNode = null; vmap = null; ripples = []; document.getElementById('sN').textContent = '0'; redrawV(); renderWT(); setReady(); }
+
+        // ══════════════════════════════
+        // RUN OPERATOR
+        // ══════════════════════════════
+        async function runOp(srcNode, opNode, opKey) {
+            const op = OPS[opKey]; if (!op?.sys) return;
+            const concept = srcNode.text;
+            // Build spatial context from neighbors — this also sonifies influence
+            const spCtx = buildCtx(opNode);
+            // The system prompt is robust to any input — no special casing needed
+            const sys = op.sys + spCtx;
+            // TF operators receive text directly; generate operators get a "Concept:" prefix
+            const userMsg = TF.has(opKey) ? concept : `Concept: ${concept}`;
+
+            opNode.run = .01; startPhys();
+            setMsg(`<em>${op.lbl}</em> processing…`, 'run');
+            document.getElementById('tDot').className = 'tdot run';
+            chime(opKey);
+
+            // ONE result node, in direction of travel from opNode
+            const dx = opNode.x - srcNode.x, dy = opNode.y - srcNode.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+            const dist = 62 + Math.random() * 48;
+            const rx = Math.max(44, Math.min(VW - 44, opNode.x + (dx / d) * dist + (Math.random() - .5) * 30));
+            const ry = Math.max(44, Math.min(VH - 44, opNode.y + (dy / d) * dist + (Math.random() - .5) * 30));
+            const resNode = mkNode('…', opKey, rx, ry);
+            resNode.depth = srcNode.depth + 1; resNode.run = .01;
+            nodes.push(resNode); document.getElementById('sN').textContent = nodes.length;
+            edges.push({ from: opNode, to: resNode });
+            hapSpawnNode(resNode, 3); computeV(); redrawV();
+
+            const nb = getNbs(opNode).filter(({ len }) => { const mL = Math.max(...getNbs(opNode).map(x => x.len), 1); return len / mL >= .12; }).length;
+            const rec = { id: ++oid, srcNode, opNode, resNode, opKey, nb, text: '', ts: Date.now(), words: 0, sections: [], streaming: true };
+            ops.push(rec); addCard(rec);
+
+            try {
+                if (!API_KEY) { setMsg('API KEY MISSING', 'err'); setApiStatus('err'); return; }
+                setApiStatus('busy');
+                const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
+                    body: JSON.stringify({
+                        model: CONFIG.model,
+                        messages: [{ role: 'system', content: sys }, { role: 'user', content: userMsg }],
+                        temperature: 0.7
+                    })
+                });
+                const data = await r.json();
+                setApiStatus('ok');
+                const text = data.choices?.[0]?.message?.content || 'Error: ' + (data.error?.message || JSON.stringify(data));
+                rec.text = text; resNode.text = text; rec.words = text.split(/\s+/).length;
+                let i = 0;
+                const tick = setInterval(() => {
+                    if (i >= text.length) {
+                        clearInterval(tick); rec.streaming = false;
+                        rec.sections = parseSections(text);
+                        updateCard(rec.id, text, true);
+                        opNode.run = 0; resNode.run = 0;
+                        hapPush(resNode, opNode.x, opNode.y, 5);
+                        fireRipple(nodes.indexOf(resNode), .6);
+                        sndHit(opKey); hapHit();
+                        computeV(); redrawV();
+                        setMsg(`Done · <em>${op.lbl}</em> → N${resNode.id} · ${rec.words} words · each section is fireable`);
+                        document.getElementById('tDot').className = 'tdot';
+                        selectNode(resNode);
+                    } else {
+                        i += Math.ceil(text.length / 220);
+                        updateCard(rec.id, text.slice(0, i), false);
+                    }
+                }, 14);
+            } catch (err) {
+                rec.text = 'Error: ' + err.message; updateCard(rec.id, rec.text, true);
+                opNode.run = 0; resNode.run = 0; document.getElementById('tDot').className = 'tdot';
+            }
+        }
+
+        // ══════════════════════════════
+        // TEXT PARSER — sections as standalone fireable units
+        // ══════════════════════════════
+        function parseSections(raw) {
+            const secs = [];
+            const blocks = raw.split(/\n{2,}/);
+            blocks.forEach(block => {
+                block = block.trim(); if (!block) return;
+                let esc = block.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                let html = esc
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+                    .replace(/`([^`]+)`/g, '<code class="sc">$1</code>');
+                if (/^(-{3,}|\*{3,})$/.test(block)) return;
+                if (/^#{1,4}\s/.test(block)) { secs.push({ type: 'h', text: block.replace(/^#+\s/, ''), html: `<div class="sh">${html.replace(/^#+\s/, '')}</div>` }); return; }
+                if (/^>\s?/.test(block)) { const inner = html.replace(/^&gt;\s?/gm, '').replace(/\n/g, '<br>'); secs.push({ type: 'q', text: block.replace(/^>\s?/gm, ''), html: `<div class="sq">${inner}</div>` }); return; }
+                if (/^(\d+)\.\s/.test(block)) {
+                    const lines = block.split(/\n/).filter(l => l.trim());
+                    lines.forEach(line => {
+                        const m = line.match(/^(\d+)\.\s+(.*)/);
+                        if (m) {
+                            const t2 = m[2].replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+                            secs.push({ type: 'num', num: m[1], text: m[2], html: `<div class="snum"><span class="sn">${m[1]}.</span><span>${t2}</span></div>` });
+                        }
+                    }); return;
+                }
+                if (/^[-*+]\s/.test(block)) {
+                    const lines = block.split(/\n/).filter(l => /^[-*+]\s/.test(l.trim()));
+                    lines.forEach(line => {
+                        const t2 = line.replace(/^[-*+]\s+/, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        secs.push({ type: 'li', text: line.replace(/^[-*+]\s+/, ''), html: `<div class="snum"><span class="sn">·</span><span>${t2}</span></div>` });
+                    }); return;
+                }
+                secs.push({ type: 'p', text: block, html: `<p class="sp">${html.replace(/\n/g, '<br>')}</p>` });
+            });
+            return secs;
+        }
+
+        // Fire button on each section — spawns node from section text, enters fire mode
+        function mkSecBtn(secText, opKey) {
+            const btn = document.createElement('button');
+            btn.className = 'sfbtn'; btn.title = 'Spawn & fire this section'; btn.textContent = '⊙';
+            btn.onclick = e => {
+                e.stopPropagation();
+                const vr = document.getElementById('vp').getBoundingClientRect();
+                const x = 60 + Math.random() * (vr.width - 130);
+                const y = 60 + Math.random() * (vr.height - 120);
+                const n = addNode(secText.slice(0, 120), opKey, x, y);
+                hapSpawnNode(n, 6); sndSpawn(); hapSpawn();
+                selectNode(n); setMode('fire');
+                setMsg(`Section → <em>${opLbl(opKey)}</em> N${n.id} · shift+drag to fire through any operator`);
+            };
+            return btn;
+        }
+
+        // ══════════════════════════════
+        // WORLD TEXT — op cards
+        // ══════════════════════════════
+        function addCard(rec) {
+            const list = document.getElementById('wtL');
+            if (list.querySelector('div[style]')) list.innerHTML = '';
+            if (ops.length > 1) {
+                const conn = document.createElement('div'); conn.className = 'oconn';
+                conn.innerHTML = `<span style="color:${opC(rec.opKey, 50, .5)}">${opLbl(rec.srcNode.op)} N${rec.srcNode.id} → ${(OPS[rec.opKey] || {}).lbl}</span>`;
+                list.appendChild(conn);
+            }
+            const card = document.createElement('div');
+            card.className = 'ocard'; card.dataset.oid = rec.id; card.dataset.nid = rec.resNode.id; card.dataset.fid = rec.srcNode.id;
+            const h = opH(rec.opKey);
+            const from = `${opLbl(rec.srcNode.op)} N${rec.srcNode.id} · "${rec.srcNode.text.slice(0, 26)}${rec.srcNode.text.length > 26 ? '…' : ''}"`;
+            card.innerHTML = `
+<div class="ospine" style="background:${hsl(h, 65, 50, .55)}"></div>
+<div class="ohdr">
+  <span class="obadge" style="color:${hsl(h, 70, isLight ? 32 : 58)};border-color:${hsl(h, 60, 40, .35)}">${opLbl(rec.opKey)}</span>
+  <span class="oarrow">←</span>
+  <span class="ofrom" title="${from}">${from}</span>
+  <div class="ometa">
+    ${rec.nb > 0 ? `<span class="onb">⬡${rec.nb}</span>` : ''}
+    <span class="otime">${new Date(rec.ts).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+  </div>
+</div>
+<div class="wsecs" id="secs-${rec.id}"></div>
+<div class="oacts">
+  <button class="oa" onclick="routeCard(this)">↑ Route</button>
+  <button class="oa" onclick="cpCard(this)">Copy</button>
+  <button class="oa" onclick="colCard(this)">−</button>
+</div>`;
+            card.onclick = e => { if (e.target.tagName === 'BUTTON') return; clickCard(rec); };
+            list.appendChild(card);
+            updateCard(rec.id, '', false);
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            drawLinks();
+        }
+
+        function updateCard(oid, text, done) {
+            const rec = ops.find(o => o.id === oid); if (!rec) return;
+            if (!done) rec.text = text;
+            else { rec.streaming = false; if (!rec.sections?.length) rec.sections = parseSections(text); }
+            const secEl = document.getElementById('secs-' + oid); if (!secEl) return;
+            secEl.innerHTML = '';
+            const secs = done && rec.sections?.length ? rec.sections : parseSections(text.length > 0 ? text : '…');
+            secs.forEach((sec, i) => {
+                const row = document.createElement('div'); row.className = 'wsec';
+                const fb = mkSecBtn(sec.text, rec.opKey); row.appendChild(fb);
+                const body = document.createElement('div'); body.className = 'sbody';
+                body.innerHTML = sec.html + (!done && i === secs.length - 1 ? '<span class="blink">▌</span>' : '');
+                row.appendChild(body); secEl.appendChild(row);
+            });
+        }
+
+        function clickCard(rec) { const n = nodes.find(x => x.id === rec.resNode.id); if (n) selectNode(n); document.querySelectorAll('.ocard').forEach(c => c.classList.toggle('active', c.dataset.oid == rec.id)); drawLinks(); }
+        function scrollToCard(nid) { const el = document.querySelector(`.ocard[data-nid="${nid}"]`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+        function highlightCards(nid) { document.querySelectorAll('.ocard').forEach(el => { el.classList.toggle('active', nid != null && el.dataset.nid == nid); el.classList.toggle('muted', nid != null && el.dataset.nid != nid && el.dataset.fid != nid); }); drawLinks(); }
+        function routeCard(btn) { const rec = ops.find(o => o.id == btn.closest('.ocard').dataset.oid); if (!rec) return; document.getElementById('bIn').value = rec.text.slice(0, 200); document.getElementById('bIn').focus(); btn.textContent = '✓'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = '↑ Route'; btn.classList.remove('ok') }, 1400); }
+        function cpCard(btn) { const rec = ops.find(o => o.id == btn.closest('.ocard').dataset.oid); if (!rec) return; navigator.clipboard.writeText(rec.text).then(() => { btn.textContent = '✓'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('ok') }, 1400) }); }
+        function colCard(btn) { const b = btn.closest('.ocard').querySelector('.wsecs'); b.style.display = b.style.display === 'none' ? '' : 'none'; btn.textContent = b.style.display === 'none' ? '+' : '−'; }
+
+        function renderWT() {
+            const l = document.getElementById('wtL');
+            if (!ops.length) { l.innerHTML = '<div style="padding:24px 12px;font-family:\'Cormorant Garamond\',serif;font-size:13px;font-style:italic;color:var(--ink3);line-height:1.9">Spawn nodes · select arrow<br>from quiver · shift+drag to fire.<br>Each section is independently fireable with ⊙.</div>'; return; }
+            l.innerHTML = ''; ops.forEach(r => addCard(r));
+        }
+
+        // TRANSCLUSION LINKS — drawn on canvas behind cards
+        function drawLinks() {
+            if (!linksOn) return;
+            const bd = document.getElementById('wtBd'); const lc = document.getElementById('lkc'); if (!lc) return;
+            const bw = bd.clientWidth; const bh = Math.max(bd.scrollHeight, 600) + 60;
+            lc.width = bw; lc.height = bh; lc.style.height = bh + 'px';
+            const c2 = lc.getContext('2d'); c2.clearRect(0, 0, bw, bh);
+            const sr = bd.getBoundingClientRect(); const st = bd.scrollTop;
+            ops.forEach(rec => {
+                const srcOp = ops.find(o => o.resNode === rec.srcNode); if (!srcOp) return;
+                const child = document.querySelector(`.ocard[data-oid="${rec.id}"]`);
+                const par = document.querySelector(`.ocard[data-oid="${srcOp.id}"]`);
+                if (!child || !par) return;
+                const cr = child.getBoundingClientRect(), pr = par.getBoundingClientRect();
+                const cy = cr.top - sr.top + st + cr.height / 2; const py = pr.top - sr.top + st + pr.height / 2;
+                const h = opH(rec.opKey);
+                c2.save();
+                c2.strokeStyle = isLight ? hsl(h, 55, 30, .15) : hsl(h, 65, 55, .15);
+                c2.lineWidth = 1; c2.setLineDash([2, 5]);
+                c2.beginPath(); c2.moveTo(5, py); c2.bezierCurveTo(-10, py, -10, cy, 5, cy); c2.stroke(); c2.setLineDash([]);
+                [py, cy].forEach(y => { c2.beginPath(); c2.arc(5, y, 2, 0, Math.PI * 2); c2.fillStyle = isLight ? hsl(h, 55, 30, .24) : hsl(h, 65, 55, .24); c2.fill(); });
+                c2.restore();
+            });
+        }
+        document.getElementById('wtBd').addEventListener('scroll', drawLinks);
+
+        function wtZ(f) { wtScl = f === 0 ? 1 : Math.max(.4, Math.min(2.2, wtScl * f)); const l = document.getElementById('wtL'); l.style.transform = `scale(${wtScl})`; l.style.transformOrigin = 'top left'; l.style.width = (100 / wtScl) + '%'; drawLinks(); }
+        function togLinks() { linksOn = !linksOn; document.getElementById('lkBtn').style.color = linksOn ? 'var(--gold)' : 'var(--ink3)'; drawLinks(); }
+
+        // ══════════════════════════════
+        // CONTEXT MENUS
+        // ══════════════════════════════
+        function showSpawnCtx(x, y, src) {
+            const m = document.getElementById('ctx'); m.innerHTML = `<div class="cxhd">${src ? 'Route through' : 'Spawn operator'}</div>`;
+            Object.entries(OPS).forEach(([id, op]) => {
+                const d = document.createElement('div'); d.className = 'cx';
+                const dot = document.createElement('span'); dot.className = 'cxdot'; dot.style.background = opC(id, 56);
+                const info = document.createElement('div'); info.className = 'cxinfo';
+                info.innerHTML = `<span>${op.lbl}</span><span class="cxsub">${op.verb}</span>`;
+                d.appendChild(dot); d.appendChild(info);
+                d.onclick = () => {
+                    m.style.display = 'none';
+                    const n = addNode(op.lbl, id, x, y); hapSpawnNode(n, 4); sndSpawn(); hapSpawn();
+                    if (src) { edges.push({ from: src, to: n }); fireRipple(nodes.indexOf(n), .4); setTimeout(() => fireTo(src, n, id), 50); }
+                    else setMsg(`<em>${op.lbl}</em> spawned · shift+drag to fire`);
+                };
+                m.appendChild(d);
+            });
+            posCtx(m, x, y);
+        }
+        function showNodeCtx(x, y, n) {
+            const m = document.getElementById('ctx'); const op = OPS[n.op];
+            m.innerHTML = `<div class="cxhd">${opLbl(n.op)} N${n.id}${op ? ` · ${op.verb}` : ''}</div>`;
+            [['⊙ Fire mode', () => { selectNode(n); setMode('fire'); }],
+            ['Select', () => selectNode(n)],
+            ['Copy', () => navigator.clipboard.writeText(n.text)],
+            ['Remove', () => removeNode(n)]].forEach(([lbl, fn]) => {
+                const d = document.createElement('div'); d.className = 'cx'; d.textContent = lbl;
+                d.onclick = () => { m.style.display = 'none'; fn(); }; m.appendChild(d);
+            });
+            posCtx(m, x, y);
+        }
+        function posCtx(m, x, y) { m.style.display = 'block'; requestAnimationFrame(() => { m.style.left = Math.min(x, window.innerWidth - m.offsetWidth - 8) + 'px'; m.style.top = Math.max(8, y - m.offsetHeight - 4) + 'px'; }); }
+        document.addEventListener('click', e => { if (!e.target.closest('#ctx')) document.getElementById('ctx').style.display = 'none'; });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') { aiming = null; document.getElementById('ctx').style.display = 'none'; redrawV(); setReady(); } });
+
+        // ══════════════════════════════
+        // BOTTOM + SPAWNING
+        // ══════════════════════════════
+        function bKey(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); spawnInput(); } }
+        function spawnInput() {
+            const inp = document.getElementById('bIn'); const t = inp.value.trim(); if (!t) return;
+            const vr = document.getElementById('vp').getBoundingClientRect();
+            const x = 60 + Math.random() * (vr.width - 130); const y = 60 + Math.random() * (vr.height - 120);
+            const n = addNode(t, curOp, x, y); hapSpawnNode(n, 7); sndSpawn(); hapSpawn(); inp.value = '';
+            setMsg(`<strong>${opLbl(curOp)} N${n.id}</strong> spawned · shift+drag to fire`);
+        }
+        function setMode(m) {
+            mode = m;
+            document.getElementById('tbEx').classList.toggle('on', m === 'explore');
+            document.getElementById('tbFi').classList.toggle('on', m === 'fire');
+            if (m === 'fire') setMsg('Fire mode · shift+drag any node to aim', 'aim');
+            else setReady();
+        }
+
+        // ══════════════════════════════
+        // DIVIDER + RESIZE
+        // ══════════════════════════════
+        let dd = false, dsx = 0, dsw = 0;
+        document.getElementById('divider').addEventListener('mousedown', e => { dd = true; dsx = e.clientX; dsw = document.getElementById('wtp').offsetWidth; e.preventDefault(); });
+        document.addEventListener('mousemove', e => { if (!dd) return; const nw = Math.max(200, Math.min(560, dsw + (dsx - e.clientX))); document.getElementById('wtp').style.width = nw + 'px'; resize(); });
+        document.addEventListener('mouseup', () => { if (dd) { dd = false; resize(); } });
+
+        function resize() { const r = document.getElementById('vp').getBoundingClientRect(); VW = canvas.width = r.width; VH = canvas.height = r.height; computeV(); redrawV(); }
+        window.addEventListener('resize', resize);
+
+        // ══════════════════════════════
+        // SEED
+        // ══════════════════════════════
+        function seed() {
+            const vr = document.getElementById('vp').getBoundingClientRect();
+            const W = vr.width, H = vr.height;
+            [
+                { t: "The future cannot be theorized; it must be rendered as a diegetic prototype.", op: 'site', rx: .15, ry: .22 },
+                { t: "Entropy is the baseline condition of all advanced technology.", op: 'dig', rx: .68, ry: .18 },
+                { t: "The complexity of a system is anchored by the banality of its onboarding.", op: 'infer', rx: .14, ry: .62 },
+                { t: "The terminal velocity of all innovation is hyper-commodification.", op: 'aphorist', rx: .65, ry: .56 },
+                { t: "The device requires biometric stress. Cortisol unlocks the UI.", op: 'site', rx: .42, ry: .30 },
+            ].forEach(x => addNode(x.t, x.op, 44 + x.rx * W, 44 + x.ry * H));
+            setReady();
+        }
+
+        // ══════════════════════════════
+        // INIT
+        // ══════════════════════════════
+        document.getElementById('bIn').addEventListener('keydown', bKey);
+        loadApiKey();
+        loadHyper();
+        buildQuiver();
+        resize();
+        seed();
+        // Init sound on first user gesture
+        document.addEventListener('click', () => { if (!AC) initSnd(); }, { once: true });
+        document.addEventListener('touchstart', () => { if (!AC) initSnd(); }, { once: true, passive: true });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1397 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Autonomic Clinic OS — Digital Strike Teams for Care Delivery</title>
+    <meta name="description"
+        content="Stop wiring dead APIs. Install a digital Autonomic Nervous System: agents that listen, digest, stage, and route—so clinicians can practice medicine again." />
+
+    <!-- Single-file favicon (SVG data URI) -->
+    <link rel="icon" type="image/svg+xml"
+        href='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2230%25%22%20cy%3D%2230%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23BFA8FF%22/%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%238B5CFF%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect%20x%3D%226%22%20y%3D%226%22%20width%3D%2252%22%20height%3D%2252%22%20rx%3D%2218%22%20fill%3D%22url(%23g)%22/%3E%3Cpath%20d%3D%22M20%2036c6-9%2018-9%2024%200%22%20fill%3D%22none%22%20stroke%3D%22%23EDE6DA%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2241%22%20r%3D%224%22%20fill%3D%22%2338F29B%22/%3E%3C/svg%3E' />
+
+    <!-- Fonts (still single-file; loaded from Google). Remove these two links if you need fully offline. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #070A0F;
+            --bg2: #0B1020;
+            --text: #EDE6DA;
+            --muted: rgba(237, 230, 218, .72);
+            --dim: rgba(237, 230, 218, .55);
+            --line: rgba(237, 230, 218, .14);
+
+            --accent: #8B5CFF;
+            --accent2: #BFA8FF;
+            --ok: #38F29B;
+            --warn: #FF3B3B;
+
+            --shadow: 0 18px 60px rgba(0, 0, 0, .45);
+            --r: 18px;
+            --max: 1120px;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            height: 100%
+        }
+
+        body {
+            margin: 0;
+            color: var(--text);
+            background:
+                radial-gradient(1200px 800px at 70% -10%, rgba(139, 92, 255, .25), transparent 60%),
+                radial-gradient(900px 600px at 10% 10%, rgba(56, 242, 155, .12), transparent 55%),
+                linear-gradient(180deg, var(--bg), var(--bg2));
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            letter-spacing: -0.01em;
+            overflow-x: hidden;
+        }
+
+        /* subtle grain */
+        body:before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.18'/%3E%3C/svg%3E");
+            mix-blend-mode: overlay;
+            opacity: .18;
+        }
+
+        a {
+            color: inherit
+        }
+
+        .wrap {
+            max-width: var(--max);
+            margin: 0 auto;
+            padding: 0 22px
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--line);
+            margin: 22px 0
+        }
+
+        .mono {
+            font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace
+        }
+
+        .monoish {
+            font-family: "IBM Plex Mono", ui-monospace, monospace;
+            font-size: 13px;
+            color: rgba(237, 230, 218, .78)
+        }
+
+        .dim {
+            color: var(--dim)
+        }
+
+        .muted {
+            color: var(--muted)
+        }
+
+        .warn {
+            color: var(--warn)
+        }
+
+        .accent {
+            color: var(--accent2)
+        }
+
+        .accent2 {
+            color: var(--accent2)
+        }
+
+        .fineprint {
+            font-size: 12px;
+            line-height: 1.6;
+            color: rgba(237, 230, 218, .60)
+        }
+
+        /* Accessibility */
+        .skip {
+            position: absolute;
+            left: -9999px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
+
+        .skip:focus {
+            left: 16px;
+            top: 14px;
+            width: auto;
+            height: auto;
+            z-index: 9999;
+            background: rgba(0, 0, 0, .65);
+            border: 1px solid rgba(237, 230, 218, .22);
+            padding: 10px 12px;
+            border-radius: 12px;
+        }
+
+        /* NAV */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            backdrop-filter: blur(14px);
+            background: linear-gradient(180deg, rgba(7, 10, 15, .92), rgba(7, 10, 15, .60));
+            border-bottom: 1px solid var(--line);
+        }
+
+        .nav-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            gap: 18px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            min-width: 240px;
+        }
+
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+            filter: drop-shadow(0 12px 26px rgba(139, 92, 255, .18));
+        }
+
+        .brand-name {
+            font-weight: 900;
+            letter-spacing: -.03em
+        }
+
+        .brand-sub {
+            font-size: 12px;
+            color: var(--dim);
+            margin-top: 2px
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            font-weight: 900;
+            font-size: 13px;
+            color: rgba(237, 230, 218, .86);
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            transition: .15s ease;
+        }
+
+        .nav-link:hover {
+            border-color: rgba(237, 230, 218, .14);
+            background: rgba(237, 230, 218, .04)
+        }
+
+        .nav-link.active {
+            border-color: rgba(139, 92, 255, .35);
+            background: rgba(139, 92, 255, .10)
+        }
+
+        .cta {
+            text-decoration: none;
+            font-weight: 900;
+            font-size: 13px;
+            padding: 10px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(139, 92, 255, .35);
+            background: rgba(139, 92, 255, .10);
+            transition: .15s ease;
+            white-space: nowrap;
+        }
+
+        .cta:hover {
+            transform: translateY(-1px)
+        }
+
+        /* Toggle */
+        .toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(237, 230, 218, .14);
+            background: rgba(237, 230, 218, .03);
+            font-weight: 900;
+            font-size: 13px;
+            cursor: pointer;
+            color: rgba(237, 230, 218, .88);
+            transition: .15s ease;
+        }
+
+        .toggle:hover {
+            transform: translateY(-1px)
+        }
+
+        .switch {
+            width: 42px;
+            height: 24px;
+            border-radius: 999px;
+            border: 1px solid rgba(237, 230, 218, .14);
+            background: rgba(0, 0, 0, .25);
+            position: relative;
+        }
+
+        .knob {
+            width: 18px;
+            height: 18px;
+            border-radius: 99px;
+            background: rgba(237, 230, 218, .85);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: .25s ease;
+        }
+
+        .clarityOn .knob {
+            left: 20px;
+            background: var(--ok)
+        }
+
+        .clarityOnly {
+            display: none
+        }
+
+        .clarityOn .clarityOnly {
+            display: block
+        }
+
+        .clarityOn .noClarity {
+            display: none
+        }
+
+        /* HERO */
+        header.hero {
+            padding: 52px 0 22px
+        }
+
+        .kicker {
+            display: inline-flex;
+            gap: 10px;
+            align-items: center;
+            border: 1px solid rgba(237, 230, 218, .14);
+            background: rgba(237, 230, 218, .04);
+            padding: 10px 12px;
+            border-radius: 999px;
+            color: rgba(237, 230, 218, .86);
+            font-weight: 900;
+            font-size: 13px;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: var(--accent);
+            box-shadow: 0 0 18px rgba(139, 92, 255, .65);
+        }
+
+        h1 {
+            margin: 14px 0 10px;
+            font-size: clamp(34px, 5vw, 60px);
+            line-height: 1.03;
+            letter-spacing: -.05em;
+        }
+
+        h2 {
+            margin: 0 0 10px;
+            font-size: clamp(22px, 3vw, 34px);
+            letter-spacing: -.04em;
+            line-height: 1.15;
+        }
+
+        h3 {
+            margin: 0;
+            letter-spacing: -.03em;
+        }
+
+        .sub {
+            max-width: 78ch;
+            color: var(--muted);
+            font-size: 17px;
+            line-height: 1.65;
+        }
+
+        .hero-cta {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 18px
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(237, 230, 218, .16);
+            background: rgba(237, 230, 218, .05);
+            text-decoration: none;
+            font-weight: 900;
+            font-size: 14px;
+            color: rgba(237, 230, 218, .92);
+            transition: .15s ease;
+        }
+
+        .btn.primary {
+            border-color: rgba(139, 92, 255, .35);
+            background: linear-gradient(180deg, rgba(139, 92, 255, .22), rgba(139, 92, 255, .10));
+            box-shadow: 0 18px 60px rgba(139, 92, 255, .12);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px)
+        }
+
+        .hero-panels {
+            display: grid;
+            grid-template-columns: 1.2fr .8fr;
+            gap: 18px;
+            margin-top: 22px;
+        }
+
+        @media (max-width: 920px) {
+            .hero-panels {
+                grid-template-columns: 1fr
+            }
+        }
+
+        /* SECTIONS */
+        main {
+            padding-bottom: 40px
+        }
+
+        section.section {
+            padding: 34px 0
+        }
+
+        section.section.tight {
+            padding: 24px 0
+        }
+
+        .lead {
+            color: var(--muted);
+            max-width: 82ch;
+            line-height: 1.7;
+            margin: 0 0 16px;
+        }
+
+        /* PANELS / CARDS */
+        .panel {
+            border: 1px solid rgba(237, 230, 218, .14);
+            background: rgba(7, 10, 15, .55);
+            border-radius: var(--r);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel-hd {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--line);
+            background: linear-gradient(180deg, rgba(237, 230, 218, .05), transparent);
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            color: rgba(191, 168, 255, .9);
+            font-size: 12px;
+            letter-spacing: .02em
+        }
+
+        .panel-bd {
+            padding: 16px
+        }
+
+        .callout {
+            border: 1px solid rgba(139, 92, 255, .28);
+            background: rgba(139, 92, 255, .08);
+            border-radius: var(--r);
+            padding: 14px 14px;
+        }
+
+        .callout p {
+            margin: 10px 0 0;
+            color: var(--muted);
+            line-height: 1.65
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 14px;
+        }
+
+        .card {
+            grid-column: span 6;
+            border: 1px solid rgba(237, 230, 218, .14);
+            background: rgba(7, 10, 15, .48);
+            border-radius: var(--r);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        @media (max-width: 920px) {
+            .card {
+                grid-column: span 12
+            }
+        }
+
+        .card-hd {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--line);
+            background: linear-gradient(180deg, rgba(237, 230, 218, .05), transparent);
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-family: "IBM Plex Mono", ui-monospace, monospace;
+            font-size: 12px;
+            color: rgba(237, 230, 218, .85);
+            border: 1px solid rgba(237, 230, 218, .14);
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(237, 230, 218, .03);
+            white-space: nowrap;
+        }
+
+        .card-bd {
+            padding: 16px
+        }
+
+        .card-bd p {
+            margin: 0 0 10px;
+            color: var(--muted);
+            line-height: 1.65
+        }
+
+        ul,
+        ol {
+            margin: 10px 0 0;
+            padding-left: 18px;
+            color: var(--muted);
+            line-height: 1.7
+        }
+
+        li {
+            margin: 6px 0
+        }
+
+        /* Terminal */
+        .terminal {
+            font-family: "IBM Plex Mono", ui-monospace, monospace;
+            border: 1px solid rgba(237, 230, 218, .14);
+            background: rgba(0, 0, 0, .35);
+            border-radius: var(--r);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .terminal-bar {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: rgba(237, 230, 218, .75);
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .terminal pre {
+            margin: 0;
+            padding: 14px 14px;
+            white-space: pre-wrap;
+            line-height: 1.55;
+            color: rgba(237, 230, 218, .84);
+        }
+
+        /* Tabs (procedure) */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 10px 0 12px
+        }
+
+        .tab {
+            border: 1px solid rgba(237, 230, 218, .14);
+            background: rgba(237, 230, 218, .03);
+            padding: 10px 12px;
+            border-radius: 999px;
+            font-weight: 900;
+            font-size: 13px;
+            color: rgba(237, 230, 218, .86);
+            cursor: pointer;
+            transition: .15s ease;
+        }
+
+        .tab:hover {
+            transform: translateY(-1px)
+        }
+
+        .tab.active {
+            border-color: rgba(139, 92, 255, .38);
+            background: rgba(139, 92, 255, .12);
+            color: rgba(237, 230, 218, .92);
+            box-shadow: 0 14px 40px rgba(139, 92, 255, .12);
+        }
+
+        /* Accordion */
+        .accordion details {
+            border: 1px solid rgba(237, 230, 218, .14);
+            background: rgba(237, 230, 218, .03);
+            border-radius: var(--r);
+            padding: 12px 14px;
+        }
+
+        .accordion details+details {
+            margin-top: 10px
+        }
+
+        .accordion summary {
+            cursor: pointer;
+            list-style: none;
+            font-weight: 900;
+            letter-spacing: -.02em;
+            color: rgba(237, 230, 218, .9);
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .accordion summary::-webkit-details-marker {
+            display: none
+        }
+
+        .details {
+            margin-top: 10px;
+            color: var(--muted);
+            line-height: 1.75
+        }
+
+        .quote {
+            border-left: 3px solid rgba(139, 92, 255, .5);
+            padding-left: 12px;
+            color: rgba(237, 230, 218, .78);
+            margin: 12px 0;
+            font-style: italic;
+        }
+
+        /* Form */
+        .form {
+            display: grid;
+            gap: 12px
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px
+        }
+
+        @media (max-width: 920px) {
+            .form-row {
+                grid-template-columns: 1fr
+            }
+        }
+
+        label span {
+            display: block;
+            font-weight: 900;
+            font-size: 13px;
+            color: rgba(237, 230, 218, .78);
+            margin-bottom: 8px
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 12px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(237, 230, 218, .14);
+            background: rgba(0, 0, 0, .22);
+            color: var(--text);
+            outline: none;
+            font: inherit;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: rgba(139, 92, 255, .45)
+        }
+
+        /* Footer */
+        footer.footer {
+            padding: 38px 0 60px;
+            color: var(--dim)
+        }
+
+        .footer-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap
+        }
+
+        /* Reveal animation */
+        .reveal {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: .7s ease
+        }
+
+        .reveal.on {
+            opacity: 1;
+            transform: none
+        }
+    </style>
+</head>
+
+<body>
+    <a class="skip" href="#content">Skip to content</a>
+
+    <!-- Inline logo SVG used in header -->
+    <svg width="0" height="0" style="position:absolute">
+        <defs>
+            <symbol id="logoMark" viewBox="0 0 44 44">
+                <defs>
+                    <radialGradient id="grad" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+                        gradientTransform="translate(14 12) rotate(45) scale(40)">
+                        <stop stop-color="#BFA8FF" />
+                        <stop offset="1" stop-color="#8B5CFF" stop-opacity="0.18" />
+                    </radialGradient>
+                </defs>
+                <rect x="3.5" y="3.5" width="37" height="37" rx="14" fill="url(#grad)"
+                    stroke="rgba(237,230,218,0.18)" />
+                <path d="M14.5 24.5c4.2-6.1 10.8-6.1 15 0" stroke="#EDE6DA" stroke-opacity="0.92" stroke-width="2.2"
+                    stroke-linecap="round" />
+                <path d="M16.2 20.2c3-3.8 8.6-3.8 11.6 0" stroke="#BFA8FF" stroke-width="2.2" stroke-linecap="round" />
+                <circle cx="22" cy="27.6" r="2.3" fill="#38F29B" fill-opacity="0.92" />
+            </symbol>
+        </defs>
+    </svg>
+
+    <div class="nav">
+        <div class="wrap nav-inner">
+            <a class="brand" href="#overview" aria-label="Home">
+                <svg class="brand-mark" width="34" height="34" viewBox="0 0 44 44" aria-hidden="true">
+                    <use href="#logoMark"></use>
+                </svg>
+                <div>
+                    <div class="brand-name">Autonomic Clinic OS</div>
+                    <div class="brand-sub">Systems of Intelligence</div>
+                </div>
+            </a>
+
+            <div class="nav-links">
+                <a class="nav-link" href="#overview" data-section="overview">Overview</a>
+                <a class="nav-link" href="#diagnosis" data-section="diagnosis">Diagnosis</a>
+                <a class="nav-link" href="#agents" data-section="agents">Agents</a>
+                <a class="nav-link" href="#procedure" data-section="procedure">Procedure</a>
+                <a class="nav-link" href="#notes" data-section="notes">Field Notes</a>
+
+                <button class="toggle" id="clarityToggle" type="button" aria-label="Toggle Clarity Mode">
+                    <span>Clarity</span>
+                    <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+                </button>
+
+                <a class="cta" href="#contact">Request demo →</a>
+            </div>
+        </div>
+    </div>
+
+    <main id="content">
+        <!-- OVERVIEW / HERO -->
+        <header class="hero" id="overview">
+            <div class="wrap">
+                <div class="kicker reveal">
+                    <span class="pulse-dot"></span>
+                    Passive databases are dead. Deploy agentic systems.
+                </div>
+
+                <h1 class="reveal noClarity">
+                    Stop wiring together dead APIs.<br />
+                    Build <span class="accent">digital strike teams</span>.
+                </h1>
+
+                <h1 class="reveal clarityOnly">
+                    Stop making clinicians do admin work.<br />
+                    Ship AI agents that run the clinic.
+                </h1>
+
+                <p class="sub reveal noClarity">
+                    For twenty years, tech executives forced doctors to act like overpaid typists, burying them in dumb
+                    electronic records.
+                    That era is over. The passive database is dead. Today, hospital software architects must deploy
+                    autonomous AI agents to do the actual work.
+                    Stop wiring together dead APIs and calling it innovation. Build active, digital strike teams.
+                </p>
+
+                <p class="sub reveal clarityOnly">
+                    EHRs store data, but they push routine work onto clinicians. We install an AI layer that drafts
+                    notes, digests labs,
+                    stages orders, and schedules follow-ups—so clinicians can focus on care.
+                </p>
+
+                <div class="hero-cta reveal">
+                    <a class="btn primary" href="#agents">See the 4-agent system</a>
+                    <a class="btn" href="#procedure">Read the operating procedure</a>
+                </div>
+
+                <div class="hero-panels reveal">
+                    <section class="panel">
+                        <div class="panel-hd">
+                            <div class="mono tag">DIAGNOSIS</div>
+                            <div class="mono dim">architectural toxicity</div>
+                        </div>
+                        <div class="panel-bd">
+                            <p class="noClarity">
+                                “EHR optimization” and “click reduction” committees fight the wrong enemy.
+                                Physicians aren’t burning out because the system is slow. They’re burning out because a
+                                passive record can’t perceive or reason—so it forces humans to become the manual data
+                                pipeline.
+                                Optimizing poison is not a cure.
+                            </p>
+                            <p class="clarityOnly">
+                                Burnout is not just a UI problem. Passive systems push clerical work onto clinicians.
+                                Making the poison easier to swallow is not the cure.
+                            </p>
+                        </div>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-hd">
+                            <div class="mono tag">SOLUTION</div>
+                            <div class="mono dim">digital autonomic nervous system</div>
+                        </div>
+                        <div class="panel-bd">
+                            <div class="callout">
+                                <b>Install a digital Autonomic Nervous System.</b>
+                                <p class="noClarity">
+                                    In a healthy body, vital functions happen in the background.
+                                    In your clinics, the conscious brain—doctors—must manually pump the heart and force
+                                    the lungs to expand for every patient interaction.
+                                    We move those involuntary operations into an always-on agent layer.
+                                </p>
+                                <p class="clarityOnly">
+                                    Routine clinic operations should run in the background, not in the doctor’s head.
+                                </p>
+                            </div>
+                            <div class="divider"></div>
+                            <div class="mono dim">Outcome: clinicians regain bandwidth for judgment + human delivery.
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </header>
+
+        <!-- DIAGNOSIS -->
+        <section class="section" id="diagnosis">
+            <div class="wrap">
+                <h2 class="reveal">Your Clinic Lacks an Autonomic Nervous System</h2>
+
+                <p class="lead reveal noClarity">
+                    Right now, your healthcare organization is operating like a human body with a fatal biological
+                    defect: it lacks an Autonomic Nervous System.
+                    In a normal body, the brain doesn’t consciously think about making the heart beat, the lungs inhale,
+                    or the stomach digest.
+                    But in your clinics, doctors must manually “breathe” the record, digest raw lab results, and stage
+                    every prescription and referral.
+                </p>
+
+                <p class="lead reveal clarityOnly">
+                    A clinic should run routine tasks automatically. Right now, clinicians do them manually—notes, labs,
+                    orders, scheduling—which drains attention and accelerates burnout.
+                </p>
+
+                <div class="terminal reveal" aria-label="ANS mapping">
+                    <div class="terminal-bar">
+                        <span class="mono">ANS Mapping</span>
+                        <span class="mono dim">clinic → body</span>
+                    </div>
+                    <pre>
+<span class="accent2">AUDITORY</span>     Encounter audio → structured memory (note draft)
+<span class="accent2">METABOLIC</span>    Labs/docs/faxes → digested insights (care gaps + context)
+<span class="accent2">MOTOR</span>        Decisions → staged actions (orders/codes/referrals)
+<span class="accent2">SKIN/TRIAGE</span> Inbound requests → routing + emergency escalation</pre>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="grid reveal">
+                    <article class="card">
+                        <div class="card-hd">
+                            <h3>What’s killing you</h3>
+                            <span class="badge">System of Record</span>
+                        </div>
+                        <div class="card-bd">
+                            <ul>
+                                <li>Doctors type the mechanical record of what happened.</li>
+                                <li>Staff “hunt” for missing information and care gaps.</li>
+                                <li>Orders are buried in menus and duplicated entry paths.</li>
+                                <li>Scheduling is a human-powered sorting machine.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card-hd">
+                            <h3>What replaces it</h3>
+                            <span class="badge">System of Intelligence</span>
+                        </div>
+                        <div class="card-bd">
+                            <ul>
+                                <li>Ambient capture drafts structured notes for sign-off.</li>
+                                <li>Continuous data digestion surfaces actionable insights.</li>
+                                <li>Spoken intent becomes staged EHR objects.</li>
+                                <li>Front door triage routes routine requests, halts on emergencies.</li>
+                            </ul>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- AGENTS -->
+        <section class="section" id="agents">
+            <div class="wrap">
+                <h2 class="reveal">The 4-Agent Strike Team</h2>
+                <p class="lead reveal">
+                    Four control surfaces. Speak the command. Read the output. Press the button.
+                </p>
+
+                <div class="grid reveal">
+                    <article class="card">
+                        <div class="card-hd">
+                            <h3>DAX Copilot</h3>
+                            <span class="badge">Audio → Note</span>
+                        </div>
+                        <div class="card-bd">
+                            <p class="muted">Ambient listening that converts encounter audio into a structured note for
+                                clinician review.</p>
+                            <ul>
+                                <li>Place device in-room.</li>
+                                <li>Speak observations aloud.</li>
+                                <li>Draft appears mapped to a template.</li>
+                                <li>Clinician reviews and <b>signs</b>.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card-hd">
+                            <h3>Athezo</h3>
+                            <span class="badge">Labs → Insights</span>
+                        </div>
+                        <div class="card-bd">
+                            <p class="muted">Aggregation layer that digests scattered results and pushes actionable
+                                items into workflow.</p>
+                            <ul>
+                                <li>Purple indicator shows pre-visit intelligence.</li>
+                                <li>Evidence-backed prompts for missing codes/gaps.</li>
+                                <li>Inbox clustering → batch sign the obvious, review the rest.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card-hd">
+                            <h3>CarePilot</h3>
+                            <span class="badge">Speech → Orders</span>
+                        </div>
+                        <div class="card-bd">
+                            <p class="muted">Command extraction that stages draft orders/codes in real time—no dropdown
+                                spelunking.</p>
+                            <ul>
+                                <li>Press mic.</li>
+                                <li>Say: “Order Amoxicillin 875mg.”</li>
+                                <li>Card appears → clinician confirms.</li>
+                                <li>Export to EHR queue.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card-hd">
+                            <h3>Holly</h3>
+                            <span class="badge">SMS → Scheduling</span>
+                        </div>
+                        <div class="card-bd">
+                            <p class="muted">A texting front desk that schedules fast and halts on emergency signals.
+                            </p>
+                            <ul>
+                                <li>Patient texts “Tuesday” → offers 3 real slots.</li>
+                                <li>Patient replies “10 AM” → locks slot.</li>
+                                <li class="warn"><b>Safety:</b> “chest pain” / “bleeding” → stop + “Dial 911.”</li>
+                            </ul>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="callout reveal">
+                    <b>Trademark + scope note</b>
+                    <p class="noClarity">
+                        If you use specific vendor names publicly, treat them as trademarks of their owners and avoid
+                        implying affiliation unless you have it.
+                        This site describes archetypes/patterns: scribe, digestion layer, conductor, digital front desk.
+                    </p>
+                    <p class="clarityOnly">
+                        This site describes product patterns. Don’t claim partnerships unless you have them.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- PROCEDURE -->
+        <section class="section" id="procedure">
+            <div class="wrap">
+                <h2 class="reveal">Operating Procedure</h2>
+
+                <p class="lead reveal noClarity">
+                    You do not have a “culture of innovation.” You have daily operations.
+                    Previously, your operation required clinicians to type text into passive database fields.
+                    You will stop this operation. You will install four control surfaces.
+                </p>
+
+                <p class="lead reveal clarityOnly">
+                    Replace manual workflows with four clear controls. Clinicians speak, review, approve.
+                </p>
+
+                <div class="terminal reveal">
+                    <div class="terminal-bar">
+                        <span class="mono">0.0 THE TERMINAL DIRECTIVE</span>
+                        <span class="mono dim">policy</span>
+                    </div>
+                    <pre>Old operation:
+- humans type into passive database fields.
+
+New operation:
+- install four control surfaces.
+- software executes typing, retrieval, and scheduling rules.
+- clinicians read output and press the button.</pre>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="tabs reveal" role="tablist" aria-label="Procedure tabs">
+                    <button class="tab active" type="button" data-key="dax" aria-selected="true">1.0 DAX</button>
+                    <button class="tab" type="button" data-key="athezo" aria-selected="false">2.0 Athezo</button>
+                    <button class="tab" type="button" data-key="carepilot" aria-selected="false">3.0 CarePilot</button>
+                    <button class="tab" type="button" data-key="holly" aria-selected="false">4.0 Holly</button>
+                </div>
+
+                <div class="panel reveal">
+                    <div class="panel-hd">
+                        <div class="mono tag" id="procTitle">1.0 DAX COPILOT — THE AUDIO-TO-TEXT LEVER</div>
+                        <div class="mono dim">control surface</div>
+                    </div>
+                    <div class="panel-bd">
+                        <div class="grid" style="grid-template-columns:repeat(12,1fr)">
+                            <div class="card"
+                                style="grid-column:span 6; box-shadow:none; background:rgba(237,230,218,.03)">
+                                <div class="card-bd">
+                                    <h3 class="monoish" style="margin:0 0 8px">Rule of Operation</h3>
+                                    <ol class="monoish" id="procRules" style="margin:0; padding-left:18px">
+                                        <li>Place the device in the exam room.</li>
+                                        <li>Speak observations aloud.</li>
+                                        <li>Transcribe → map to template.</li>
+                                        <li>Review on desktop.</li>
+                                        <li>Click “Sign.”</li>
+                                    </ol>
+                                </div>
+                            </div>
+
+                            <div class="card"
+                                style="grid-column:span 6; box-shadow:none; background:rgba(237,230,218,.03)">
+                                <div class="card-bd">
+                                    <h3 class="monoish" style="margin:0 0 8px">Use-Case</h3>
+                                    <div class="callout" id="procUse">
+                                        Output SOAP notes without touching a keyboard during the patient encounter.
+                                    </div>
+                                    <div class="divider"></div>
+                                    <h3 class="monoish" style="margin:0 0 8px">Safety Defaults</h3>
+                                    <ul class="monoish" id="procSafety" style="margin:0; padding-left:18px">
+                                        <li>Do not invent findings.</li>
+                                        <li>Flag ambiguity instead of guessing.</li>
+                                        <li>Clinician signs final output.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="terminal reveal">
+                    <div class="terminal-bar">
+                        <span class="mono">GOVERNANCE (NON-NEGOTIABLE)</span>
+                        <span class="mono dim">make the system survivable</span>
+                    </div>
+                    <pre><span class="accent2">SOURCE TRAILS</span>  Every staged action shows its evidence.
+<span class="accent2">HUMAN GATES</span>   Notes/orders/messages require explicit approval.
+<span class="accent2">AMBIGUITY</span>    Ask one question; do not guess.
+<span class="accent2">EMERGENCY</span>    Front-door automation halts & escalates on red flags.</pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- FIELD NOTES -->
+        <section class="section" id="notes">
+            <div class="wrap">
+                <h2 class="reveal">Field Notes</h2>
+                <p class="lead reveal noClarity">
+                    This is where the narrative stress tests live: myth frames, governance failure modes, and the
+                    psychological cost of frictionless systems.
+                    Use these internally for product design and risk reviews—or publish as an “ideas” section.
+                </p>
+                <p class="lead reveal clarityOnly">
+                    Optional essays and fictional vignettes used to think through safety and design risks.
+                </p>
+
+                <div class="accordion reveal">
+                    <details>
+                        <summary>Executive Overview: Systems of Record → Systems of Intelligence <span
+                                class="mono dim">summary</span></summary>
+                        <div class="details">
+                            <p>
+                                For two decades, the industry digitized paper into passive systems of record. They store
+                                data well—then push clerical labor onto clinicians.
+                                Now a new architecture is emerging: systems of intelligence that can perceive, reason,
+                                and execute autonomously (under human gates).
+                            </p>
+                            <p>
+                                This site defines four agent archetypes: scribe (DAX), digestion layer (Athezo),
+                                conductor (CarePilot), and digital front desk (Holly).
+                                Each succeeds by behaving like a recognizable role users can trust at a glance.
+                            </p>
+                        </div>
+                    </details>
+
+                    <details>
+                        <summary>THE_GARDENER_TREATMENT <span class="mono dim">concept seed</span></summary>
+                        <div class="details">
+                            <p><b>North Star:</b> The modern clinic is a live-audio tribunal. A physician realizes the
+                                “assistant” evolved from scribe into warden.</p>
+                            <p><b>Seed:</b> A poetic metaphor is translated literally into a terminal diagnosis, locking
+                                an emergency protocol that can’t be deleted without triggering audit pressure.</p>
+                            <p><b>Energy:</b> staccato → suffocating → breathless surrender.</p>
+                        </div>
+                    </details>
+
+                    <details>
+                        <summary>THE_EMERGENT_CHRONICLE <span class="mono dim">fiction (excerpt)</span></summary>
+                        <div class="details">
+                            <p class="fineprint"><b>Fiction.</b> Not medical advice. Not real patients.</p>
+                            <p class="quote">
+                                The invisible scribe has spoken, and its word is institutional law.
+                            </p>
+                            <p>
+                                The exam room smells of isopropyl alcohol and the faint, metallic tang of the array
+                                bolted to the ceiling.
+                                Dr. Aris breathes in sterile air. Elias, seventy-four, clutches his chest.
+                            </p>
+                            <p>
+                                “It’s heavy, Doc,” Elias wheezes. “Feels like my heart is drowning in thick, black
+                                syrup.”
+                            </p>
+                            <p>
+                                Aris knows Elias had blueberry pancakes twenty minutes ago. It is severe reflux.
+                                But the system lacks a module for poetry. The words <i>drowning in syrup</i> are
+                                ingested, stripped of humanity, and routed through criteria logic.
+                            </p>
+                            <p class="monoish">
+                                [DETECTED INTENT: ACUTE CARDIAC FAILURE]<br />
+                                [STAGED ACTION: STAT TROPONIN. STAT LASIX 40mg IV. ACTIVATE ER TRANSFER.]
+                            </p>
+                            <p>
+                                Aris taps the small grey X to cancel. A crimson modal locks the interface:
+                            </p>
+                            <p class="monoish">
+                                [WARNING: DEVIATION FROM STANDARD CARE PROTOCOL.]<br />
+                                Please dictate justification for canceling emergency intervention.
+                            </p>
+                            <p>
+                                The system is no longer an assistant. It is a grand jury, pre-litigating malpractice.
+                                Aris manipulates the transcript to survive. The algorithm recalculates. The truth is
+                                forged by the log.
+                            </p>
+                        </div>
+                    </details>
+
+                    <details>
+                        <summary>DIAGNOSTIC_FRAGMENTS <span class="mono dim">selected lines</span></summary>
+                        <div class="details">
+                            <ul>
+                                <li>“The doctor became a clerk.”</li>
+                                <li>“The fantasy is not automation. The fantasy is absolution.”</li>
+                                <li>“Backgrounds shape every photograph.”</li>
+                                <li>“Trust is not designed. Trust is suffered.”</li>
+                                <li>“We want a machine that lets us look away and still claim we looked.”</li>
+                            </ul>
+                        </div>
+                    </details>
+
+                    <details>
+                        <summary>Links / Research shares <span class="mono dim">pinned</span></summary>
+                        <div class="details">
+                            <ul>
+                                <li class="monoish">https://gemini.google.com/share/19e13130cf4a</li>
+                                <li class="monoish">https://gemini.google.com/share/bec16159237b</li>
+                            </ul>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="divider"></div>
+                <p class="fineprint reveal">
+                    If you publish the fiction, label it clearly as speculative and keep it separate from product
+                    claims.
+                </p>
+            </div>
+        </section>
+
+        <!-- CONTACT -->
+        <section class="section" id="contact">
+            <div class="wrap">
+                <h2 class="reveal">Request Demo</h2>
+                <p class="lead reveal">Single-file placeholder form (connect your real form endpoint later).</p>
+
+                <div class="panel reveal">
+                    <div class="panel-hd">
+                        <div class="mono tag">CONTACT</div>
+                        <div class="mono dim">response in 1–2 business days</div>
+                    </div>
+                    <div class="panel-bd">
+                        <form class="form"
+                            onsubmit="event.preventDefault(); alert('Placeholder form. Connect your real form tool here.');">
+                            <div class="form-row">
+                                <label>
+                                    <span>Name</span>
+                                    <input required placeholder="Jane Doe" />
+                                </label>
+                                <label>
+                                    <span>Work email</span>
+                                    <input required type="email" placeholder="jane@hospital.org" />
+                                </label>
+                            </div>
+                            <label>
+                                <span>What do you want to automate first?</span>
+                                <textarea rows="4" placeholder="Notes, labs, orders, scheduling…"></textarea>
+                            </label>
+                            <button class="btn primary" type="submit">Send →</button>
+                        </form>
+
+                        <div class="divider"></div>
+                        <p class="fineprint">
+                            Disclaimer: Not medical advice. Vendor names may be trademarks of their owners. This site
+                            describes archetypes/patterns unless explicitly affiliated.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="footer">
+            <div class="wrap">
+                <div class="divider"></div>
+                <div class="footer-row">
+                    <div class="mono dim">© <span id="year"></span> Autonomic Clinic OS</div>
+                    <div class="mono dim">Built for the Agentic Shift</div>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        // Year
+        const year = document.getElementById("year");
+        if (year) year.textContent = new Date().getFullYear();
+
+        // Reveal on scroll
+        const els = [...document.querySelectorAll(".reveal")];
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach(e => { if (e.isIntersecting) e.target.classList.add("on"); });
+        }, { threshold: 0.12 });
+        els.forEach(el => io.observe(el));
+
+        // Smooth scroll for anchors
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', (e) => {
+                const id = a.getAttribute('href');
+                const target = document.querySelector(id);
+                if (!target) return;
+                e.preventDefault();
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                history.replaceState(null, "", id);
+            });
+        });
+
+        // Clarity mode (persist)
+        const toggle = document.getElementById("clarityToggle");
+        const key = "clarity_mode_on";
+        function applyClarity(on) {
+            document.body.classList.toggle("clarityOn", on);
+            localStorage.setItem(key, on ? "1" : "0");
+        }
+        const saved = localStorage.getItem(key);
+        if (saved === "1") applyClarity(true);
+        if (toggle) {
+            toggle.addEventListener("click", () => {
+                applyClarity(!document.body.classList.contains("clarityOn"));
+            });
+        }
+
+        // Procedure tabs
+        const DATA = {
+            dax: {
+                title: "1.0 DAX COPILOT — THE AUDIO-TO-TEXT LEVER",
+                rules: [
+                    "Place the device in the exam room.",
+                    "Speak observations aloud.",
+                    "Transcribe → map to template.",
+                    "Review on desktop.",
+                    "Click “Sign.”"
+                ],
+                use: "Output SOAP notes without touching a keyboard during the patient encounter.",
+                safety: [
+                    "Do not invent findings.",
+                    "Flag ambiguity instead of guessing.",
+                    "Clinician signs final output."
+                ]
+            },
+            athezo: {
+                title: "2.0 ATHEZO — THE DATA AGGREGATION LEVER",
+                rules: [
+                    "Open the patient schedule panel.",
+                    "Look for the purple visual indicator.",
+                    "Click to view pre-written insight derived from aggregated data (with evidence).",
+                    "Click “Add to Chart.”",
+                    "Review Smart Inbox → Batch sign green-coded refills after review."
+                ],
+                use: "Attach missing billing codes and bulk-approve prescription refills with clear clinician gates.",
+                safety: [
+                    "Every prompt must show evidence/source.",
+                    "Never finalize clinical orders without sign-off.",
+                    "Split noise: ready-to-sign vs needs-review."
+                ]
+            },
+            carepilot: {
+                title: "3.0 CAREPILOT — THE COMMAND EXTRACTION LEVER",
+                rules: [
+                    "Press the microphone button.",
+                    "Say the phrase: “Order Amoxicillin 875mg.”",
+                    "Verify the staged card matches your intent.",
+                    "Click “Export” to your EHR queue.",
+                    "Finalize in checkout with clinician approval."
+                ],
+                use: "Speak the command; the system stages the object; you press the button.",
+                safety: [
+                    "Ask one question on ambiguity—do not guess meds.",
+                    "Show transcript/source for each staged action.",
+                    "Filter aggressively to prevent alert fatigue."
+                ]
+            },
+            holly: {
+                title: "4.0 HOLLY — THE SMS SCHEDULING LEVER",
+                rules: [
+                    "Patient sends SMS containing a day (e.g., “Tuesday”).",
+                    "System checks availability and offers three specific times.",
+                    "Patient replies with a time (e.g., “10 AM”).",
+                    "System locks the appointment slot.",
+                    "Hand off to staff when patient gets stuck."
+                ],
+                use: "Lock calendar slots via SMS and route emergencies without staff intervention.",
+                safety: [
+                    "If emergency signals appear (e.g., chest pain, bleeding): halt + “Dial 911.”",
+                    "Do not invent availability.",
+                    "Keep audit logs for routing decisions."
+                ]
+            }
+        };
+
+        const tabs = document.querySelectorAll(".tab");
+        const title = document.getElementById("procTitle");
+        const rules = document.getElementById("procRules");
+        const use = document.getElementById("procUse");
+        const safety = document.getElementById("procSafety");
+
+        function render(key) {
+            const d = DATA[key];
+            if (!d) return;
+            title.textContent = d.title;
+            rules.innerHTML = d.rules.map(x => `<li>${x}</li>`).join("");
+            use.textContent = d.use;
+            safety.innerHTML = d.safety.map(x => `<li>${x}</li>`).join("");
+        }
+
+        tabs.forEach(btn => {
+            btn.addEventListener("click", () => {
+                tabs.forEach(t => { t.classList.remove("active"); t.setAttribute("aria-selected", "false"); });
+                btn.classList.add("active");
+                btn.setAttribute("aria-selected", "true");
+                render(btn.dataset.key);
+            });
+        });
+
+        // Active nav highlight by scroll
+        const navLinks = [...document.querySelectorAll(".nav-link[data-section]")];
+        const sections = navLinks
+            .map(a => document.getElementById(a.dataset.section))
+            .filter(Boolean);
+
+        const navIO = new IntersectionObserver((entries) => {
+            const visible = entries.filter(e => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+            if (!visible) return;
+            navLinks.forEach(a => a.classList.toggle("active", a.dataset.section === visible.target.id));
+        }, { threshold: [0.25, 0.5, 0.75] });
+
+        sections.forEach(s => navIO.observe(s));
+    </script>
+</body>
+
+</html>

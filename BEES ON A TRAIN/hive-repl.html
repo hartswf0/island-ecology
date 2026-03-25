@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>HIVE REPL — Context Window Explorer</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}
+        body{font-family:'IBM Plex Mono',monospace;font-size:13px;user-select:none;background:#07090f;color:#8ab0c4}
+        :root{--bg:#07090f;--bg2:#0a0d16;--bg3:#0d1020;--ink:#8ab0c4;--ink2:#c0d8e8;--ink3:rgba(140,180,210,.3);--gold:#d4a84b;--gold2:rgba(212,168,75,.3);--green:#4af626;--green2:rgba(74,246,38,.15);--red:rgba(239,68,68,.7);--cyan:#22d3ee;--rule:rgba(140,180,210,.08);--rule2:rgba(140,180,210,.04)}
+        #app{display:flex;flex-direction:column;height:100vh}
+
+        /* TOPBAR */
+        .topbar{height:36px;background:var(--bg2);border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 14px;gap:14px;flex-shrink:0;z-index:50}
+        .logo{font-size:11px;font-weight:600;letter-spacing:.25em;color:var(--green);text-transform:uppercase}
+        .logo-sub{font-size:7px;letter-spacing:.1em;color:var(--ink3);text-transform:uppercase}
+        .stat{font-size:10px;color:var(--ink3)}.stat b{color:var(--ink2)}
+        .topbar-spacer{flex:1}
+        .cfg-btn{background:none;border:1px solid var(--rule);color:var(--ink3);font-family:inherit;font-size:7px;padding:4px 10px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .2s}
+        .cfg-btn:hover{border-color:var(--green);color:var(--green)}
+
+        /* MAIN */
+        .main{flex:1;display:flex;overflow:hidden;min-height:0}
+
+        /* SCENE GRAPH TREE (LEFT) */
+        .tree-panel{width:280px;background:var(--bg2);border-right:1px solid var(--rule);display:flex;flex-direction:column;flex-shrink:0}
+        .tp-header{height:28px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 12px;flex-shrink:0}
+        .tp-title{font-size:8px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--green)}
+        .tp-body{flex:1;overflow-y:auto;padding:4px 0;scrollbar-width:thin;scrollbar-color:var(--green2) transparent;font-size:12px}
+        .tp-body::-webkit-scrollbar{width:5px;background:transparent}
+        .tp-body::-webkit-scrollbar-thumb{background:var(--green2);border-radius:3px}
+        .tp-body::-webkit-scrollbar-thumb:hover{background:rgba(74,246,38,.25)}
+        .tree-node{padding:4px 6px 4px 0;cursor:pointer;display:flex;align-items:center;gap:4px;transition:background .15s;white-space:nowrap;overflow:hidden}
+        .tree-node:hover{background:var(--green2)}
+        .tree-node.active{background:var(--green2);color:var(--green)}
+        .tn-icon{flex-shrink:0;font-size:10px;width:16px;text-align:center;color:var(--ink3)}
+        .tn-name{overflow:hidden;text-overflow:ellipsis;color:var(--ink2)}
+        .tn-ai{font-size:9px;color:var(--gold);margin-left:auto;flex-shrink:0;padding-right:6px}
+
+        /* CONTEXT STACK */
+        .ctx-stack{border-top:1px solid var(--rule);padding:8px 10px;flex-shrink:0;background:var(--bg3)}
+        .ctx-breadcrumb{font-size:11px;color:var(--green);letter-spacing:.06em;display:flex;gap:3px;flex-wrap:wrap}
+        .ctx-breadcrumb span{cursor:pointer;transition:color .2s}.ctx-breadcrumb span:hover{color:var(--cyan)}
+        .ctx-breadcrumb .sep{color:var(--ink3)}
+
+        /* TERMINAL */
+        .terminal{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+        .term-body{flex:1;overflow-y:auto;padding:10px 18px;font-size:14px;line-height:1.7;scrollbar-width:thin;scrollbar-color:var(--green2) transparent}
+        .term-body::-webkit-scrollbar{width:5px;background:transparent}
+        .term-body::-webkit-scrollbar-thumb{background:rgba(34,211,238,.12);border-radius:3px}
+        .term-body::-webkit-scrollbar-thumb:hover{background:rgba(34,211,238,.22)}
+        .term-line{margin-bottom:3px;word-break:break-word}
+        .t-prompt{color:var(--green);font-weight:600}
+        .t-cmd{color:var(--ink2)}
+        .t-output{color:var(--ink)}
+        .t-error{color:var(--red)}
+        .t-honey{color:var(--gold);font-style:italic;border-left:3px solid var(--gold2);padding-left:10px;margin:6px 0;font-size:15px;line-height:1.6}
+        .t-heading{color:var(--cyan);font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:11px;margin-top:8px}
+        .t-dim{color:var(--ink3)}
+        .t-alive{color:var(--gold)}.t-abiotic{color:var(--ink3)}
+        .t-entity{color:var(--cyan)}.t-event{color:var(--gold)}
+        .t-tree-line{font-size:13px}
+        .t-click{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(34,211,238,.2);text-underline-offset:2px;transition:all .15s}
+        .t-click:hover{color:var(--green);text-decoration-color:var(--green);background:rgba(74,246,38,.06);padding:1px 3px;margin:-1px -3px;border-radius:2px}
+
+        /* INPUT */
+        .term-input-wrap{display:flex;align-items:center;padding:8px 18px;border-top:1px solid var(--rule);background:var(--bg2);flex-shrink:0;gap:8px}
+        .term-prompt{color:var(--green);font-weight:600;font-size:14px;flex-shrink:0}
+        .term-input{flex:1;background:transparent;border:none;color:var(--ink2);font-family:inherit;font-size:15px;outline:none;letter-spacing:.03em;caret-color:var(--green)}
+
+        /* MINIMAP (RIGHT) */
+        .minimap{width:280px;background:var(--bg);border-left:1px solid var(--rule);flex-shrink:0;position:relative;overflow:hidden;display:flex;flex-direction:column}
+        .mm-header{height:24px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 10px;flex-shrink:0}
+        .mm-title{font-size:6px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--gold)}
+        .mm-canvas-wrap{flex:1;position:relative;overflow:hidden}
+        .minimap canvas{position:absolute;inset:0}
+        .mm-tooltip{position:absolute;background:rgba(6,10,20,.92);border:1px solid var(--rule);color:var(--ink2);font-size:8px;padding:3px 6px;pointer-events:none;z-index:10;display:none;white-space:nowrap}
+
+        /* OP CONFIG */
+        .op-overlay{position:fixed;inset:0;background:rgba(7,9,15,.9);z-index:200;display:none;justify-content:center;align-items:center}
+        .op-overlay.show{display:flex}
+        .op-box{background:var(--bg2);border:1px solid var(--rule);padding:20px;width:320px}
+        .op-title{font-size:7px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--green);margin-bottom:10px}
+        .op-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+        .op-lbl{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);width:40px;flex-shrink:0}
+        .op-inp{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:inherit;font-size:9px;padding:4px 6px;flex:1;outline:none}
+        .op-close{background:none;border:1px solid var(--green);color:var(--green);font-family:inherit;font-size:8px;padding:4px 12px;cursor:pointer;margin-top:8px;letter-spacing:.1em}
+    </style>
+    <script src="data.js"></script>
+    <script src="route-engine.js"></script>
+    <script src="hive-logger.js"></script>
+</head>
+<body>
+<div id="app">
+    <div class="topbar">
+        <span class="logo">HIVE_REPL</span>
+        <span class="logo-sub">Context Window Explorer</span>
+        <span class="stat">Worlds: <b id="sWorlds">0</b></span>
+        <span class="stat">Depth: <b id="sDepth">0</b></span>
+        <span class="stat">Queries: <b id="sQueries">0</b></span>
+        <span class="stat">Honey: <b id="sHoney">0</b></span>
+        <div class="topbar-spacer"></div>
+        <button class="cfg-btn" onclick="toggleCfg()">⚙ API</button>
+    </div>
+    <div class="main">
+        <div class="tree-panel">
+            <div class="tp-header"><span class="tp-title">Scene Graph</span></div>
+            <div class="tp-body" id="treeBody"></div>
+            <div class="ctx-stack">
+                <div class="ctx-breadcrumb" id="breadcrumb"><span>hive://</span></div>
+            </div>
+        </div>
+        <div class="terminal">
+            <div class="term-body" id="termBody"></div>
+            <div class="term-input-wrap">
+                <span class="term-prompt" id="promptLabel">hive://&gt;</span>
+                <input class="term-input" id="termInput" autofocus spellcheck="false" onkeydown="handleKey(event)">
+            </div>
+        </div>
+        <div class="minimap" id="minimap">
+            <div class="mm-header"><span class="mm-title">⬡ Hive Hexagons</span></div>
+            <div class="mm-canvas-wrap" id="mmWrap"><canvas id="miniCanvas"></canvas><div class="mm-tooltip" id="mmTip"></div></div>
+        </div>
+    </div>
+</div>
+
+<div class="op-overlay" id="opOverlay">
+    <div class="op-box">
+        <div class="op-title">API Configuration</div>
+        <div class="op-row"><span class="op-lbl">Key</span><input type="password" class="op-inp" id="opKey" placeholder="sk-..." oninput="saveCfg()"></div>
+        <div class="op-row"><span class="op-lbl">Model</span><input class="op-inp" id="opModel" value="gpt-4o-mini" oninput="saveCfg()"></div>
+        <div class="op-row"><span class="op-lbl">Base</span><input class="op-inp" id="opBase" value="https://api.openai.com/v1" oninput="saveCfg()"></div>
+        <button class="op-close" onclick="toggleCfg()">Close</button>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// HIVE REPL — Context Window Explorer
+//
+// The 228 POML worlds are a fractal scene graph.
+// Navigate with shell commands. Each level is a context window.
+// LLM acts as semantic compiler, not reasoning engine.
+//
+// Scene graph structure:
+//   hive:// (root — 228 worlds)
+//     └─ world (name, description, genre, AI)
+//          ├─ entities[] (name, type)
+//          ├─ relations[] (from, to, type)
+//          ├─ events[] (name, description)
+//          └─ states[] (key, value)
+// ═══════════════════════════════════════════
+
+let worlds=[], routes=[], worldByUid={};
+let miniCanvas, miniCtx, miniDpr;
+const AT=15;
+
+// ── Context Stack — fractal traversal ──
+// Each frame = {type, data, label, children}
+let ctxStack = []; // stack of context frames
+let queryCount=0, honeyCount=0;
+let cmdHistory=[], cmdIdx=-1;
+
+function assemblyIndex(w){return(w.entities.length*2)+(w.relations.length*3)+(w.events.length*4)+w.states.length}
+
+// ═══════════════════
+// CONTEXT FRAMES
+// ═══════════════════
+function rootFrame(){
+    return {
+        type:'root', label:'hive://', data:worlds,
+        children:()=>worlds.map((w,i)=>({
+            type:'world', label:w.name.replace(/([A-Z])/g,' $1').trim(), data:w, idx:i,
+            children:()=>{
+                const c=[];
+                if(w.entities.length) c.push({type:'collection',label:'entities',data:w.entities,parent:w,children:()=>w.entities.map(e=>({type:'entity',label:e.name,data:e,parent:w,children:()=>[]}))});
+                if(w.relations.length) c.push({type:'collection',label:'relations',data:w.relations,parent:w,children:()=>w.relations.map(r=>({type:'relation',label:`${r.from}→${r.to}`,data:r,parent:w,children:()=>[]}))});
+                if(w.events.length) c.push({type:'collection',label:'events',data:w.events,parent:w,children:()=>w.events.map(e=>({type:'event',label:e.name,data:e,parent:w,children:()=>[]}))});
+                if(w.states.length) c.push({type:'collection',label:'states',data:w.states,parent:w,children:()=>w.states.map(s=>({type:'state',label:`${s.key||s.name}=${s.value||s.state}`,data:s,parent:w,children:()=>[]}))});
+                return c;
+            }
+        }))
+    };
+}
+
+function currentFrame(){return ctxStack.length?ctxStack[ctxStack.length-1]:rootFrame();}
+function contextPath(){return ctxStack.length?'hive://'+ctxStack.map(f=>f.label).join('/'):'hive://';}
+
+function pushContext(frame){
+    ctxStack.push(frame);
+    updateBreadcrumb();
+    updateTree();
+    updatePrompt();
+    updateMinimap();
+    el('sDepth').textContent=ctxStack.length;
+}
+
+function popContext(){
+    if(ctxStack.length){ctxStack.pop();updateBreadcrumb();updateTree();updatePrompt();updateMinimap();el('sDepth').textContent=ctxStack.length;}
+    else emit('Already at root.','t-dim');
+}
+
+function jumpToDepth(depth){
+    while(ctxStack.length>depth) ctxStack.pop();
+    updateBreadcrumb();updateTree();updatePrompt();updateMinimap();
+    el('sDepth').textContent=ctxStack.length;
+}
+
+// ═══════════════════
+// TERMINAL OUTPUT
+// ═══════════════════
+function emit(text, cls='t-output'){
+    const body=el('termBody');
+    const d=document.createElement('div');
+    d.className='term-line '+(cls||'');
+    d.innerHTML=text;
+    body.appendChild(d);
+    body.scrollTop=body.scrollHeight;
+}
+
+function emitCmd(cmd){emit(`<span class="t-prompt">${contextPath()}&gt;</span> <span class="t-cmd">${esc(cmd)}</span>`);}
+
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+function escAttr(s){return s?String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'):''}
+
+// ── navTo: universal click-to-navigate ──
+function navTo(worldName){
+    jumpToDepth(0);
+    const frame=rootFrame();
+    const children=frame.children();
+    const target=children.find(c=>c.label.toLowerCase().includes(worldName.toLowerCase()));
+    if(target){
+        pushContext(target);
+        emitCmd('cd '+target.label);
+        emit(`→ ${contextPath()}`,'t-output');
+        if(target.type==='world'){
+            const w=target.data, ai=assemblyIndex(w);
+            emit(`<span class="t-heading">${esc(target.label)}</span> <span class="${ai>AT?'t-alive':'t-abiotic'}">${ai>AT?'◆ ALIVE':'○ ABIOTIC'}</span> AI:${ai}`);
+            emit(`<span class="t-dim">${esc(w.genre)} // POML.${w.uid.slice(0,8)}</span>`);
+            emit(esc(w.description.slice(0,200)));
+            emit(`<span class="t-dim">  ${w.entities.length}E ${w.relations.length}R ${w.events.length}Ev ${w.states.length}S</span>`);
+        }
+        const hexIdx = hexCells.findIndex(h=>h.world===target.data);
+        if(hexIdx>=0) hoveredHex=hexIdx;
+    } else {
+        emit(`Not found: "${worldName}"`,'t-error');
+    }
+    el('termInput').focus();
+}
+
+// ── linkifyHoney: scan text for known world names, wrap in clickable spans ──
+let _worldNameIndex=null;
+function buildWorldNameIndex(){
+    if(_worldNameIndex) return _worldNameIndex;
+    _worldNameIndex=[];
+    worlds.forEach(w=>{
+        const display=w.name.replace(/([A-Z])/g,' $1').trim();
+        _worldNameIndex.push({display, search:display.toLowerCase(), name:w.name});
+    });
+    // Sort by length descending so longer names match first
+    _worldNameIndex.sort((a,b)=>b.display.length-a.display.length);
+    return _worldNameIndex;
+}
+
+function linkifyHoney(text){
+    const idx=buildWorldNameIndex();
+    let safe=esc(text);
+    const used=new Set();
+    idx.forEach(w=>{
+        if(used.has(w.name)) return;
+        // Case-insensitive search for the display name
+        const re=new RegExp('(?<![\\w])'+w.display.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?![\\w])','gi');
+        if(re.test(safe)){
+            used.add(w.name);
+            const clickName=escAttr(w.display);
+            safe=safe.replace(re,`<span class="t-click t-entity" onclick="navTo('${clickName}')">${w.display}</span>`);
+        }
+    });
+    return safe;
+}
+
+// ═══════════════════
+// COMMAND PROCESSING
+// ═══════════════════
+function handleKey(e){
+    if(e.key==='Enter'){
+        const input=el('termInput'), cmd=input.value.trim();
+        if(!cmd) return;
+        cmdHistory.push(cmd); cmdIdx=cmdHistory.length;
+        input.value='';
+        processCmd(cmd);
+    } else if(e.key==='ArrowUp'){
+        e.preventDefault();
+        if(cmdIdx>0){cmdIdx--;el('termInput').value=cmdHistory[cmdIdx];}
+    } else if(e.key==='ArrowDown'){
+        e.preventDefault();
+        if(cmdIdx<cmdHistory.length-1){cmdIdx++;el('termInput').value=cmdHistory[cmdIdx];}
+        else{cmdIdx=cmdHistory.length;el('termInput').value='';}
+    } else if(e.key==='Tab'){
+        e.preventDefault();
+        tabComplete();
+    }
+}
+
+function processCmd(raw){
+    emitCmd(raw);
+    queryCount++; el('sQueries').textContent=queryCount;
+    const parts=raw.trim().split(/\s+/);
+    const cmd=parts[0].toLowerCase();
+    const args=parts.slice(1).join(' ');
+
+    switch(cmd){
+        case 'ls': cmdLs(args); break;
+        case 'cd': cmdCd(args); break;
+        case 'cat': cmdCat(args); break;
+        case 'grep': cmdGrep(args); break;
+        case 'find': cmdFind(args); break;
+        case 'tree': cmdTree(args); break;
+        case 'pwd': emit(contextPath(),'t-output'); break;
+        case 'up': case '..': case 'cd..': popContext(); break;
+        case 'root': case '/': jumpToDepth(0); emit('At root.','t-dim'); break;
+        case 'honey': cmdHoney(args); break;
+        case 'drill': cmdDrill(args); break;
+        case 'compile': cmdCompile(args); break;
+        case 'ai': cmdAI(args); break;
+        case 'alive': cmdAlive(); break;
+        case 'stats': cmdStats(); break;
+        case 'help': case '?': cmdHelp(); break;
+        case 'clear': el('termBody').innerHTML=''; break;
+        default:
+            // Natural language → try to interpret
+            cmdNatural(raw);
+    }
+}
+
+// ── LS — list children ──
+function cmdLs(filter){
+    const frame=currentFrame();
+    const children=frame.children();
+    if(!children.length){emit('Empty context.','t-dim');return;}
+
+    const filt=filter?filter.toLowerCase():'';
+    const filtered=filt?children.filter(c=>c.label.toLowerCase().includes(filt)):children;
+    if(!filtered.length){emit(`No match for "${filter}".`,'t-dim');return;}
+
+    filtered.forEach(c=>{
+        let extra='';
+        const clickName = escAttr(c.label);
+        const icon=({root:'📦',world:'🌐',collection:'📁',entity:'◆',relation:'→',event:'⚡',state:'◎'})[c.type]||'·';
+        if(c.type==='world'){
+            const ai=assemblyIndex(c.data);
+            const alive=ai>AT;
+            extra=` <span class="${alive?'t-alive':'t-abiotic'}">AI:${ai}</span> <span class="t-dim">${c.data.genre}</span>`;
+            emit(`  ${icon} <span class="t-click t-entity" onclick="navTo('${clickName}')">${esc(c.label)}</span>${extra}`);
+        } else if(c.type==='entity'){
+            extra=` <span class="t-dim">[${c.data.type}]</span>`;
+            emit(`  ${icon} <span class="t-entity">${esc(c.label)}</span>${extra}`);
+        } else if(c.type==='collection'){
+            extra=` <span class="t-dim">(${c.data.length})</span>`;
+            emit(`  ${icon} <span class="t-click t-entity" onclick="processCmd('cd ${escAttr(c.label)}')">${esc(c.label)}</span>${extra}`);
+        } else {
+            emit(`  ${icon} <span class="t-entity">${esc(c.label)}</span>`);
+        }
+    });
+    emit(`<span class="t-dim">${filtered.length} items</span>`);
+}
+
+// ── CD — enter context ──
+function cmdCd(name){
+    if(!name||name==='..'){popContext();return;}
+    if(name==='/'){jumpToDepth(0);emit('At root.','t-dim');return;}
+
+    const frame=currentFrame();
+    const children=frame.children();
+    const target=children.find(c=>c.label.toLowerCase().includes(name.toLowerCase()));
+    if(!target){emit(`Not found: "${name}". Try 'ls' to see children.`,'t-error');return;}
+    pushContext(target);
+    emit(`→ ${contextPath()}`,'t-output');
+    // Auto-preview
+    if(target.type==='world'){
+        const w=target.data, ai=assemblyIndex(w);
+        emit(`<span class="t-heading">${esc(target.label)}</span> <span class="${ai>AT?'t-alive':'t-abiotic'}">${ai>AT?'◆ ALIVE':'○ ABIOTIC'}</span> AI:${ai}`);
+        emit(`<span class="t-dim">${esc(w.genre)} // POML.${w.uid.slice(0,8)}</span>`);
+        emit(esc(w.description.slice(0,200)));
+        emit(`<span class="t-dim">  ${w.entities.length}E ${w.relations.length}R ${w.events.length}Ev ${w.states.length}S</span>`);
+    }
+}
+
+// ── CAT — show current context data ──
+function cmdCat(){
+    const frame=currentFrame();
+    if(frame.type==='root'){emit('Use "ls" at root. "cat" works inside a world.','t-dim');return;}
+    if(frame.type==='world'){
+        const w=frame.data, ai=assemblyIndex(w), alive=ai>AT;
+        emit(`<span class="t-heading">${esc(frame.label)}</span>`);
+        emit(`<span class="${alive?'t-alive':'t-abiotic'}">${alive?'◆ ALIVE':'○ ABIOTIC'}</span> Assembly Index: ${ai} (E×2=${w.entities.length*2} + R×3=${w.relations.length*3} + Ev×4=${w.events.length*4} + S×1=${w.states.length})`);
+        emit(`Genre: ${w.genre}`);
+        emit(`UID: ${w.uid}`);
+        emit('');
+        emit(esc(w.description));
+        if(w.entities.length){emit('');emit('<span class="t-heading">Entities</span>');w.entities.forEach(e=>emit(`  <span class="t-entity">◆ ${esc(e.name)}</span> <span class="t-dim">[${e.type}]</span>`));}
+        if(w.relations.length){emit('');emit('<span class="t-heading">Relations</span>');w.relations.forEach(r=>emit(`  ${esc(r.from)} <span class="t-event">→${r.type}→</span> ${esc(r.to)}`));}
+        if(w.events.length){emit('');emit('<span class="t-heading">Events</span>');w.events.forEach(e=>emit(`  <span class="t-event">⚡ ${esc(e.name)}</span>${e.description?' — '+esc(e.description.slice(0,80)):''}`));}
+        if(w.states.length){emit('');emit('<span class="t-heading">States</span>');w.states.forEach(s=>emit(`  <span class="t-dim">${esc(s.key||s.name)}</span> = <span class="t-alive">${esc(s.value||s.state)}</span>`));}
+    } else if(frame.type==='entity'){
+        emit(`<span class="t-entity">◆ ${esc(frame.data.name)}</span> [${frame.data.type}]`);
+    } else if(frame.type==='relation'){
+        const r=frame.data;
+        emit(`<span class="t-entity">${esc(r.from)}</span> <span class="t-event">→${r.type}→</span> <span class="t-entity">${esc(r.to)}</span>`);
+    } else if(frame.type==='event'){
+        emit(`<span class="t-event">⚡ ${esc(frame.data.name)}</span>`);
+        if(frame.data.description) emit(esc(frame.data.description));
+    } else if(frame.type==='collection'){
+        emit(`<span class="t-heading">${frame.label}</span> (${frame.data.length})`);
+        frame.data.forEach((item,i)=>{
+            if(frame.label==='entities') emit(`  ${i+1}. <span class="t-entity">${esc(item.name)}</span> [${item.type}]`);
+            else if(frame.label==='relations') emit(`  ${i+1}. ${esc(item.from)} →${item.type}→ ${esc(item.to)}`);
+            else if(frame.label==='events') emit(`  ${i+1}. <span class="t-event">⚡${esc(item.name)}</span>`);
+            else if(frame.label==='states') emit(`  ${i+1}. ${esc(item.key||item.name)} = ${esc(item.value||item.state)}`);
+        });
+    }
+}
+
+// ── GREP — search across all worlds ──
+function cmdGrep(query){
+    if(!query){emit('Usage: grep <term>','t-error');return;}
+    const q=query.toLowerCase();
+    let hits=0;
+    worlds.forEach((w,i)=>{
+        const name=w.name.replace(/([A-Z])/g,' $1').trim();
+        const text=[name,w.genre,w.description,...w.entities.map(e=>e.name),...w.events.map(e=>e.name),...w.relations.map(r=>r.from+' '+r.to)].join(' ').toLowerCase();
+        if(text.includes(q)){
+            hits++;
+            const ai=assemblyIndex(w);
+            const clickName = escAttr(name);
+            emit(`  <span class="${ai>AT?'t-alive':'t-abiotic'}">[${i+1}]</span> <span class="t-click t-entity" onclick="navTo('${clickName}')">${esc(name)}</span> <span class="t-dim">${w.genre} AI:${ai}</span>`);
+        }
+    });
+    emit(`<span class="t-dim">${hits} hits for "${query}"</span>`);
+}
+
+// ── FIND — search entities ──
+function cmdFind(query){
+    if(!query){emit('Usage: find <entity name>','t-error');return;}
+    const q=query.toLowerCase();
+    let hits=0;
+    worlds.forEach((w,i)=>{
+        const name=w.name.replace(/([A-Z])/g,' $1').trim();
+        w.entities.forEach(e=>{
+            if(e.name.toLowerCase().includes(q)){
+                hits++;
+                const clickName = escAttr(name);
+                emit(`  <span class="t-entity">◆ ${esc(e.name)}</span> [${e.type}] in <span class="t-click t-alive" onclick="navTo('${clickName}')">${esc(name)}</span>`);
+            }
+        });
+    });
+    emit(`<span class="t-dim">${hits} entities matching "${query}"</span>`);
+}
+
+// ── TREE — fractal view ──
+function cmdTree(depthStr){
+    const maxD=parseInt(depthStr)||2;
+    const frame=currentFrame();
+    function printTree(f, indent, depth){
+        if(depth>maxD) return;
+        const icon=({root:'📦',world:'🌐',collection:'📁',entity:'◆',relation:'→',event:'⚡',state:'◎'})[f.type]||'·';
+        emit(`<span class="t-tree-line">${'  '.repeat(indent)}${indent?'├─ ':''}${icon} ${esc(f.label)}</span>`);
+        const children=f.children();
+        children.slice(0,8).forEach(c=>printTree(c,indent+1,depth+1));
+        if(children.length>8) emit(`<span class="t-dim">${'  '.repeat(indent+1)}  ... +${children.length-8} more</span>`);
+    }
+    printTree(frame, 0, 0);
+}
+
+// ── AI — show assembly indices ──
+function cmdAI(sort){
+    const sorted=[...worlds].map((w,i)=>({w,i,ai:assemblyIndex(w)}));
+    if(sort==='asc') sorted.sort((a,b)=>a.ai-b.ai);
+    else sorted.sort((a,b)=>b.ai-a.ai);
+    sorted.slice(0,15).forEach(s=>{
+        const name=s.w.name.replace(/([A-Z])/g,' $1').trim();
+        const clickName = escAttr(name);
+        emit(`  <span class="${s.ai>AT?'t-alive':'t-abiotic'}">${String(s.ai).padStart(3)}</span> <span class="t-click t-entity" onclick="navTo('${clickName}')">${esc(name)}</span> <span class="t-dim">${s.w.genre}</span>`);
+    });
+    emit(`<span class="t-dim">Top 15 by AI (${sort==='asc'?'ascending':'descending'}). Total alive: ${sorted.filter(s=>s.ai>AT).length}/${worlds.length}</span>`);
+}
+
+// ── ALIVE — list alive worlds ──
+function cmdAlive(){
+    const alive=worlds.map((w,i)=>({w,i,ai:assemblyIndex(w)})).filter(s=>s.ai>AT).sort((a,b)=>b.ai-a.ai);
+    alive.forEach(s=>{
+        const name=s.w.name.replace(/([A-Z])/g,' $1').trim();
+        const clickName = escAttr(name);
+        emit(`  <span class="t-alive">${String(s.ai).padStart(3)}</span> <span class="t-click t-entity" onclick="navTo('${clickName}')">${esc(name)}</span>`);
+    });
+    emit(`<span class="t-dim">${alive.length} alive worlds (AI>${AT})</span>`);
+}
+
+// ── STATS ──
+function cmdStats(){
+    const totalE=worlds.reduce((s,w)=>s+w.entities.length,0);
+    const totalR=worlds.reduce((s,w)=>s+w.relations.length,0);
+    const totalEv=worlds.reduce((s,w)=>s+w.events.length,0);
+    const totalS=worlds.reduce((s,w)=>s+w.states.length,0);
+    const alive=worlds.filter(w=>assemblyIndex(w)>AT).length;
+    emit('<span class="t-heading">Hive Statistics</span>');
+    emit(`  Worlds:    ${worlds.length}`);
+    emit(`  Alive:     <span class="t-alive">${alive}</span> (AI>${AT})`);
+    emit(`  Entities:  ${totalE} (weight ×2 = ${totalE*2})`);
+    emit(`  Relations: ${totalR} (weight ×3 = ${totalR*3})`);
+    emit(`  Events:    ${totalEv} (weight ×4 = ${totalEv*4})`);
+    emit(`  States:    ${totalS} (weight ×1 = ${totalS})`);
+    emit(`  Queries:   ${queryCount}`);
+    emit(`  Honey:     ${honeyCount}`);
+    emit(`  Depth:     ${ctxStack.length}`);
+}
+
+// ── HONEY — LLM synthesis at current context ──
+async function cmdHoney(question){
+    const key=el('opKey').value.trim();
+    if(!key){emit('Configure API key first (⚙ button).','t-error');return;}
+
+    let targetWorld=null;
+    if(ctxStack.length){
+        const top=ctxStack.find(f=>f.type==='world');
+        if(top) targetWorld=top.data;
+    }
+    if(!targetWorld){emit('Navigate into a world first. "cd [name]"','t-error');return;}
+
+    const w=targetWorld, ai=assemblyIndex(w);
+    const name=w.name.replace(/([A-Z])/g,' $1').trim();
+    emit('<span class="t-dim">Synthesizing honey...</span>');
+
+    const ctx=`WORLD: "${name}" (AI:${ai}, Genre:${w.genre})
+Description: ${w.description}
+Entities: ${w.entities.map(e=>e.name+'['+e.type+']').join(', ')}
+Relations: ${w.relations.map(r=>r.from+'→'+r.type+'→'+r.to).join(', ')}
+Events: ${w.events.map(e=>e.name).join(', ')}
+States: ${w.states.map(s=>(s.entity||'')+':'+(s.value||s.state||'')).join(', ')}
+Context path: ${contextPath()}
+${question?'Question: '+question:'Analyze this world.'}`;
+
+    try{
+        const base=el('opBase').value.trim(), model=el('opModel').value.trim();
+        const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages:[{role:'system',content:'You analyze POML narrative world data. RULES: Name entities by NAME[TYPE]. Reference relations as FROM→TYPE→TO. Zero metaphors. Only factual, data-grounded statements. You MUST reference at least 2 entities by exact name. 2-3 sentences.'},{role:'user',content:ctx}],max_tokens:180,temperature:.5})});
+        const data=await resp.json();
+        if(data.choices?.[0]){
+            const honey=data.choices[0].message.content;
+            if(typeof HiveLogger!=='undefined'){HiveLogger.logLLM(ctx,honey,'repl-honey');if(HiveLogger.ttsEnabled)HiveLogger.speak(honey);}
+            emit(`<div class="t-honey">🍯 ${linkifyHoney(honey)}</div>`);
+            honeyCount++; el('sHoney').textContent=honeyCount;
+            return honey; // Return for recursive use
+        }
+    }catch(e){emit('Synthesis failed.','t-error');}
+    return null;
+}
+
+// ── DRILL — recursive honey: analyze current + auto-chain into related worlds ──
+async function cmdDrill(question){
+    const key=el('opKey').value.trim();
+    if(!key){emit('Configure API key first.','t-error');return;}
+
+    let targetWorld=null;
+    if(ctxStack.length){
+        const top=ctxStack.find(f=>f.type==='world');
+        if(top) targetWorld=top.data;
+    }
+    if(!targetWorld){emit('Navigate into a world first.','t-error');return;}
+
+    emit('<span class="t-heading">🔮 DRILL MODE — recursive analysis</span>');
+    const startName=targetWorld.name.replace(/([A-Z])/g,' $1').trim();
+    emit(`<span class="t-dim">Seed: ${startName}</span>`);
+
+    // Phase 1: Honey on current world
+    const honey1=await cmdHoney(question || 'What worlds does this connect to and why?');
+    if(!honey1) return;
+
+    // Phase 2: Find world names mentioned in the honey
+    const idx=buildWorldNameIndex();
+    const mentioned=[];
+    idx.forEach(w=>{
+        if(w.display.toLowerCase()===startName.toLowerCase()) return; // skip self
+        if(honey1.toLowerCase().includes(w.search)) mentioned.push(w);
+    });
+
+    if(!mentioned.length){
+        emit('<span class="t-dim">No world references found in honey. Try: "drill" with broader context.</span>');
+        return;
+    }
+
+    emit(`<span class="t-dim">── ${mentioned.length} worlds referenced ── drilling into top ${Math.min(3,mentioned.length)}...</span>`);
+
+    // Phase 3: Auto-navigate and honey each referenced world (max 3)
+    for(const ref of mentioned.slice(0,3)){
+        navTo(ref.display);
+        await new Promise(r=>setTimeout(r,200)); // brief pause for UI
+        await cmdHoney(`How does this world connect back to "${startName}"?`);
+    }
+
+    // Return to start
+    navTo(startName);
+    emit('<span class="t-heading">🔮 DRILL COMPLETE</span>');
+    emit(`<span class="t-dim">Analyzed ${startName} + ${Math.min(3,mentioned.length)} connected worlds</span>`);
+}
+
+// ── COMPILE — LLM compiles natural language to structured query ──
+async function cmdCompile(text){
+    if(!text){emit('Usage: compile <natural language query>','t-error');return;}
+    const key=el('opKey').value.trim();
+    if(!key){
+        // Local compilation fallback
+        const t=text.toLowerCase();
+        if(t.includes('alive')) processCmd('alive');
+        else if(t.includes('find')) processCmd('find '+text.replace(/find/i,'').trim());
+        else if(t.includes('search')||t.includes('grep')) processCmd('grep '+text.replace(/search|grep|for/gi,'').trim());
+        else emit('Configure API for full compilation. Try: grep, find, alive','t-dim');
+        return;
+    }
+
+    emit('<span class="t-dim">Compiling to structured query...</span>');
+    try{
+        const base=el('opBase').value.trim(), model=el('opModel').value.trim();
+        const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages:[{role:'system',content:`You are a semantic compiler. Convert natural language into REPL commands for a POML world database. Available commands: ls, cd [name], cat, grep [term], find [entity], tree, ai, alive, stats, honey [question]. Output ONLY the command, nothing else.`},{role:'user',content:text}],max_tokens:50,temperature:.2})});
+        const data=await resp.json();
+        if(data.choices?.[0]){
+            const compiled=data.choices[0].message.content.trim();
+            if(typeof HiveLogger!=='undefined')HiveLogger.logLLM(text,compiled,'repl-compile');
+            emit(`<span class="t-dim">Compiled: ${esc(compiled)}</span>`);
+            processCmd(compiled);
+        }
+    }catch(e){emit('Compilation failed.','t-error');}
+}
+
+// ── NATURAL LANGUAGE fallback ──
+function cmdNatural(text){
+    const t=text.toLowerCase();
+    // Simple pattern matching as local semantic compiler
+    if(t.includes('show me')&&t.includes('alive')) processCmd('alive');
+    else if(t.match(/go to|enter|visit|open/)) processCmd('cd '+text.replace(/go to|enter|visit|open|the/gi,'').trim());
+    else if(t.match(/what is|describe|tell me about/)) processCmd('cat');
+    else if(t.match(/search|look for|where is/)) processCmd('grep '+text.replace(/search|look for|where is|for|the/gi,'').trim());
+    else if(t.match(/back|up|exit|leave/)) popContext();
+    else if(t.match(/list|show/)) processCmd('ls');
+    else emit(`Unknown: "${text}". Type "help" for commands.`,'t-error');
+}
+
+// ── TAB COMPLETE ──
+function tabComplete(){
+    const input=el('termInput'), val=input.value;
+    const parts=val.split(/\s+/);
+    if(parts.length<=1) return;
+    const partial=parts.slice(1).join(' ').toLowerCase();
+    const frame=currentFrame();
+    const children=frame.children();
+    const match=children.find(c=>c.label.toLowerCase().startsWith(partial));
+    if(match) input.value=parts[0]+' '+match.label;
+}
+
+// ── HELP ──
+function cmdHelp(){
+    emit('<span class="t-heading">HIVE REPL — Commands</span>');
+    emit('  <span class="t-entity">ls</span> [filter]     List children of current context');
+    emit('  <span class="t-entity">cd</span> <name>       Enter a child context (Tab to autocomplete)');
+    emit('  <span class="t-entity">cd ..</span> / <span class="t-entity">up</span>     Go up one level');
+    emit('  <span class="t-entity">cd /</span>            Return to root');
+    emit('  <span class="t-entity">cat</span>             Show full data of current context');
+    emit('  <span class="t-entity">grep</span> <term>      Search all worlds for term');
+    emit('  <span class="t-entity">find</span> <name>      Search entities across all worlds');
+    emit('  <span class="t-entity">tree</span> [depth]     Show fractal tree (default depth 2)');
+    emit('  <span class="t-entity">ai</span> [asc]         Rank worlds by Assembly Index');
+    emit('  <span class="t-entity">alive</span>            List alive worlds (AI>15)');
+    emit('  <span class="t-entity">stats</span>            Hive statistics');
+    emit('  <span class="t-entity">honey</span> [question] LLM synthesis at current world (output has clickable links)');
+    emit('  <span class="t-entity">drill</span> [question] Recursive honey: analyze + auto-drill into referenced worlds');
+    emit('  <span class="t-entity">compile</span> <text>   Compile natural language → command');
+    emit('  <span class="t-entity">clear</span>            Clear terminal');
+    emit('  <span class="t-dim">World names in ALL output are clickable — click to navigate.</span>');
+    emit('  <span class="t-dim">Or type natural language — the REPL will try to interpret.</span>');
+}
+
+// ═══════════════════
+// UI UPDATES
+// ═══════════════════
+function updateBreadcrumb(){
+    const bc=el('breadcrumb');
+    let html='<span onclick="jumpToDepth(0)">hive://</span>';
+    ctxStack.forEach((f,i)=>{html+=`<span class="sep">/</span><span onclick="jumpToDepth(${i+1})">${esc(f.label)}</span>`;});
+    bc.innerHTML=html;
+}
+
+function updatePrompt(){el('promptLabel').textContent=contextPath()+'>';}
+
+function updateTree(){
+    const body=el('treeBody');
+    const frame=currentFrame();
+    const children=frame.children();
+    body.innerHTML=children.slice(0,50).map((c,i)=>{
+        const active=ctxStack.length&&ctxStack[ctxStack.length-1]===c;
+        const icon=({world:'🌐',collection:'📁',entity:'◆',relation:'→',event:'⚡',state:'◎'})[c.type]||'·';
+        const ai=c.type==='world'?`<span class="tn-ai">${assemblyIndex(c.data)}</span>`:'';
+        const indent=ctxStack.length*8;
+        return `<div class="tree-node${active?' active':''}" style="padding-left:${indent+6}px" onclick="processCmd('cd ${esc(c.label)}')" title="${esc(c.label)}"><span class="tn-icon">${icon}</span><span class="tn-name">${esc(c.label.slice(0,20))}</span>${ai}</div>`;
+    }).join('');
+    if(children.length>50) body.innerHTML+=`<div class="tree-node" style="padding-left:6px"><span class="tn-icon">…</span><span class="tn-name t-dim">+${children.length-50} more</span></div>`;
+}
+
+// ═══════════════════
+// MINIMAP
+// ═══════════════════
+let hexCells=[];
+let hoveredHex = -1;
+function layoutMiniHex(){
+    hexCells=[];
+    const cols=Math.ceil(Math.sqrt(worlds.length*1.35));
+    const R=14;
+    worlds.forEach((w,i)=>{
+        const row=Math.floor(i/cols),col=i%cols;
+        const off=(row%2)?R*.87:0;
+        hexCells.push({x:col*R*1.76+off+R*1.5,y:row*(R*1.52)+R*1.5,world:w,idx:i,ai:assemblyIndex(w)});
+    });
+}
+
+function drawMinimap(){
+    const W=miniCanvas.width,H=miniCanvas.height;
+    miniCtx.clearRect(0,0,W,H);
+    if(!hexCells.length) return;
+    const totalW=Math.max(...hexCells.map(c=>c.x))+28;
+    const totalH=Math.max(...hexCells.map(c=>c.y))+28;
+    const scale=Math.min(W/totalW,H/totalH)*.9;
+    const offX=(W-totalW*scale)/2,offY=(H-totalH*scale)/2;
+    miniCtx.save();miniCtx.translate(offX,offY);miniCtx.scale(scale,scale);
+
+    const curWorld=ctxStack.find(f=>f.type==='world');
+    const curIdx=curWorld?curWorld.idx:-1;
+    const R=12;
+
+    hexCells.forEach((c,i)=>{
+        miniCtx.beginPath();
+        for(let k=0;k<6;k++){const a=Math.PI/3*k+Math.PI/6;miniCtx.lineTo(c.x+R*Math.cos(a),c.y+R*Math.sin(a));}
+        miniCtx.closePath();
+
+        const isCur = i===curIdx;
+        const isHov = i===hoveredHex;
+        const alive = c.ai>AT;
+
+        if(isCur){miniCtx.fillStyle='rgba(74,246,38,.25)';miniCtx.strokeStyle='#4af626';miniCtx.lineWidth=2;}
+        else if(isHov){miniCtx.fillStyle=alive?'rgba(212,168,75,.12)':'rgba(140,180,210,.06)';miniCtx.strokeStyle=alive?'rgba(212,168,75,.5)':'rgba(140,180,210,.3)';miniCtx.lineWidth=1;}
+        else if(alive){miniCtx.fillStyle='rgba(212,168,75,.04)';miniCtx.strokeStyle='rgba(212,168,75,.12)';miniCtx.lineWidth=.4;}
+        else{miniCtx.fillStyle='transparent';miniCtx.strokeStyle='rgba(58,62,72,.08)';miniCtx.lineWidth=.2;}
+        miniCtx.fill();miniCtx.stroke();
+
+        // Labels for alive cells
+        if(alive || isCur || isHov){
+            const name=c.world.name.replace(/([A-Z])/g,' $1').trim();
+            const short=name.length>8?name.slice(0,7)+'…':name;
+            miniCtx.textAlign='center';miniCtx.textBaseline='middle';
+            miniCtx.font=isCur?'bold 5px IBM Plex Mono':'4px IBM Plex Mono';
+            miniCtx.fillStyle=isCur?'rgba(74,246,38,.8)':alive?'rgba(212,168,75,.35)':'rgba(140,180,210,.3)';
+            miniCtx.fillText(short,c.x,c.y-2);
+            miniCtx.font='bold 3.5px IBM Plex Mono';
+            miniCtx.fillStyle=isCur?'rgba(74,246,38,.5)':'rgba(212,168,75,.2)';
+            miniCtx.fillText(c.ai,c.x,c.y+4);
+        }
+    });
+    miniCtx.restore();
+    requestAnimationFrame(drawMinimap);
+}
+
+function updateMinimap(){/* drawMinimap handles via rAF */}
+
+function onMiniClick(e){
+    const rect=miniCanvas.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*miniDpr,my=(e.clientY-rect.top)*miniDpr;
+    const totalW=Math.max(...hexCells.map(c=>c.x))+28;
+    const totalH=Math.max(...hexCells.map(c=>c.y))+28;
+    const W=miniCanvas.width,H=miniCanvas.height;
+    const scale=Math.min(W/totalW,H/totalH)*.9;
+    const offX=(W-totalW*scale)/2,offY=(H-totalH*scale)/2;
+    let closest=-1,dMin=Infinity;
+    hexCells.forEach((c,i)=>{const sx=c.x*scale+offX,sy=c.y*scale+offY;const d=Math.hypot(sx-mx,sy-my);if(d<dMin){dMin=d;closest=i;}});
+    if(closest>=0&&dMin<20*miniDpr){
+        const name=worlds[closest].name.replace(/([A-Z])/g,' $1').trim();
+        navTo(name);
+    }
+}
+
+function onMiniMove(e){
+    const rect=miniCanvas.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*miniDpr,my=(e.clientY-rect.top)*miniDpr;
+    const totalW=Math.max(...hexCells.map(c=>c.x))+28;
+    const totalH=Math.max(...hexCells.map(c=>c.y))+28;
+    const W=miniCanvas.width,H=miniCanvas.height;
+    const scale=Math.min(W/totalW,H/totalH)*.9;
+    const offX=(W-totalW*scale)/2,offY=(H-totalH*scale)/2;
+    let closest=-1,dMin=Infinity;
+    hexCells.forEach((c,i)=>{const sx=c.x*scale+offX,sy=c.y*scale+offY;const d=Math.hypot(sx-mx,sy-my);if(d<dMin){dMin=d;closest=i;}});
+    const tip=el('mmTip');
+    if(closest>=0&&dMin<18*miniDpr){
+        hoveredHex=closest;
+        const w=worlds[closest];
+        const name=w.name.replace(/([A-Z])/g,' $1').trim();
+        tip.textContent=`${name} (AI:${hexCells[closest].ai} ${w.genre})`;
+        tip.style.display='block';
+        tip.style.left=(e.clientX-rect.left+10)+'px';
+        tip.style.top=(e.clientY-rect.top-20)+'px';
+    } else {
+        hoveredHex=-1;
+        tip.style.display='none';
+    }
+}
+
+// ═══════════════════
+// UTIL
+// ═══════════════════
+function el(id){return document.getElementById(id)}
+function toggleCfg(){el('opOverlay').classList.toggle('show');}
+function saveCfg(){['opKey','opModel','opBase'].forEach(id=>localStorage.setItem('hiverepl_'+id,el(id).value));}
+function loadCfg(){['opKey','opModel','opBase'].forEach(id=>{const v=localStorage.getItem('hiverepl_'+id);if(v)el(id).value=v;});}
+
+// ═══════════════════
+// INIT
+// ═══════════════════
+function init(){
+    worlds=RouteEngine.parseAll(WORLDS_DATA);
+    routes=RouteEngine.computeRoutes(worlds);
+    worlds.forEach(w=>{worldByUid[w.uid]=w;});
+
+    // Minimap
+    miniCanvas=el('miniCanvas');miniCtx=miniCanvas.getContext('2d');miniDpr=devicePixelRatio;
+    const mp=el('mmWrap');
+    miniCanvas.width=mp.clientWidth*miniDpr;miniCanvas.height=mp.clientHeight*miniDpr;
+    miniCanvas.style.width=mp.clientWidth+'px';miniCanvas.style.height=mp.clientHeight+'px';
+    miniCtx.setTransform(miniDpr,0,0,miniDpr,0,0);
+    miniCanvas.addEventListener('click',onMiniClick);
+    miniCanvas.addEventListener('mousemove',onMiniMove);
+    layoutMiniHex();
+
+    loadCfg();
+    updateTree();
+    updateBreadcrumb();
+    el('sWorlds').textContent=worlds.length;
+
+    // Welcome
+    emit('<span class="t-heading">HIVE REPL v1 — Context Window Explorer</span>');
+    emit(`${worlds.length} POML worlds loaded as a fractal scene graph.`);
+    emit(`${worlds.filter(w=>assemblyIndex(w)>AT).length} alive cells (AI>${AT}).`);
+    emit('');
+    emit('Each world is a context window. Navigate with shell commands.');
+    emit('Type <span class="t-entity">help</span> for commands, or speak naturally.');
+    emit('');
+    emit('<span class="t-dim">  ls          → list worlds</span>');
+    emit('<span class="t-dim">  cd [name]   → enter a world</span>');
+    emit('<span class="t-dim">  cat         → read the current context</span>');
+    emit('<span class="t-dim">  tree        → fractal view</span>');
+    emit('<span class="t-dim">  grep [term] → search everywhere</span>');
+    emit('<span class="t-dim">  honey       → LLM synthesis</span>');
+    emit('');
+
+    window.addEventListener('resize',()=>{
+        const mp2=el('mmWrap');
+        miniCanvas.width=mp2.clientWidth*miniDpr;miniCanvas.height=mp2.clientHeight*miniDpr;
+        miniCanvas.style.width=mp2.clientWidth+'px';miniCanvas.style.height=mp2.clientHeight+'px';
+        miniCtx.setTransform(miniDpr,0,0,miniDpr,0,0);
+    });
+
+    requestAnimationFrame(drawMinimap);
+    el('termInput').focus();
+}
+
+init();
+if(typeof HiveLogger!=='undefined')HiveLogger.init('hive-repl');
+</script>
+</body>
+</html>

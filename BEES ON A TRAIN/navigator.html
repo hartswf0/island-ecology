@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BEES ON A TRAIN | Worlds Navigator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0b;
+            --surface: #141417;
+            --surface-hover: #1c1c21;
+            --accent: #00f2ff;
+            --accent-dim: rgba(0, 242, 255, 0.1);
+            --text-main: #e0e0e6;
+            --text-dim: #94949e;
+            --border: #2d2d33;
+            --pink: #ff007b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: rgba(10, 10, 11, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand h1 {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        .brand span {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .stat-value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        main {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-container {
+            position: relative;
+            width: 100%;
+        }
+
+        #search {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #search:focus {
+            border-color: var(--accent);
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-tag {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-dim);
+        }
+
+        .filter-tag:hover {
+            border-color: var(--text-dim);
+        }
+
+        .filter-tag.active {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .world-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .world-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            transition: transform 0.2s, border-color 0.2s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .world-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            background: var(--surface-hover);
+        }
+
+        .world-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .world-card:hover::before {
+            opacity: 1;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .world-uid {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--accent);
+            background: var(--accent-dim);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .world-source {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+        }
+
+        .world-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+
+        .world-genre {
+            font-size: 0.75rem;
+            color: var(--pink);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .world-desc {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            flex-grow: 1;
+        }
+
+        /* Modal */
+        #modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 2rem;
+        }
+
+        #modal-content {
+            background: var(--surface);
+            width: 100%;
+            max-width: 900px;
+            max-height: 90vh;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            animation: modalIn 0.3s ease-out;
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: var(--text-main);
+        }
+
+        .modal-body {
+            padding: 2rem;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        pre {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            background: var(--bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .meta-detail {
+            margin-bottom: 1.5rem;
+        }
+
+        .meta-detail h3 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .meta-detail p {
+            font-size: 1.1rem;
+            line-height: 1.5;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-dim);
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            .stats {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <h1>Worlds Navigator</h1>
+            <span>BEES ON A TRAIN / Extraction v1.0</span>
+        </div>
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-value" id="stat-total">0</span>
+                <span class="stat-label">Total Worlds</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="stat-genres">0</span>
+                <span class="stat-label">Unique Genres</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">12</span>
+                <span class="stat-label">Source Files</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="controls">
+            <div class="search-container">
+                <input type="text" id="search" placeholder="Search by name, genre, or description...">
+            </div>
+            <div class="filters" id="genre-filters">
+                <div class="filter-tag active" data-genre="all">All Genres</div>
+                <!-- Dynamic Genres -->
+            </div>
+            <div class="filters" id="source-filters">
+                <div class="filter-tag active" data-source="all">All Sources</div>
+                <!-- Dynamic Sources -->
+            </div>
+        </div>
+
+        <div class="world-grid" id="grid">
+            <!-- Dynamic Cards -->
+        </div>
+    </main>
+
+    <div id="modal-overlay">
+        <div id="modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="world-uid" id="modal-uid">W-0000</span>
+                    <h2 id="modal-title" style="margin-top: 0.5rem;">World Name</h2>
+                </div>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="meta-detail">
+                    <h3>Genre</h3>
+                    <p id="modal-genre" class="world-genre">Genre Name</p>
+                </div>
+                <div class="meta-detail">
+                    <h3>Description</h3>
+                    <p id="modal-desc">World description goes here...</p>
+                </div>
+                <div class="meta-detail">
+                    <h3>Raw POML Structure</h3>
+                    <pre id="modal-raw">world <Name> { ... }</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load data.js (Generated by script) -->
+    <script src="data.js"></script>
+    <script>
+        const grid = document.getElementById('grid');
+        const searchInput = document.getElementById('search');
+        const genreFilters = document.getElementById('genre-filters');
+        const sourceFilters = document.getElementById('source-filters');
+        
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalClose = document.getElementById('modal-close');
+        
+        let currentGenre = 'all';
+        let currentSource = 'all';
+        let searchQuery = '';
+
+        function init() {
+            renderStats();
+            renderFilters();
+            renderGrid();
+            
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase();
+                renderGrid();
+            });
+            
+            modalClose.addEventListener('click', closeModal);
+            modalOverlay.addEventListener('click', (e) => {
+                if(e.target === modalOverlay) closeModal();
+            });
+            window.addEventListener('keydown', (e) => {
+                if(e.key === 'Escape') closeModal();
+            });
+        }
+
+        function renderStats() {
+            document.getElementById('stat-total').textContent = WORLDS_DATA.length;
+            const genres = new Set(WORLDS_DATA.map(w => w.meta.genre).filter(Boolean));
+            document.getElementById('stat-genres').textContent = genres.size;
+        }
+
+        function renderFilters() {
+            // Genre Filters
+            const genres = ['all', ...new Set(WORLDS_DATA.map(w => w.meta.genre).filter(Boolean))].sort();
+            genreFilters.innerHTML = genres.map(g => `
+                <div class="filter-tag ${g === 'all' ? 'active' : ''}" data-genre="${g}">
+                    ${g === 'all' ? 'All Genres' : g}
+                </div>
+            `).join('');
+
+            genreFilters.querySelectorAll('.filter-tag').forEach(tag => {
+                tag.addEventListener('click', () => {
+                    genreFilters.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
+                    tag.classList.add('active');
+                    currentGenre = tag.dataset.genre;
+                    renderGrid();
+                });
+            });
+
+            // Source Filters
+            const sources = ['all', ...new Set(WORLDS_DATA.map(w => w.source))].sort();
+            sourceFilters.innerHTML = sources.map(s => `
+                <div class="filter-tag ${s === 'all' ? 'active' : ''}" data-source="${s}">
+                    ${s === 'all' ? 'All Sources' : s}
+                </div>
+            `).join('');
+
+            sourceFilters.querySelectorAll('.filter-tag').forEach(tag => {
+                tag.addEventListener('click', () => {
+                    sourceFilters.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
+                    tag.classList.add('active');
+                    currentSource = tag.dataset.source;
+                    renderGrid();
+                });
+            });
+        }
+
+        function renderGrid() {
+            const filtered = WORLDS_DATA.filter(w => {
+                const matchGenre = currentGenre === 'all' || w.meta.genre === currentGenre;
+                const matchSource = currentSource === 'all' || w.source === currentSource;
+                const matchSearch = w.name.toLowerCase().includes(searchQuery) || 
+                                    (w.meta.description || '').toLowerCase().includes(searchQuery) ||
+                                    (w.meta.genre || '').toLowerCase().includes(searchQuery);
+                return matchGenre && matchSource && matchSearch;
+            });
+
+            grid.innerHTML = filtered.map(w => `
+                <div class="world-card" onclick="openWorld('${w.uid}')">
+                    <div class="card-header">
+                        <span class="world-uid">${w.uid}</span>
+                        <span class="world-source">${w.source}</span>
+                    </div>
+                    <div class="world-name">${w.name}</div>
+                    <div class="world-genre">${w.meta.genre || 'Undefined Genre'}</div>
+                    <div class="world-desc">${w.meta.description || 'No description available.'}</div>
+                </div>
+            `).join('');
+        }
+
+        function openWorld(uid) {
+            const world = WORLDS_DATA.find(w => w.uid === uid);
+            if(!world) return;
+            
+            document.getElementById('modal-uid').textContent = world.uid;
+            document.getElementById('modal-title').textContent = world.name;
+            document.getElementById('modal-genre').textContent = world.meta.genre || 'Undefined';
+            document.getElementById('modal-desc').textContent = world.meta.description || 'No description available.';
+            document.getElementById('modal-raw').textContent = `world <${world.name}> ${world.raw}`;
+            
+            modalOverlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modalOverlay.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        init();
+    </script>
+</body>
+</html>

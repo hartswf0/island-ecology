@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+    <title>Epistemic Engine — Territorial Field</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #030303;
+        }
+
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            user-select: none;
+            color: #d1d1c7;
+        }
+
+        :root {
+            --void: #030303;
+            --iron: #8c3b26;
+            --clay: #3a322d;
+            --gold: #a68a56;
+            --bone: #d1d1c7;
+            --ash: #262626;
+            --cyan: #00e5ff;
+            --glass: rgba(10, 10, 10, 0.75);
+        }
+
+        ::selection {
+            background: rgba(166, 138, 86, 0.3);
+            color: var(--gold);
+        }
+
+        /* ── FIELD ENGINE ── */
+        #vc {
+            display: block;
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            cursor: grab;
+        }
+
+        #vc:active {
+            cursor: grabbing;
+        }
+
+        #overlayCanvas {
+            display: block;
+            position: fixed;
+            inset: 0;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        /* ── HUD ── */
+        .hud-top {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .api-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 4px 10px;
+            border: 1px solid var(--clay);
+            border-radius: 2px;
+            backdrop-filter: blur(4px);
+        }
+
+        .status-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #444;
+            transition: all 0.3s;
+        }
+
+        .status-dot.active {
+            background: var(--cyan);
+            box-shadow: 0 0 8px var(--cyan);
+        }
+
+        .status-dot.run {
+            background: var(--gold);
+            box-shadow: 0 0 12px var(--gold);
+            animation: pulse 0.8s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1.5);
+            }
+        }
+
+        .api-input {
+            background: transparent;
+            border: none;
+            color: var(--gold);
+            font-family: inherit;
+            font-size: 9px;
+            width: 100px;
+            outline: none;
+            letter-spacing: 0.05em;
+        }
+
+        .api-input::placeholder {
+            color: var(--ash);
+        }
+
+        .stat-text {
+            font-size: 8px;
+            color: var(--clay);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .stat-text span {
+            color: var(--bone);
+            font-weight: 600;
+        }
+
+        /* ── QUIVER ── */
+        #quiver {
+            position: fixed;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 80;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .qv {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--ash);
+            color: #666;
+            font-family: inherit;
+            font-size: 8px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            cursor: pointer;
+            padding: 6px 12px;
+            transition: all 0.2s;
+            border-radius: 2px;
+            backdrop-filter: blur(2px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .qv::before {
+            content: '';
+            display: block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            border: 1px solid #666;
+            transition: all 0.2s;
+        }
+
+        .qv:hover {
+            color: var(--bone);
+            border-color: var(--clay);
+        }
+
+        .qv.sel {
+            color: var(--gold);
+            border-color: var(--gold);
+            background: rgba(166, 138, 86, 0.05);
+        }
+
+        .qv.sel::before {
+            background: var(--gold);
+            border-color: var(--gold);
+            box-shadow: 0 0 8px var(--gold);
+        }
+
+        /* ── IN-SITU NODE CARD (LIVES ON CANVAS) ── */
+        #dom-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .node-card {
+            position: absolute;
+            width: 380px;
+            background: var(--glass);
+            border: 1px solid var(--clay);
+            border-left: 2px solid var(--gold);
+            padding: 24px;
+            backdrop-filter: blur(8px);
+            pointer-events: auto;
+            transform: translate(24px, -50%);
+            /* Offset slightly to the right of the node */
+            opacity: 0;
+            transition: opacity 0.3s ease, border-color 0.3s ease;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
+            display: none;
+        }
+
+        .node-card.visible {
+            opacity: 1;
+            display: block;
+        }
+
+        .node-card.loading {
+            border-left-color: var(--iron);
+        }
+
+        .nc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 16px;
+            border-bottom: 1px dashed var(--ash);
+            padding-bottom: 12px;
+        }
+
+        .nc-op {
+            font-size: 7px;
+            letter-spacing: 0.2em;
+            color: var(--gold);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .nc-id {
+            font-size: 7px;
+            color: #666;
+            letter-spacing: 0.1em;
+        }
+
+        .nc-body {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--bone);
+            user-select: text;
+        }
+
+        .nc-body.blur {
+            color: rgba(209, 209, 199, 0.2);
+            filter: blur(0.5px);
+        }
+
+        /* Transclusion Spans */
+        .x-frag {
+            border-bottom: 1px dotted var(--gold);
+            color: var(--bone);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .nc-body.blur .x-frag.hovered {
+            color: var(--gold);
+            filter: none;
+            border-bottom: 1px solid var(--gold);
+            text-shadow: 0 0 12px rgba(166, 138, 86, 0.4);
+        }
+
+        .x-frag:hover {
+            color: var(--gold);
+        }
+
+        .nc-close {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 16px;
+            transition: color 0.2s;
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px;
+        }
+
+        .nc-close:hover {
+            color: var(--iron);
+        }
+
+        /* ── BOTTOM INPUT ── */
+        .bot {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 500px;
+            z-index: 60;
+            pointer-events: none;
+        }
+
+        .bot-inner {
+            background: var(--glass);
+            border: 1px solid var(--clay);
+            border-radius: 4px;
+            display: flex;
+            backdrop-filter: blur(8px);
+            pointer-events: auto;
+            padding: 4px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+        }
+
+        .bin {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--bone);
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 16px;
+            font-style: italic;
+            padding: 8px 16px;
+            outline: none;
+        }
+
+        .bin::placeholder {
+            color: #555;
+        }
+
+        .brun {
+            background: transparent;
+            border: none;
+            border-left: 1px solid var(--ash);
+            color: var(--clay);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            padding: 0 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .brun:hover {
+            color: var(--gold);
+        }
+
+        /* Shimmer Loader */
+        .shimmer {
+            animation: shimmer 2s infinite linear;
+            background: linear-gradient(90deg, #555 0%, var(--bone) 50%, #555 100%);
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+        }
+
+        @keyframes shimmer {
+            to {
+                background-position: 200% center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- INFINITE FIELD -->
+    <canvas id="vc"></canvas>
+    <canvas id="overlayCanvas"></canvas> <!-- For Transclusion Beams -->
+
+    <!-- IN-SITU DOM LAYER -->
+    <div id="dom-layer">
+        <!-- Reusable floating card -->
+        <div class="node-card" id="floating-card">
+            <button class="nc-close" onclick="closeCard()">×</button>
+            <div class="nc-header">
+                <div class="nc-op" id="card-op">OPERATION</div>
+                <div class="nc-id" id="card-id">N_0</div>
+            </div>
+            <div class="nc-body" id="card-body"></div>
+        </div>
+    </div>
+
+    <!-- HUD -->
+    <div class="hud-top">
+        <div class="api-wrap">
+            <div class="status-dot" id="dot-api"></div>
+            <input type="password" id="api-key-input" class="api-input" placeholder="OPENAI_KEY..."
+                onchange="saveApiKey()">
+        </div>
+        <div class="stat-text">ARTIFACTS: <span id="stat-nodes">0</span></div>
+        <div class="stat-text">DRAG NODE ➔ NODE TO MUTATE</div>
+    </div>
+
+    <div id="quiver"></div>
+
+    <!-- INPUT -->
+    <div class="bot">
+        <div class="bot-inner">
+            <input class="bin" id="bIn" placeholder="Inscribe root concept into the field... (Enter to commune)">
+            <button class="brun" onclick="spawnRoot()">Inscribe</button>
+        </div>
+    </div>
+
+    <script>
+        'use strict';
+
+        // ══════════════════════════════
+        // CONFIG & RUNES
+        // ══════════════════════════════
+        const OPS = {
+            surface: { lbl: 'EXHUME', verb: 'trace causal chains', hue: 200 },
+            limits: { lbl: 'DISTILL', verb: 'find narrative bottlenecks', hue: 270 },
+            modes: { lbl: 'REFRACT', verb: 'find parallel storylines', hue: 45 },
+            manip: { lbl: 'MUTATE', verb: 'trace action→reaction chains', hue: 350 },
+            zoom: { lbl: 'TRAVERSE', verb: 'decompose world hierarchy', hue: 150 },
+        };
+
+        const canvas = document.getElementById('vc');
+        const ctx = canvas.getContext('2d');
+        const oCanvas = document.getElementById('overlayCanvas');
+        const oCtx = oCanvas.getContext('2d');
+        let VW = 0, VH = 0;
+
+        let API_KEY = "";
+        const STORAGE_KEY = "epistemic_territory_key";
+
+        // Graph Data
+        let nodes = [];
+        let edges = [];
+        let nid = 0;
+
+        // Render & Physics State
+        let cam = { x: 0, y: 0, tx: 0, ty: 0 }; // Added tx/ty for smooth camera flight
+        let isPanning = false, dox = 0, doy = 0;
+        let aiming = null; // { srcNode, ex, ey }
+        let projectiles = []; // { x, y, tx, ty, t, src, tgt, op, hue }
+
+        // Voronoi Map
+        let vmap = null, vsW = 0, vsH = 0;
+        const SAMP = 4;
+
+        let curOp = 'surface';
+
+        // Focused Interaction State
+        let focusedNodeId = null; // The node currently expanded into a card
+        let hoveredFragTargetId = null; // The node highlighted via text hover
+
+        // ══════════════════════════════
+        // INITIALIZATION
+        // ══════════════════════════════
+        function init() {
+            API_KEY = localStorage.getItem(STORAGE_KEY) || "";
+            document.getElementById('api-key-input').value = API_KEY;
+            updateStatus();
+
+            buildQuiver();
+
+            window.addEventListener('resize', resize);
+            resize();
+
+            canvas.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+            document.getElementById('bIn').addEventListener('keydown', e => { if (e.key === 'Enter') spawnRoot(); });
+
+            requestAnimationFrame(renderLoop);
+
+            seed();
+        }
+
+        function saveApiKey() {
+            API_KEY = document.getElementById('api-key-input').value.trim();
+            localStorage.setItem(STORAGE_KEY, API_KEY);
+            updateStatus();
+        }
+
+        function updateStatus(running = false) {
+            const d = document.getElementById('dot-api');
+            d.className = running ? 'status-dot run' : (API_KEY ? 'status-dot active' : 'status-dot');
+        }
+
+        function buildQuiver() {
+            const q = document.getElementById('quiver');
+            q.innerHTML = '';
+            Object.entries(OPS).forEach(([id, op]) => {
+                const btn = document.createElement('button');
+                btn.className = 'qv' + (id === curOp ? ' sel' : '');
+                btn.innerHTML = `${op.lbl}`;
+                btn.title = op.verb;
+                btn.onclick = () => { curOp = id; buildQuiver(); };
+                q.appendChild(btn);
+            });
+        }
+
+        function resize() {
+            VW = canvas.width = oCanvas.width = window.innerWidth;
+            VH = canvas.height = oCanvas.height = window.innerHeight;
+            recomputeVoronoi();
+        }
+
+        // ══════════════════════════════
+        // CORE LOGIC & PHYSICS
+        // ══════════════════════════════
+        function addNode(text, op, x, y) {
+            const n = { id: ++nid, text, op, x, y, vx: 0, vy: 0, glow: 1.0, isLoading: false };
+            nodes.push(n);
+            document.getElementById('stat-nodes').textContent = nodes.length;
+            recomputeVoronoi();
+            return n;
+        }
+
+        function recomputeVoronoi() {
+            if (nodes.length === 0) return;
+            vsW = Math.ceil(VW / SAMP);
+            vsH = Math.ceil(VH / SAMP);
+            vmap = new Int16Array(vsW * vsH).fill(-1);
+
+            for (let sy = 0; sy < vsH; sy++) {
+                for (let sx = 0; sx < vsW; sx++) {
+                    const worldX = (sx * SAMP) - cam.x;
+                    const worldY = (sy * SAMP) - cam.y;
+                    let minDist = Infinity, bestIdx = -1;
+
+                    for (let i = 0; i < nodes.length; i++) {
+                        const n = nodes[i];
+                        const distSq = (worldX - n.x) ** 2 + (worldY - n.y) ** 2;
+                        if (distSq < minDist) { minDist = distSq; bestIdx = i; }
+                    }
+                    vmap[sy * vsW + sx] = bestIdx;
+                }
+            }
+        }
+
+        function flyToNode(id) {
+            const n = nodes.find(nd => nd.id === id);
+            if (n) {
+                // Target camera position to center the node slightly to the left
+                // to make room for the expanded card
+                cam.tx = -n.x + (VW * 0.35);
+                cam.ty = -n.y + (VH * 0.5);
+                openCard(id);
+            }
+        }
+
+        function renderLoop() {
+            let layoutDirty = false;
+
+            // Camera Flight Interpolation
+            if (Math.abs(cam.x - cam.tx) > 0.5 || Math.abs(cam.y - cam.ty) > 0.5) {
+                cam.x += (cam.tx - cam.x) * 0.08;
+                cam.y += (cam.ty - cam.y) * 0.08;
+                layoutDirty = true;
+            }
+
+            // Node Physics
+            nodes.forEach(n => {
+                if (Math.abs(n.vx) > 0.05 || Math.abs(n.vy) > 0.05) {
+                    n.x += n.vx; n.y += n.vy;
+                    n.vx *= 0.82; n.vy *= 0.82;
+                    layoutDirty = true;
+                }
+                if (n.glow > 0) n.glow -= 0.03;
+            });
+
+            // Projectiles
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.t += p.spd;
+                if (p.t >= 1) {
+                    p.tgt.vx += (p.tgt.x - p.src.x) * 0.02;
+                    p.tgt.vy += (p.tgt.y - p.src.y) * 0.02;
+                    p.tgt.glow = 1.0;
+                    projectiles.splice(i, 1);
+                    if (p.cb) p.cb();
+                }
+            }
+
+            if (layoutDirty || isPanning) recomputeVoronoi();
+
+            drawCanvas();
+            updateCardPosition();
+            drawBeams();
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        // ══════════════════════════════
+        // CANVAS RENDERING
+        // ══════════════════════════════
+        function drawCanvas() {
+            ctx.clearRect(0, 0, VW, VH);
+
+            // Faint World Grid
+            ctx.strokeStyle = 'rgba(58, 50, 45, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let x = cam.x % 40; x < VW; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, VH); }
+            for (let y = cam.y % 40; y < VH; y += 40) { ctx.moveTo(0, y); ctx.lineTo(VW, y); }
+            ctx.stroke();
+
+            if (vmap && nodes.length > 0) {
+                // Voronoi Territories
+                for (let sy = 0; sy < vsH; sy++) {
+                    for (let sx = 0; sx < vsW; sx++) {
+                        const nIdx = vmap[sy * vsW + sx];
+                        if (nIdx < 0) continue;
+
+                        const n = nodes[nIdx];
+                        const hue = OPS[n.op].hue;
+
+                        const screenNodeX = n.x + cam.x;
+                        const screenNodeY = n.y + cam.y;
+                        const distSq = (sx * SAMP - screenNodeX) ** 2 + (sy * SAMP - screenNodeY) ** 2;
+                        const fade = Math.max(0, 1 - distSq / 160000); // Larger radius
+
+                        const isHovered = (hoveredFragTargetId === n.id);
+                        const isFocused = (focusedNodeId === n.id);
+
+                        let alpha = 0.02;
+                        if (isFocused) alpha += 0.03;
+                        if (isHovered) alpha += 0.08;
+
+                        ctx.fillStyle = `hsla(${hue}, 50%, 30%, ${alpha * fade})`;
+                        ctx.fillRect(sx * SAMP, sy * SAMP, SAMP, SAMP);
+                    }
+                }
+
+                // Voronoi Borders
+                ctx.lineWidth = 1;
+                for (let sy = 0; sy < vsH - 1; sy++) {
+                    for (let sx = 0; sx < vsW - 1; sx++) {
+                        const idx = sy * vsW + sx;
+                        const c = vmap[idx], r = vmap[idx + 1], d = vmap[idx + vsW];
+
+                        const drawSeg = (nIdx1, nIdx2, isHoriz) => {
+                            const n1 = nodes[nIdx1], n2 = nodes[nIdx2];
+                            if (!n1 || !n2) return;
+
+                            const isHovered = (hoveredFragTargetId === n1.id || hoveredFragTargetId === n2.id);
+                            const hue = OPS[n1.op].hue;
+
+                            if (isHovered) {
+                                ctx.strokeStyle = `hsl(${hue}, 80%, 60%)`;
+                                ctx.lineWidth = 2;
+                                ctx.shadowBlur = 10;
+                                ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
+                                ctx.setLineDash([4, 4]);
+                                ctx.lineDashOffset = -performance.now() / 20;
+                            } else {
+                                ctx.strokeStyle = `hsla(${hue}, 40%, 40%, 0.2)`;
+                                ctx.lineWidth = 1;
+                                ctx.shadowBlur = 0;
+                                ctx.setLineDash([]);
+                            }
+
+                            ctx.beginPath();
+                            const px = sx * SAMP, py = sy * SAMP;
+                            if (isHoriz) { ctx.moveTo(px, py + SAMP); ctx.lineTo(px + SAMP, py + SAMP); }
+                            else { ctx.moveTo(px + SAMP, py); ctx.lineTo(px + SAMP, py + SAMP); }
+                            ctx.stroke();
+                        };
+
+                        if (c !== r && c >= 0 && r >= 0) drawSeg(c, r, false);
+                        if (c !== d && c >= 0 && d >= 0) drawSeg(c, d, true);
+                    }
+                }
+                ctx.shadowBlur = 0; ctx.setLineDash([]);
+            }
+
+            // Edges
+            ctx.save();
+            ctx.translate(cam.x, cam.y);
+
+            ctx.setLineDash([4, 6]);
+            edges.forEach(e => {
+                const isFocused = focusedNodeId === e.from.id || focusedNodeId === e.to.id;
+                ctx.strokeStyle = isFocused ? 'rgba(166, 138, 86, 0.6)' : 'rgba(58, 50, 45, 0.4)';
+                ctx.lineWidth = isFocused ? 1.5 : 1;
+
+                ctx.beginPath();
+                ctx.moveTo(e.from.x, e.from.y);
+                const cpX = e.from.x + (e.to.x - e.from.x) * 0.5;
+                ctx.bezierCurveTo(cpX, e.from.y, cpX, e.to.y, e.to.x, e.to.y);
+                ctx.stroke();
+            });
+            ctx.setLineDash([]);
+
+            // Aiming
+            if (aiming) {
+                ctx.strokeStyle = `hsla(${OPS[curOp].hue}, 80%, 60%, 0.6)`;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 6]);
+                ctx.lineDashOffset = -performance.now() / 20;
+                ctx.beginPath();
+                ctx.moveTo(aiming.srcNode.x, aiming.srcNode.y);
+                ctx.lineTo(aiming.ex, aiming.ey);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = `hsla(${OPS[curOp].hue}, 80%, 60%, 0.2)`;
+                ctx.beginPath(); ctx.arc(aiming.ex, aiming.ey, 15, 0, Math.PI * 2); ctx.fill();
+            }
+
+            // Projectiles
+            projectiles.forEach(p => {
+                const px = p.src.x + (p.tx - p.src.x) * p.t;
+                const py = p.src.y + (p.ty - p.src.y) * p.t;
+                ctx.fillStyle = `hsl(${p.hue}, 100%, 70%)`;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = ctx.fillStyle;
+                ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // Nodes
+            nodes.forEach(n => {
+                const isFocused = focusedNodeId === n.id;
+                const isHovered = hoveredFragTargetId === n.id;
+                const hue = OPS[n.op].hue;
+
+                ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
+                ctx.beginPath(); ctx.arc(n.x, n.y, isFocused ? 5 : 3, 0, Math.PI * 2); ctx.fill();
+
+                if (isFocused || isHovered || n.glow > 0) {
+                    const radius = 12 + (n.glow * 15) + (isHovered ? 4 : 0);
+                    ctx.strokeStyle = `hsla(${hue}, 80%, 60%, ${0.3 + n.glow * 0.5})`;
+                    ctx.lineWidth = isHovered ? 2 : 1;
+                    ctx.beginPath(); ctx.arc(n.x, n.y, radius, 0, Math.PI * 2); ctx.stroke();
+                }
+
+                ctx.textAlign = 'center';
+                ctx.font = `600 8px 'IBM Plex Mono',monospace`;
+                ctx.fillStyle = isFocused ? '#fff' : 'rgba(209, 209, 199, 0.6)';
+                ctx.fillText(`ARTIFACT_${n.id}`, n.x, n.y - 12);
+            });
+
+            ctx.restore();
+        }
+
+        // ══════════════════════════════
+        // IN-SITU CARD & TRANSCLUSION
+        // ══════════════════════════════
+        function openCard(id) {
+            focusedNodeId = id;
+            const n = nodes.find(nd => nd.id === id);
+            if (!n) return;
+
+            const card = document.getElementById('floating-card');
+            document.getElementById('card-op').textContent = OPS[n.op].lbl;
+            document.getElementById('card-id').textContent = `N_${n.id}`;
+
+            if (n.isLoading) {
+                card.classList.add('loading');
+                document.getElementById('card-body').innerHTML = `<div class="shimmer">Mutating territory...</div>`;
+            } else {
+                card.classList.remove('loading');
+                document.getElementById('card-body').innerHTML = n.text.replace(/\n/g, '<br><br>');
+                bindCardInteractions();
+            }
+
+            card.classList.add('visible');
+            updateCardPosition();
+        }
+
+        function closeCard() {
+            focusedNodeId = null;
+            document.getElementById('floating-card').classList.remove('visible');
+        }
+
+        function updateCardPosition() {
+            if (!focusedNodeId) return;
+            const n = nodes.find(nd => nd.id === focusedNodeId);
+            if (!n) return;
+
+            const card = document.getElementById('floating-card');
+            // Attach card strictly to canvas coordinates
+            card.style.left = `${n.x + cam.x}px`;
+            card.style.top = `${n.y + cam.y}px`;
+        }
+
+        function bindCardInteractions() {
+            const body = document.getElementById('card-body');
+            body.querySelectorAll('.x-frag').forEach(span => {
+                span.onmouseenter = (e) => {
+                    hoveredFragTargetId = parseInt(e.target.dataset.srcId);
+                    body.classList.add('blur');
+                    e.target.classList.add('hovered');
+                };
+                span.onmouseleave = (e) => {
+                    hoveredFragTargetId = null;
+                    body.classList.remove('blur');
+                    e.target.classList.remove('hovered');
+                };
+                span.onclick = (e) => {
+                    const srcId = parseInt(e.target.dataset.srcId);
+                    // Fly to the source node and open it
+                    flyToNode(srcId);
+                    hoveredFragTargetId = null;
+                    body.classList.remove('blur');
+                };
+            });
+        }
+
+        function drawBeams() {
+            oCtx.clearRect(0, 0, VW, VH);
+            if (!hoveredFragTargetId || !focusedNodeId) return;
+
+            const tgtNode = nodes.find(nd => nd.id === hoveredFragTargetId);
+            if (!tgtNode) return;
+
+            // Find hovered span in DOM
+            const spans = document.querySelectorAll(`.x-frag.hovered`);
+            if (spans.length === 0) return;
+
+            oCtx.save();
+            spans.forEach(span => {
+                const rect = span.getBoundingClientRect();
+                // Draw from left side of span
+                const domX = rect.left;
+                const domY = rect.top + rect.height / 2;
+
+                // Draw to target node center
+                const tgtX = tgtNode.x + cam.x;
+                const tgtY = tgtNode.y + cam.y;
+
+                const hue = OPS[tgtNode.op].hue;
+
+                oCtx.strokeStyle = `hsl(${hue}, 90%, 70%)`;
+                oCtx.lineWidth = 1;
+                oCtx.setLineDash([4, 4]);
+                oCtx.lineDashOffset = -performance.now() / 20;
+
+                oCtx.beginPath();
+                oCtx.moveTo(tgtX, tgtY);
+                // Bezier curve for elegance
+                const cpX = tgtX + (domX - tgtX) * 0.2;
+                const cpY = domY;
+                oCtx.quadraticCurveTo(cpX, cpY, domX, domY);
+                oCtx.stroke();
+
+                oCtx.setLineDash([]);
+                oCtx.fillStyle = '#fff';
+                oCtx.beginPath(); oCtx.arc(tgtX, tgtY, 3, 0, Math.PI * 2); oCtx.fill();
+                oCtx.beginPath(); oCtx.arc(domX, domY, 2, 0, Math.PI * 2); oCtx.fill();
+            });
+            oCtx.restore();
+        }
+
+        // ══════════════════════════════
+        // POINTER EVENTS
+        // ══════════════════════════════
+        function getWorldPos(e) { return { x: e.clientX - cam.x, y: e.clientY - cam.y }; }
+        function getNodeAt(wx, wy) {
+            let best = null, minDist = 400;
+            nodes.forEach(n => { const d = (wx - n.x) ** 2 + (wy - n.y) ** 2; if (d < minDist) { minDist = d; best = n; } });
+            return best;
+        }
+
+        function onMouseDown(e) {
+            // Ignore if clicking on the floating card
+            if (e.target.closest('.node-card')) return;
+
+            const w = getWorldPos(e);
+            const n = getNodeAt(w.x, w.y);
+
+            if (n) {
+                aiming = { srcNode: n, ex: w.x, ey: w.y };
+            } else {
+                isPanning = true; dox = e.clientX; doy = e.clientY;
+                closeCard();
+            }
+        }
+
+        function onMouseMove(e) {
+            if (isPanning) {
+                const dx = e.clientX - dox;
+                const dy = e.clientY - doy;
+                cam.x += dx; cam.tx = cam.x;
+                cam.y += dy; cam.ty = cam.y;
+                dox = e.clientX; doy = e.clientY;
+            } else if (aiming) {
+                const w = getWorldPos(e);
+                aiming.ex = w.x; aiming.ey = w.y;
+            }
+        }
+
+        function onMouseUp(e) {
+            isPanning = false;
+
+            if (aiming) {
+                const w = getWorldPos(e);
+                const tgt = getNodeAt(w.x, w.y);
+                const src = aiming.srcNode;
+
+                const distSq = (w.x - src.x) ** 2 + (w.y - src.y) ** 2;
+
+                if (distSq > 900) {
+                    if (tgt && tgt !== src) {
+                        fireAndConnect(src, tgt, curOp);
+                    } else {
+                        const newNode = addNode('...', curOp, w.x, w.y);
+                        newNode.isLoading = true;
+                        fireAndConnect(src, newNode, curOp);
+                    }
+                } else {
+                    // Clicked a node -> Focus it and center it
+                    flyToNode(src.id);
+                }
+                aiming = null;
+            }
+        }
+
+        function fireAndConnect(src, tgt, opKey) {
+            edges.push({ from: src, to: tgt });
+
+            const dist = Math.hypot(tgt.x - src.x, tgt.y - src.y);
+            const spd = Math.max(0.02, Math.min(0.08, 15 / dist));
+
+            projectiles.push({
+                src: src, tgt: tgt, tx: tgt.x, ty: tgt.y, t: 0, spd: spd, hue: OPS[opKey].hue,
+                cb: () => runLLMOperation(src, tgt, opKey)
+            });
+        }
+
+        async function spawnRoot() {
+            const val = document.getElementById('bIn').value.trim();
+            if (!val) return;
+            document.getElementById('bIn').value = '';
+
+            const x = (VW * 0.5) - cam.x + (Math.random() * 60 - 30);
+            const y = (VH * 0.5) - cam.y + (Math.random() * 60 - 30);
+
+            const n = addNode(val, curOp, x, y);
+            n.vx = 5;
+            flyToNode(n.id);
+        }
+
+        // ══════════════════════════════
+        // LLM OPERATIONS
+        // ══════════════════════════════
+        async function runLLMOperation(srcNode, tgtNode, opKey) {
+            const op = OPS[opKey];
+
+            flyToNode(tgtNode.id);
+            updateStatus(true);
+
+            try {
+                let outText = "";
+                const plainSrc = srcNode.text.replace(/<[^>]*>?/gm, '');
+
+                if (API_KEY) {
+                    const sysPrompt = `You are a POML narrative analyst. Analyze the following text using the ${op.lbl} (${op.verb}) principle. Output structured lines:
+ENTITY: Name[Type] — role, what it does
+RELATION: A→type→B — causal significance
+EVENT: name — what it triggers
+CAUSAL: chain of cause→effect
+Zero interface design advice. Zero UX. Analyze STORY STRUCTURE only. Reference specific names from the text. Max 200 words.`;
+                    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
+                        body: JSON.stringify({ model: CONFIG.model, messages: [{ role: 'system', content: sysPrompt }, { role: 'user', content: plainSrc }], max_tokens: 300, temperature: 0.4 })
+                    });
+                    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+                    const data = await res.json();
+                    outText = data.choices[0].message.content;
+                } else {
+                    outText = `**No API key** — configure key in top bar. ${op.lbl}: [requires API key]`;
+                    await new Promise(r => setTimeout(r, 800));
+                }
+
+                // Generate Transclusion Link back to source
+                const words = plainSrc.split(' ');
+                const fragLen = Math.min(6, words.length);
+                const startIdx = Math.floor(Math.random() * (words.length - fragLen));
+                const fragText = words.slice(startIdx, startIdx + fragLen).join(' ');
+
+                const linkId = `link_${Date.now()}`;
+                const spanStr = `<span class="x-frag" data-link="${linkId}" data-src-id="${srcNode.id}">${fragText}</span>`;
+
+                if (!srcNode.text.includes(`data-link="${linkId}"`)) {
+                    srcNode.text = srcNode.text.replace(fragText, spanStr);
+                }
+
+                tgtNode.text = `${outText}\n\n<span style="color:#666;font-style:italic">Derived via ${spanStr}</span>`;
+                tgtNode.isLoading = false;
+
+                if (focusedNodeId === tgtNode.id) openCard(tgtNode.id);
+                updateStatus(false);
+
+            } catch (e) {
+                tgtNode.text = `System Failure: ${e.message}`;
+                tgtNode.isLoading = false;
+                if (focusedNodeId === tgtNode.id) openCard(tgtNode.id);
+                updateStatus(false);
+            }
+        }
+
+        // ══════════════════════════════
+        // SEED DATA
+        // ══════════════════════════════
+        function seed() {
+            const n1 = addNode("A monolithic dashboard hides casual links between metrics, forcing users to guess correlation.", 'surface', VW * 0.4, VH * 0.4);
+            const n2 = addNode("We collapse the modal architecture entirely.", 'limits', VW * 0.6, VH * 0.5);
+
+            const linkId = "seed_link_1";
+            n1.text = `A monolithic dashboard hides casual links between metrics, forcing users to guess <span class="x-frag" data-link="${linkId}" data-src-id="${n1.id}">correlation.</span>`;
+            n2.text = `By resolving abstract <span class="x-frag" data-link="${linkId}" data-src-id="${n1.id}">correlation.</span> into an infinite horizontal scroll, we externalize the deep generative lineage.`;
+
+            edges.push({ from: n1, to: n2 });
+        }
+
+        window.onload = init;
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,4360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>RCC-ECO-GNN // Sedimentary Topology</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Share+Tech+Mono&family=EB+Garamond:ital,wght@0,400;1,400&family=Cinzel:wght@400;700&display=swap');
+
+/* ── DESIGN SYSTEM ──────────────────────────────────── */
+:root {
+  --bg:       #020408;
+  --surface:  rgba(4,8,16,0.97);
+  --border:   rgba(0,229,255,0.18);
+  --ink:      #8aa0b4;
+  --ink-dim:  #2e3e4e;
+  --cyan:     #00e5ff;
+  --orange:   #ff6a00;
+  --alert:    #ff4d4d;
+  --goal:     #00ff88;
+  --shift:    #bd00ff;
+  --amber:    #f59e0b;
+  --sand:     #c8b89a;
+  --earth:    #7a5c3a;
+  --mono:     'Share Tech Mono', monospace;
+  --serif:    'EB Garamond', serif;
+  --display:  'Special Elite', cursive;
+  --cinzel:   'Cinzel', serif;
+  --top-ui-offset: 156px;
+  --timeline-top: 58px;
+  --timeline-pad-x: 16px;
+  --scroll-thumb: rgba(0,0,0,.24);
+  --scroll-thumb-hover: rgba(0,0,0,.38);
+  --scroll-track: transparent;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:var(--mono);}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+*::-webkit-scrollbar { width:6px; height:6px; }
+*::-webkit-scrollbar-track { background:var(--scroll-track); }
+*::-webkit-scrollbar-thumb {
+  background:var(--scroll-thumb);
+  border-radius:999px;
+}
+*::-webkit-scrollbar-thumb:hover { background:var(--scroll-thumb-hover); }
+
+body.light-mode {
+  --bg: #f5f1e8;
+  --surface: rgba(250,247,240,0.95);
+  --border: rgba(45,40,34,0.24);
+  --ink: #2f2a24;
+  --ink-dim: #8f8476;
+  --cyan: #2b5f64;
+  --orange: #9f4b1d;
+  --alert: #b1372f;
+  --goal: #2f7d57;
+  --shift: #7f3fa6;
+  --amber: #8c5b2a;
+  --sand: #6b5d4b;
+  --earth: #9c7b54;
+  --scroll-thumb: rgba(60,52,44,.22);
+  --scroll-thumb-hover: rgba(60,52,44,.36);
+}
+body.light-mode .scanlines {
+  opacity:.18;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.025) 2px,rgba(0,0,0,.025) 4px);
+}
+body.light-mode .terrain-texture { opacity:.045; mix-blend-mode:multiply; }
+body.light-mode #hover-rd {
+  color:#1f1b16;
+  background:rgba(43,95,100,.1);
+}
+
+/* ── LAYER STACK ────────────────────────────────────── */
+/* Z-index map:
+   1  terrain canvas (WAG)
+   2  portal iframe (WAG)
+   3  terrain texture
+   4  three.js canvas (ORCA)
+   5  connection SVG
+   6  scanlines
+   10 timeline
+   20 chat panel
+   30 ecology panel
+   40 minimap
+   50 header
+   60 radial menu
+   70 hover readout
+   80 modal
+*/
+
+#terrain-canvas { position:absolute; inset:0; z-index:1; pointer-events:none; }
+
+.terrain-texture {
+  position:absolute; inset:0; z-index:3;
+  pointer-events:none; opacity:.08; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#three-wrap { position:absolute; inset:0; z-index:4; }
+#three-wrap canvas { pointer-events:auto; }
+
+#svg-connections { position:absolute; inset:0; z-index:5; pointer-events:none; }
+
+.scanlines {
+  position:absolute; inset:0; z-index:6; pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px);
+}
+
+/* ── HEADER ─────────────────────────────────────────── */
+#hdr {
+  position:fixed; top:0; left:0; right:0; z-index:50;
+  padding:10px 14px 6px;
+  background:linear-gradient(to bottom,rgba(2,4,8,.98) 60%,transparent);
+  pointer-events:none;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px;
+}
+#hdr-left h1 {
+  font-family:var(--mono);
+  font-size:12px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  white-space:nowrap;
+  line-height:1;
+  color:var(--cyan); text-shadow:0 0 20px rgba(0,229,255,.4);
+}
+#hdr-left .sub {
+  font-size:7px; color:var(--ink-dim); letter-spacing:.1em;
+  text-transform:uppercase; margin-top:3px;
+  white-space:nowrap;
+}
+#hdr-right { display:flex; gap:8px; pointer-events:auto; }
+.hdr-btn {
+  padding:4px 10px; font-family:var(--mono); font-size:8px;
+  border:1px solid var(--border); background:var(--surface);
+  color:var(--ink); cursor:pointer; letter-spacing:.08em;
+  text-transform:uppercase; border-radius:2px; transition:all .2s;
+}
+.hdr-btn:hover{background:var(--cyan);color:#000;border-color:var(--cyan);}
+.hdr-btn.active{background:rgba(0,229,255,.12);color:var(--cyan);}
+.hdr-btn.warn{border-color:rgba(245,158,11,.35);color:var(--amber);}
+
+/* ── TIMELINE (full-width scrubber) ─────────────────── */
+#timeline-wrap {
+  position:fixed; top:var(--timeline-top); left:0; right:0; z-index:10;
+  padding:0 var(--timeline-pad-x) 4px;
+  background:linear-gradient(to bottom,rgba(2,4,8,.9),transparent);
+}
+
+/* epoch labels */
+#epoch-bar {
+  display:flex; justify-content:space-between;
+  font-size:7px; color:var(--ink-dim); letter-spacing:.08em;
+  text-transform:uppercase; margin-bottom:4px;
+}
+.epoch-label { cursor:pointer; transition:color .2s; }
+.epoch-label:hover,.epoch-label.active { color:var(--cyan); }
+
+/* branch tree strip */
+#branch-tree-wrap {
+  position:relative;
+  height:54px;
+  margin:0 0 4px;
+  border:1px solid rgba(255,255,255,.08);
+  background:linear-gradient(to bottom,rgba(5,10,16,.8),rgba(2,4,8,.6));
+  border-radius:2px;
+  overflow:hidden;
+}
+#branch-tree {
+  width:100%;
+  height:100%;
+  display:block;
+}
+#branch-tree-empty {
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:8px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink-dim);
+  pointer-events:none;
+}
+
+/* main track */
+#tl-track {
+  position:relative; height:4px;
+  background:rgba(255,255,255,.07); border-radius:2px; cursor:pointer;
+}
+#tl-progress { position:absolute; top:0; left:0; height:100%; border-radius:2px;
+  background:linear-gradient(to right,var(--earth),var(--cyan));
+  transition:width .08s; }
+#tl-head {
+  position:absolute; top:-6px; width:16px; height:16px; border-radius:50%;
+  background:var(--cyan); border:3px solid var(--bg);
+  transform:translateX(-50%); cursor:grab;
+  box-shadow:0 0 10px rgba(0,229,255,.5);
+  transition:box-shadow .2s;
+}
+#tl-head:active{cursor:grabbing;box-shadow:0 0 20px rgba(0,229,255,.8);}
+
+/* event dots on track */
+.tl-dot {
+  position:absolute; top:50%; transform:translate(-50%,-50%);
+  border-radius:50%; border:1px solid var(--bg); cursor:pointer;
+  transition:transform .2s,box-shadow .2s,opacity .2s;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4);
+}
+.tl-dot.lane-a { top:50%; }
+.tl-dot.lane-b { top:50%; }
+.tl-dot:hover{transform:translate(-50%,-50%) scale(1.35);box-shadow:0 0 8px currentColor;}
+.tl-dot.major{width:11px;height:11px;}
+.tl-dot.minor{width:7px;height:7px;}
+.tl-dot.active {
+  transform:translate(-50%,-50%) scale(1.45);
+  box-shadow:0 0 0 1px rgba(0,229,255,.55),0 0 12px rgba(0,229,255,.45);
+}
+
+/* secondary row: chat event markers */
+#tl-chat-row {
+  position:relative; height:22px; margin-top:3px;
+}
+.tl-chat-tick {
+  position:absolute; transform:translateX(-50%);
+  width:3px; height:8px; border-radius:1px; cursor:pointer;
+  transition:height .2s, width .2s;
+}
+.tl-chat-tick:hover{height:14px; width:4px;}
+
+/* compressed timeline row */
+#tl-compress {
+  position:relative;
+  height:9px;
+  margin:3px 0 2px;
+  display:grid;
+  grid-template-columns:repeat(72,minmax(0,1fr));
+  gap:1px;
+}
+.tl-cbin {
+  align-self:end;
+  min-height:2px;
+  border-radius:1px;
+  background:rgba(255,255,255,.08);
+  cursor:pointer;
+  transition:transform .15s, opacity .2s;
+}
+.tl-cbin:hover { transform:translateY(-1px); opacity:1; }
+.tl-cbin.empty { cursor:default; opacity:.35; }
+.tl-cbin.active { box-shadow:0 0 0 1px rgba(0,229,255,.45); opacity:1; }
+
+/* full stack row (all events) */
+#tl-stack {
+  display:flex;
+  gap:4px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:2px 0 3px;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(0,229,255,.25) transparent;
+}
+#tl-stack::-webkit-scrollbar { height:4px; }
+#tl-stack::-webkit-scrollbar-thumb { background:rgba(0,229,255,.25); }
+.tl-stack-item {
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(4,8,14,.85);
+  color:var(--ink);
+  border-radius:2px;
+  padding:2px 6px;
+  font-size:7px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  white-space:nowrap;
+  cursor:pointer;
+  line-height:1.4;
+  flex:0 0 auto;
+}
+.tl-stack-item.active {
+  border-color:var(--cyan);
+  color:var(--cyan);
+  box-shadow:0 0 0 1px rgba(0,229,255,.28) inset;
+}
+.tl-stack-item:hover { color:#fff; border-color:rgba(0,229,255,.4); }
+
+/* dot-first timeline mode */
+#tl-chat-row,
+#tl-stack {
+  display:none;
+}
+
+#tl-labels {
+  display:flex; justify-content:space-between;
+  font-size:7px; color:var(--ink-dim); margin-top:3px;
+}
+
+/* tooltip */
+#tl-tip {
+  position:fixed; z-index:90; font-size:9px; padding:5px 10px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:3px; color:#fff; pointer-events:none;
+  display:none; white-space:nowrap; max-width:280px;
+}
+
+/* ── CHAT PANEL ─────────────────────────────────────── */
+#chat-wrap {
+  position:fixed; left:0; top:var(--top-ui-offset); bottom:58px; width:300px; z-index:20;
+  display:flex; flex-direction:column;
+  background:linear-gradient(to right,rgba(2,4,8,.97),rgba(2,4,8,.7));
+  border-right:1px solid var(--border);
+  transform:translateX(0); transition:transform .3s;
+}
+#chat-wrap.collapsed { transform:translateX(-284px); }
+
+#chat-toggle-btn {
+  position:absolute; right:-28px; top:50%; transform:translateY(-50%);
+  width:28px; height:56px; background:var(--surface);
+  border:1px solid var(--border); border-left:none;
+  border-radius:0 5px 5px 0; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; color:var(--cyan); z-index:21;
+}
+
+/* chat header shows current epoch */
+#chat-epoch {
+  padding:8px 14px; border-bottom:1px solid var(--border);
+  font-size:8px; letter-spacing:.1em; color:var(--amber);
+  text-transform:uppercase; display:flex; justify-content:space-between;
+}
+#chat-epoch-name { color:var(--amber); }
+#chat-epoch-pct  { color:var(--ink-dim); }
+
+#chat-log {
+  flex:1; overflow-y:auto; padding:8px 12px;
+  display:flex; flex-direction:column; gap:4px;
+  scrollbar-width:thin; scrollbar-color:rgba(0,229,255,.25) transparent;
+}
+#chat-log::-webkit-scrollbar{width:3px;}
+#chat-log::-webkit-scrollbar-thumb{background:rgba(0,229,255,.25);}
+
+/* message types */
+.msg {
+  padding:4px 9px; border-left:2px solid transparent;
+  font-size:10.5px; line-height:1.55; border-radius:0 2px 2px 0;
+  animation:msgSlide .25s ease-out;
+}
+@keyframes msgSlide{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.msg .coord { display:block; font-size:7.5px; color:var(--ink-dim); margin-bottom:1px; }
+.msg .ts    { float:right; font-size:7px; color:var(--ink-dim); opacity:.5; }
+.msg.ev-focus { box-shadow:inset 0 0 0 1px rgba(0,229,255,.35); background:rgba(0,229,255,.08); }
+
+.t-sys      { color:#3a5060; border-color:#1e3040; font-size:9.5px; }
+.t-epoch    { color:var(--amber); border-color:var(--amber);
+              background:rgba(245,158,11,.06); font-family:var(--cinzel);
+              font-size:9px; letter-spacing:.08em; }
+.t-stone    { color:#fff; border-color:var(--cyan); background:rgba(0,229,255,.06); }
+.t-fragment { color:var(--goal); border-color:var(--goal); background:rgba(0,255,136,.04); }
+.t-therefore{ color:var(--amber); border-color:var(--amber); background:rgba(245,158,11,.05); }
+.t-spawn    { color:var(--shift); border-color:var(--shift); font-style:italic; }
+.t-obstacle { color:var(--alert); border-color:var(--alert); background:rgba(255,77,77,.04); }
+.t-goal     { color:var(--goal); border-color:var(--goal); }
+.t-shift    { color:var(--shift); border-color:var(--shift); }
+.t-portal   { color:var(--sand); border-color:var(--earth); background:rgba(122,92,58,.08); }
+
+/* typing */
+.typing::after{content:'';animation:dots 1.2s infinite;}
+@keyframes dots{0%{content:'·'}33%{content:'··'}66%{content:'···'}100%{content:'·'}}
+
+/* ── INPUT BAR ──────────────────────────────────────── */
+#input-bar {
+  position:fixed; bottom:0; left:0; right:0; z-index:50; height:58px;
+  display:flex; border-top:1px solid var(--border); background:#000;
+}
+#mode-cycle {
+  padding:0 14px; border-right:1px solid var(--border);
+  font-family:var(--mono); font-size:11px; font-weight:bold;
+  cursor:pointer; display:flex; align-items:center; white-space:nowrap;
+  transition:all .2s; user-select:none; min-width:110px; justify-content:center;
+}
+.mc-default  { color:var(--ink);   background:transparent; }
+.mc-obstacle { color:var(--alert); background:rgba(255,77,77,.1); }
+.mc-goal     { color:var(--goal);  background:rgba(0,255,136,.1); }
+.mc-shift    { color:var(--shift); background:rgba(189,0,255,.1); }
+#stone-input {
+  flex:1; background:transparent; border:none; outline:none;
+  color:var(--cyan); font-family:var(--mono); font-size:1rem;
+  padding:0 16px; font-weight:bold;
+}
+#stone-input::placeholder{color:var(--ink-dim);}
+#stone-submit {
+  background:transparent; border:none; border-left:1px solid var(--border);
+  color:var(--cyan); font-family:var(--mono); font-weight:bold;
+  padding:0 22px; cursor:pointer; text-transform:uppercase;
+  transition:all .2s; font-size:.85rem;
+}
+#stone-submit:hover{background:var(--cyan);color:#000;}
+
+/* ── ECOLOGY PANEL (right) ──────────────────────────── */
+#ecology-panel {
+  position:fixed; right:14px; top:var(--top-ui-offset); z-index:30; width:148px;
+  background:var(--surface); border:1px solid var(--border); border-radius:4px;
+  padding:10px 12px;
+}
+#ecology-panel h3 {
+  font-size:8px; color:var(--amber); text-transform:uppercase;
+  letter-spacing:.12em; margin-bottom:8px; font-family:var(--mono);
+}
+.eco-row {
+  display:flex; justify-content:space-between; margin-bottom:4px;
+  font-size:8px; align-items:center;
+}
+.eco-k { color:var(--ink-dim); }
+.eco-v { color:#fff; font-weight:bold; }
+.eco-bar-wrap { width:100%; height:3px; background:rgba(255,255,255,.07); border-radius:2px; margin-bottom:6px; }
+.eco-bar-fill { height:100%; border-radius:2px; transition:width .8s ease,background .8s ease; }
+
+/* pressure graph (sparkline) */
+#pressure-graph { width:100%; height:28px; margin-top:4px; }
+
+/* ── MINIMAP ────────────────────────────────────────── */
+#minimap {
+  position:fixed; right:14px; bottom:72px; z-index:40;
+  display:grid; grid-template-columns:repeat(12,9px);
+  grid-template-rows:repeat(12,9px); gap:2px;
+  padding:8px;
+  overflow:visible;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:4px;
+  box-shadow:0 10px 26px rgba(0,0,0,.45);
+}
+.mc-cell {
+  background:rgba(255,255,255,.07); border-radius:50%;
+  cursor:pointer; transition:all .2s;
+}
+.mc-cell.hot { box-shadow:0 0 0 1px rgba(0,229,255,.3); }
+.mc-cell.live   { background:var(--cyan); }
+.mc-cell.sel    { background:var(--orange)!important; animation:cellpulse .9s alternate infinite; }
+.mc-cell.obstacle { background:var(--alert)!important; }
+.mc-cell.goal     { background:var(--goal)!important; }
+.mc-cell.shift    { background:var(--shift)!important; }
+@keyframes cellpulse{from{opacity:.5}to{opacity:1;transform:scale(1.2)}}
+
+.mc-event-dot {
+  position:absolute;
+  width:5px;
+  height:5px;
+  padding:0;
+  border-radius:50%;
+  border:1px solid rgba(2,4,8,.95);
+  appearance:none;
+  outline:none;
+  transform:translate(-50%,-50%);
+  cursor:pointer;
+  z-index:3;
+  box-shadow:0 0 6px rgba(0,0,0,.45);
+  opacity:.92;
+}
+.mc-event-dot.major { width:7px; height:7px; }
+.mc-event-dot.active {
+  transform:translate(-50%,-50%) scale(1.35);
+  box-shadow:0 0 0 1px rgba(0,229,255,.55),0 0 10px rgba(0,229,255,.5);
+  opacity:1;
+}
+
+/* active node cluster list */
+#map-cluster {
+  position:fixed; right:14px; bottom:206px; z-index:39;
+  width:250px; max-height:180px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:4px;
+  box-shadow:0 10px 28px rgba(0,0,0,.45);
+  display:grid; grid-template-rows:auto minmax(0,1fr);
+}
+#map-cluster-head {
+  padding:6px 8px;
+  border-bottom:1px solid var(--border);
+  color:var(--amber);
+  font-size:8px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+#map-cluster-list {
+  overflow:auto;
+  padding:6px;
+  display:grid;
+  gap:4px;
+}
+.panel-hidden { display:none !important; }
+.cluster-item {
+  width:100%;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(3,7,13,.85);
+  color:var(--ink);
+  text-align:left;
+  padding:4px 6px;
+  border-radius:2px;
+  cursor:pointer;
+}
+.cluster-item:hover {
+  border-color:rgba(0,229,255,.4);
+  color:#fff;
+}
+.cluster-item.active {
+  border-color:var(--cyan);
+  box-shadow:0 0 0 1px rgba(0,229,255,.24) inset;
+}
+.cluster-main {
+  display:flex;
+  justify-content:space-between;
+  font-size:9px;
+}
+.cluster-sub {
+  margin-top:2px;
+  font-size:7px;
+  color:var(--ink-dim);
+  text-transform:uppercase;
+  letter-spacing:.07em;
+}
+.cluster-empty {
+  font-size:8px;
+  color:var(--ink-dim);
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  padding:5px;
+}
+
+/* ── SIDE DOCK ─────────────────────────────────────── */
+#side-tabs {
+  position:fixed;
+  right:14px;
+  top:50%;
+  transform:translateY(-50%);
+  z-index:45;
+  display:grid;
+  gap:6px;
+}
+#side-tabs.hidden { display:none; }
+.side-tab {
+  min-width:62px;
+  padding:6px 8px;
+  border:1px solid var(--border);
+  background:var(--surface);
+  color:var(--ink);
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  border-radius:2px;
+  cursor:pointer;
+  transition:all .2s;
+}
+.side-tab:hover { border-color:var(--cyan); color:#fff; }
+.side-tab.active { background:rgba(0,229,255,.14); color:var(--cyan); }
+
+#side-tabs-toggle { display:none; }
+
+#dock-popup {
+  position:fixed;
+  right:86px;
+  top:50%;
+  transform:translateY(-50%);
+  width:320px;
+  max-height:56vh;
+  z-index:46;
+  border:1px solid var(--border);
+  background:var(--surface);
+  border-radius:4px;
+  box-shadow:0 14px 34px rgba(0,0,0,.55);
+  display:none;
+  grid-template-rows:auto minmax(0,1fr);
+}
+#dock-popup.show { display:grid; }
+#dock-popup-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 10px;
+  border-bottom:1px solid var(--border);
+  font-size:8px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--amber);
+}
+#dock-popup-close {
+  border:1px solid var(--border);
+  background:#000;
+  color:var(--ink);
+  font-family:var(--mono);
+  font-size:9px;
+  line-height:1;
+  padding:3px 6px;
+  border-radius:2px;
+  cursor:pointer;
+}
+#dock-popup-close:hover { color:#fff; border-color:var(--cyan); }
+#dock-popup-body {
+  min-height:120px;
+  max-height:calc(56vh - 34px);
+  overflow:auto;
+  padding:8px;
+  display:grid;
+  gap:6px;
+}
+.dock-action {
+  width:100%;
+  border:1px solid rgba(255,255,255,.16);
+  background:rgba(2,4,8,.86);
+  color:var(--ink);
+  text-align:left;
+  padding:7px 8px;
+  border-radius:2px;
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.dock-action:hover { border-color:var(--cyan); color:#fff; }
+.dock-meta {
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(2,4,8,.72);
+  border-radius:2px;
+  padding:7px 8px;
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink-dim);
+  display:grid;
+  gap:4px;
+}
+.dock-meta b { color:#fff; font-weight:700; }
+.dock-links {
+  display:grid;
+  gap:6px;
+}
+.dock-link {
+  display:block;
+  width:100%;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(2,4,8,.84);
+  color:var(--ink);
+  text-decoration:none;
+  padding:7px 8px;
+  border-radius:2px;
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.dock-link:hover {
+  border-color:var(--cyan);
+  color:#fff;
+}
+.dock-item {
+  width:100%;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(2,4,8,.85);
+  color:var(--ink);
+  text-align:left;
+  padding:7px 8px;
+  border-radius:2px;
+  cursor:pointer;
+}
+.dock-item:hover { border-color:var(--cyan); color:#fff; }
+.dock-item-head {
+  display:flex;
+  justify-content:space-between;
+  font-size:8px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  margin-bottom:2px;
+}
+.dock-item-body {
+  font-size:9px;
+  line-height:1.4;
+  color:#d0d9e0;
+}
+.dock-empty {
+  font-size:8px;
+  color:var(--ink-dim);
+  text-transform:uppercase;
+  letter-spacing:.1em;
+  padding:4px;
+}
+
+/* ── RADIAL CONTEXT MENU ────────────────────────────── */
+#ctx-ring {
+  position:fixed; display:none; z-index:60; width:0; height:0;
+  pointer-events:auto;
+}
+.ctx-btn {
+  position:absolute; padding:7px 15px; border:1px solid var(--border);
+  background:var(--surface); color:#fff; font-family:var(--mono);
+  font-size:.7rem; font-weight:bold; cursor:pointer; border-radius:2px;
+  text-transform:uppercase; letter-spacing:.8px; white-space:nowrap;
+  box-shadow:0 4px 18px rgba(0,0,0,.7); transition:all .2s;
+  backdrop-filter:blur(10px);
+}
+#cb-goal     { transform:translate(-50%,-120px); }
+#cb-obstacle { transform:translate(calc(-50% - 140px),-50%); }
+#cb-shift    { transform:translate(calc(-50% + 140px),-50%); }
+#cb-branch   { transform:translate(-50%,30px); }
+#cb-portal   { transform:translate(-50%,70px); }
+#cb-dismiss  { transform:translate(-50%,110px); }
+#cb-goal:hover    {background:var(--goal);   border-color:var(--goal);   color:#000;}
+#cb-obstacle:hover{background:var(--alert);  border-color:var(--alert);  color:#000;}
+#cb-shift:hover   {background:var(--shift);  border-color:var(--shift);  color:#000;}
+#cb-branch:hover  {background:#fff; color:#000;}
+#cb-portal:hover  {background:var(--sand); border-color:var(--sand); color:#000;}
+#cb-dismiss:hover {background:var(--ink-dim);color:#000;}
+/* connector spokes */
+#cb-goal::after    {content:'';position:absolute;width:1px;height:80px;background:var(--goal);opacity:.35;left:50%;top:100%;}
+#cb-obstacle::after{content:'';position:absolute;height:1px;width:90px;background:var(--alert);opacity:.35;left:100%;top:50%;}
+#cb-shift::after   {content:'';position:absolute;height:1px;width:90px;background:var(--shift);opacity:.35;right:100%;top:50%;}
+
+/* ── HOVER READOUT ──────────────────────────────────── */
+#hover-rd {
+  position:fixed; z-index:70; padding:5px 12px;
+  background:rgba(0,229,255,.08); border:1px solid var(--border);
+  font-size:8.5px; font-weight:bold; color:#fff;
+  pointer-events:none; opacity:0; transition:opacity .15s; backdrop-filter:blur(4px);
+}
+
+/* ── TERRAIN LABELS ─────────────────────────────────── */
+#terrain-labels { position:absolute; inset:0; z-index:4; pointer-events:none; }
+.t-label {
+  position:absolute; transform:translate(-50%,-50%);
+  font-family:var(--cinzel); font-size:9px; letter-spacing:.12em;
+  text-transform:uppercase; color:rgba(200,184,154,.65);
+  text-shadow:0 0 18px rgba(2,4,8,.9); pointer-events:auto; cursor:pointer;
+  transition:all .25s; text-align:center; white-space:nowrap;
+}
+.t-label:hover{color:var(--sand);transform:translate(-50%,-58%);text-shadow:0 0 12px rgba(200,184,154,.5);}
+.t-label .t-sub { display:block; font-family:var(--mono); font-size:7px; opacity:.45; margin-top:2px; }
+
+/* ── API MODAL ───────────────────────────────────────── */
+#api-modal {
+  position:fixed; inset:0; z-index:80;
+  background:rgba(2,4,8,.78); backdrop-filter:blur(5px);
+  display:none; align-items:center; justify-content:center; padding:18px;
+}
+#api-modal.show { display:flex; }
+#api-card {
+  width:min(560px,100%); border:1px solid var(--border); background:var(--surface);
+  padding:16px; display:grid; gap:10px;
+}
+#api-card h2 {
+  font-family:var(--cinzel); font-size:14px; letter-spacing:.1em; color:var(--cyan);
+  text-transform:uppercase;
+}
+#api-card p { font-size:10px; line-height:1.5; color:var(--ink); }
+#api-key-input {
+  width:100%; height:40px; border:1px solid var(--border); background:#000;
+  color:var(--cyan); font-family:var(--mono); font-size:12px; padding:0 10px; outline:none;
+}
+#api-key-input:focus { border-color:var(--cyan); }
+#api-actions { display:flex; gap:8px; flex-wrap:wrap; }
+#api-status {
+  min-height:16px; font-size:9px; color:var(--ink-dim); letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+/* ── LIGHT MODE OVERRIDES ──────────────────────────── */
+body.light-mode #hdr {
+  background:linear-gradient(to bottom,rgba(245,241,232,.98) 60%,transparent);
+}
+body.light-mode #timeline-wrap {
+  background:linear-gradient(to bottom,rgba(245,241,232,.92),transparent);
+}
+body.light-mode #branch-tree-wrap {
+  background:linear-gradient(to bottom,rgba(255,253,248,.9),rgba(245,241,232,.7));
+}
+body.light-mode #chat-wrap {
+  background:linear-gradient(to right,rgba(250,247,240,.97),rgba(250,247,240,.78));
+}
+body.light-mode .cluster-item,
+body.light-mode .dock-item,
+body.light-mode .dock-action,
+body.light-mode .dock-link,
+body.light-mode .tl-stack-item {
+  background:rgba(253,251,246,.9);
+}
+body.light-mode .msg.ev-focus {
+  box-shadow:inset 0 0 0 1px rgba(43,95,100,.35);
+  background:rgba(43,95,100,.08);
+}
+body.light-mode #input-bar {
+  background:#f6f2e9;
+  border-top-color:rgba(45,40,34,.24);
+}
+body.light-mode #stone-input { color:var(--cyan); }
+body.light-mode #mode-cycle { border-right-color:rgba(45,40,34,.24); }
+body.light-mode #stone-submit { border-left-color:rgba(45,40,34,.24); }
+body.light-mode #stone-submit:hover { color:#fff; }
+body.light-mode #api-card p { color:#5d564d; }
+body.light-mode #api-key-input {
+  background:#fffdf8;
+  color:var(--cyan);
+}
+
+/* ── MOBILE HEADER/TIMELINE ─────────────────────────── */
+@media (max-width: 900px) {
+  :root {
+    --timeline-top: 112px;
+    --timeline-pad-x: 8px;
+    --top-ui-offset: 168px;
+  }
+
+  #hdr {
+    display:grid;
+    grid-template-columns:1fr;
+    align-items:start;
+    justify-content:initial;
+    gap:5px;
+    padding:7px 8px 4px;
+  }
+
+  #hdr-left h1 {
+    font-size:10px;
+    letter-spacing:.08em;
+    max-width:none;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  #hdr-left .sub {
+    display:none;
+  }
+
+  #hdr-right {
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:4px;
+    overflow:visible;
+    white-space:normal;
+    padding-bottom:1px;
+    max-width:none;
+  }
+
+  .hdr-btn {
+    width:100%;
+    min-width:0;
+    padding:5px 4px;
+    font-size:6px;
+    letter-spacing:.04em;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  #epoch-bar {
+    justify-content:flex-start;
+    gap:10px;
+    overflow-x:auto;
+    white-space:nowrap;
+    scrollbar-width:none;
+  }
+
+  #epoch-bar::-webkit-scrollbar { display:none; }
+
+  #branch-tree-wrap { height:32px; margin-bottom:3px; }
+
+  #tl-labels {
+    gap:10px;
+    overflow-x:auto;
+    white-space:nowrap;
+    font-size:6.5px;
+    scrollbar-width:none;
+    margin-top:2px;
+  }
+
+  #tl-labels::-webkit-scrollbar { display:none; }
+
+  #tl-l-last,
+  #tl-l-shift {
+    display:none;
+  }
+
+  #side-tabs-toggle {
+    display:none;
+  }
+
+  #side-tabs {
+    top:auto;
+    right:8px;
+    left:8px;
+    bottom:64px;
+    transform:none;
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    overflow:visible;
+    gap:6px;
+    z-index:55;
+    padding-right:0;
+  }
+
+  .side-tab {
+    min-width:0;
+    width:100%;
+    padding:7px 5px;
+    font-size:6.6px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  #dock-popup {
+    left:8px;
+    right:8px;
+    width:auto;
+    top:auto;
+    bottom:148px;
+    transform:none;
+    max-height:42vh;
+  }
+
+  #dock-popup-body {
+    max-height:calc(42vh - 34px);
+    padding:8px;
+  }
+
+  .dock-action,
+  .dock-link,
+  .dock-item {
+    font-size:8px;
+    padding:8px 9px;
+    min-height:34px;
+  }
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+<!-- Layer 1-3: WAG Terrain -->
+<canvas id="terrain-canvas"></canvas>
+<div class="terrain-texture"></div>
+<div id="terrain-labels"></div>
+
+<!-- Layer 4: ORCA 3D -->
+<div id="three-wrap"></div>
+
+<!-- Layer 5: connection SVG -->
+<svg id="svg-connections" width="100%" height="100%"></svg>
+
+<!-- Layer 6: scanlines -->
+<div class="scanlines"></div>
+
+<!-- Header -->
+<div id="hdr">
+  <div id="hdr-left">
+    <h1>RCC ECO GNN</h1>
+    <div class="sub">Sedimentary ring buffer · hidden director/actor decoder · topological context window</div>
+  </div>
+  <div id="hdr-right">
+    <button class="hdr-btn active" id="btn-terrain">TERRAIN</button>
+    <button class="hdr-btn active" id="btn-columns">COLUMNS</button>
+    <button class="hdr-btn" id="btn-links">LINKS</button>
+    <button class="hdr-btn" id="btn-autoplay">▶ PLAY</button>
+    <button class="hdr-btn active" id="btn-frustum">FRUSTUM ON</button>
+    <button class="hdr-btn" id="btn-theme">LIGHT</button>
+    <button class="hdr-btn warn" id="btn-api">API OFF</button>
+  </div>
+</div>
+
+<!-- Timeline -->
+<div id="timeline-wrap">
+  <div id="epoch-bar"></div>
+  <div id="branch-tree-wrap">
+    <svg id="branch-tree" aria-label="Branch tree"></svg>
+    <div id="branch-tree-empty">Awaiting branch topology</div>
+  </div>
+  <div id="tl-compress"></div>
+  <div id="tl-track">
+    <div id="tl-progress"></div>
+    <div id="tl-head"></div>
+  </div>
+  <div id="tl-chat-row"></div>
+  <div id="tl-stack"></div>
+  <div id="tl-labels">
+    <span id="tl-l-events">EVENTS 0</span>
+    <span id="tl-l-last">LAST NONE</span>
+    <span id="tl-l-pos">CURSOR 0%</span>
+    <span id="tl-l-tf">THEREFORE 0</span>
+    <span id="tl-l-spawn">SPAWN 0</span>
+    <span id="tl-l-shift">SHIFT 0</span>
+  </div>
+</div>
+<div id="tl-tip"></div>
+
+<!-- Chat -->
+<div id="chat-wrap" class="collapsed">
+  <div id="chat-toggle-btn">▶</div>
+  <div id="chat-epoch">
+    <span id="chat-epoch-name">AWAITING STONE</span>
+    <span id="chat-epoch-pct">0%</span>
+  </div>
+  <div id="chat-log"></div>
+</div>
+
+<!-- Ecology Panel -->
+<div id="ecology-panel" class="panel-hidden">
+  <h3>Field Ecology</h3>
+  <div class="eco-row"><span class="eco-k">LIVE NODES</span>   <span class="eco-v" id="e-nodes">0</span></div>
+  <div class="eco-row"><span class="eco-k">THEREFORE</span>    <span class="eco-v" id="e-tf">0</span></div>
+  <div class="eco-row"><span class="eco-k">OBSTACLES</span>    <span class="eco-v" id="e-ob">0</span></div>
+  <div class="eco-row"><span class="eco-k">GOALS</span>        <span class="eco-v" id="e-go">0</span></div>
+  <div class="eco-row"><span class="eco-k">SHIFTS</span>       <span class="eco-v" id="e-sh">0</span></div>
+  <div class="eco-row"><span class="eco-k">PORTAL DIGS</span> <span class="eco-v" id="e-pd">0</span></div>
+  <div class="eco-bar-wrap"><div class="eco-bar-fill" id="e-bar" style="width:0%;background:var(--cyan)"></div></div>
+  <div class="eco-row"><span class="eco-k">PRESSURE</span>    <span class="eco-v" id="e-pr">0.0</span></div>
+  <canvas id="pressure-graph"></canvas>
+  <div class="eco-row" style="margin-top:4px;"><span class="eco-k">SIM TIME</span><span class="eco-v" id="e-time">00:00</span></div>
+</div>
+
+<!-- Minimap -->
+<div id="minimap"></div>
+<div id="map-cluster" class="panel-hidden">
+  <div id="map-cluster-head">Cluster Stack</div>
+  <div id="map-cluster-list"></div>
+</div>
+
+<!-- Side Dock -->
+<button id="side-tabs-toggle" type="button">Hide Tabs</button>
+<div id="side-tabs">
+  <button class="side-tab" data-tab="menu">Menu</button>
+  <button class="side-tab" data-tab="inspect">Node</button>
+  <button class="side-tab" data-tab="record">Rec</button>
+  <button class="side-tab" data-tab="export">Export</button>
+  <button class="side-tab" data-tab="chat">Chat</button>
+  <button class="side-tab" data-tab="eco">Eco</button>
+  <button class="side-tab" data-tab="map">Map</button>
+  <button class="side-tab" data-tab="stack">Stack</button>
+  <button class="side-tab" data-tab="therefore">Therefore</button>
+  <button class="side-tab" data-tab="spawn">Spawn</button>
+</div>
+<div id="dock-popup">
+  <div id="dock-popup-head">
+    <span id="dock-popup-title">Menu</span>
+    <button id="dock-popup-close" type="button">✕</button>
+  </div>
+  <div id="dock-popup-body"></div>
+</div>
+
+<!-- Radial context menu -->
+<div id="ctx-ring">
+  <button class="ctx-btn" id="cb-goal"     onclick="ctxTag('GOAL')">◎ GOAL</button>
+  <button class="ctx-btn" id="cb-obstacle" onclick="ctxTag('OBSTACLE')">⨂ OBSTACLE</button>
+  <button class="ctx-btn" id="cb-shift"    onclick="ctxTag('SHIFT')">↯ SHIFT</button>
+  <button class="ctx-btn" id="cb-branch"   onclick="ctxBranch()">⎇ BRANCH</button>
+  <button class="ctx-btn" id="cb-portal"   onclick="ctxPortal()">⬡ DIG PORTAL</button>
+  <button class="ctx-btn" id="cb-dismiss"  onclick="ctxClose()">✕ DISMISS</button>
+</div>
+
+<!-- Hover readout -->
+<div id="hover-rd"></div>
+
+<!-- API modal -->
+<div id="api-modal">
+  <div id="api-card">
+    <h2>LLM Connection</h2>
+    <p>Connect this engine to the live OpenAI API. Key is stored only in this browser (localStorage) and can be cleared any time.</p>
+    <input id="api-key-input" type="password" placeholder="sk-..." autocomplete="off">
+    <div id="api-actions">
+      <button class="hdr-btn" id="api-save">Save Key</button>
+      <button class="hdr-btn" id="api-clear">Clear Key</button>
+      <button class="hdr-btn" id="api-close">Close</button>
+    </div>
+    <div id="api-status">API disconnected.</div>
+  </div>
+</div>
+
+<!-- Input -->
+<div id="input-bar">
+  <div id="mode-cycle" class="mc-default" onclick="cycleMode()">■ NEUTRAL</div>
+  <input id="stone-input" type="text" placeholder="Inject a diegetic vector into the mesh..." autocomplete="off">
+  <button id="stone-submit">THEREFORE</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// RIPPLE // WAG // ORCA — UNIFIED THEREFORE ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+// ── DATA ────────────────────────────────────────────────────────
+
+const EVENT_META = {
+  sys:       { label:'SYSTEM',    color:'#2e3e4e' },
+  stone:     { label:'STONE',     color:'#00e5ff' },
+  fragment:  { label:'RIPPLE',    color:'#00ff88' },
+  therefore: { label:'THEREFORE', color:'#f59e0b' },
+  spawn:     { label:'SPAWN',     color:'#bd00ff' },
+  obstacle:  { label:'OBSTACLE',  color:'#ff4d4d' },
+  goal:      { label:'GOAL',      color:'#00ff88' },
+  shift:     { label:'SHIFT',     color:'#bd00ff' },
+  portal:    { label:'PORTAL',    color:'#c8b89a' },
+  epoch:     { label:'ECOLOGY',   color:'#f59e0b' }
+};
+
+const TIMELINE_EVENTS = [];
+let timelineCursor = -1;
+
+const TAG_COLORS_HEX = { DEFAULT:0x00e5ff, OBSTACLE:0xff4d4d, GOAL:0x00ff88, SHIFT:0xbd00ff };
+const TAG_CSS = { DEFAULT:'var(--cyan)', OBSTACLE:'var(--alert)', GOAL:'var(--goal)', SHIFT:'var(--shift)' };
+const MODES = ['DEFAULT','OBSTACLE','GOAL','SHIFT'];
+const MODE_SYM = { DEFAULT:'■', OBSTACLE:'⨂', GOAL:'◎', SHIFT:'↯' };
+const ENTITY_BANK = [
+  'Rusted Nail','Well Mouth','Dust Mote','Village Square','Woodboard','Signal Box',
+  'Mycelium Shelf','Archive Cloth','Ceramic Wall','Moss Bed','Glass Shard','Latch Assembly'
+];
+const HISTORY_MAX = 2048;
+const graphHistory = new Array(HISTORY_MAX);
+let historyHead = 0;
+let historyCount = 0;
+let physicsLastTickMs = 0;
+
+const OPENAI = {
+  baseUrl: 'https://api.openai.com/v1',
+  model: 'gpt-4o-mini',
+  keyStorage: 'ripples.openai.key',
+  key: ''
+};
+const UI_PREF = {
+  lightTheme: 'ripples.ui.lightTheme'
+};
+
+const REC = {
+  active:false,
+  recordOnFirst:false,
+  take:0,
+  recorder:null,
+  stream:null,
+  chunks:[],
+  mimeType:'video/webm',
+  startedAtMs:0,
+  stopResolve:null,
+  lastFiles:[]
+};
+
+// ── STATE ────────────────────────────────────────────────────────
+const S = {
+  pct:0, draggingTL:false, autoplay:false, autoNextAt:0, autoStoneNextAt:0,
+  inputMode:'DEFAULT', selectedCol:-1,
+  simTime:0, isTyping:false, chatCollapsed:true,
+  lastNarrativeAtMs:0, lastStoneAtMs:0,
+  decodeQueue:[],
+  decodeActive:false,
+  decodeActiveColId:-1,
+  decodeLastError:'',
+  eco:{ nodes:0, tf:0, ob:0, go:0, sh:0, pd:0, pressureHistory:[] },
+  ctxColId:-1,
+  terrainVisible:true, columnsVisible:true, linksVisible:false,
+  frustum:{
+    enabled:true,
+    activeColId:-1,
+    activeLayer:-1,
+    activeSprite:null,
+    activeIsFall:false,
+    activeUntil:0,
+    userOverrideUntil:0,
+    queue:[],
+    dotFocusEventId:-1,
+    dotFocusStep:0,
+    dotFocusBias:0,
+    baseDistance:0,
+    minDistance:16,
+    maxDistance:120
+  }
+};
+
+// ── WAG TERRAIN ──────────────────────────────────────────────────
+const tCanvas = document.getElementById('terrain-canvas');
+const tCtx    = tCanvas.getContext('2d');
+const TG = { W:160, H:90 };
+let terrainGrid;
+let portalState = { open:false, r:0, tR:0, cx:0, cy:0, verts:[], noiseOff:0 };
+
+function noise2(x,y){const s=Math.sin(x*12.9898+y*78.233)*43758.5453;return s-Math.floor(s);}
+function fbm2(x,y,o){let v=0,a=.5;for(let i=0;i<o;i++){v+=noise2(x,y)*a;x*=2;y*=2;a*=.5;}return v;}
+
+function coordToNorm(cx,cz){
+  return {
+    x:(cx/(GRID*SPACE/2)+1)/2,
+    y:(cz/(GRID*SPACE/2)+1)/2
+  };
+}
+
+function shortLabelFromMessage(msg=''){
+  const clean=String(msg).replace(/\[[^\]]+\]/g,'').replace(/[^a-z0-9\s]/gi,' ').replace(/\s+/g,' ').trim();
+  if(!clean) return 'ACTIVE NODE';
+  return clean.split(' ').slice(0,3).join(' ').toUpperCase();
+}
+
+function getTerrainAnchors(){
+  if(typeof colReg==='undefined' || !Array.isArray(colReg)) {
+    return [{id:'core',label:'FIELD ORIGIN',sub:'runtime',x:.5,y:.5,e:.7}];
+  }
+
+  const active=colReg
+    .filter(c=>c.layers>0 || scalarAbsSum(c.dynamic_scalars)>0.12 || c.alive===false)
+    .sort((a,b)=>(b.layers + scalarAbsSum(b.dynamic_scalars)) - (a.layers + scalarAbsSum(a.dynamic_scalars)));
+  const out=[];
+  active.slice(0,10).forEach(col=>{
+    const n=coordToNorm(col.cx,col.cz);
+    out.push({
+      id:`c-${col.id}`,
+      colId:col.id,
+      label:shortLabelFromMessage(col.msgs[col.layers-1]||col.coord),
+      sub:`${col.coord} · ${nodeStatus(col)} · ${dominantScalarKey(col)}`,
+      x:Math.min(.95,Math.max(.05,n.x)),
+      y:Math.min(.95,Math.max(.05,n.y)),
+      e:Math.min(1,.25+col.layers*.12)
+    });
+  });
+
+  if(S.selectedCol!==-1){
+    const sel=colReg[S.selectedCol];
+    if(sel && !out.find(a=>a.colId===sel.id)){
+      const n=coordToNorm(sel.cx,sel.cz);
+      out.unshift({
+        id:`c-${sel.id}`,
+        colId:sel.id,
+        label:shortLabelFromMessage(sel.msgs[sel.layers-1]||sel.coord),
+        sub:`${sel.coord} · ${nodeStatus(sel)} · ${dominantScalarKey(sel)}`,
+        x:Math.min(.95,Math.max(.05,n.x)),
+        y:Math.min(.95,Math.max(.05,n.y)),
+        e:Math.min(1,.3+sel.layers*.14)
+      });
+    }
+  }
+
+  if(!out.length){
+    const lastStone=[...TIMELINE_EVENTS].reverse().find(ev=>ev.type==='stone');
+    if(lastStone){
+      out.push({
+        id:'core',
+        label:shortLabelFromMessage(lastStone.text),
+        sub:`${lastStone.coord || 'root'} · last stone`,
+        x:.5,y:.5,e:.72
+      });
+    }else{
+      out.push({id:'core',label:'FIELD ORIGIN',sub:'drop first stone',x:.5,y:.5,e:.7});
+    }
+  }
+
+  return out;
+}
+
+function stampAnchorsIntoTerrain(mult=1){
+  const anchors=getTerrainAnchors();
+  for(let y=0;y<TG.H;y++) for(let x=0;x<TG.W;x++){
+    const nx=x/TG.W, ny=y/TG.H;
+    let v=terrainGrid[y*TG.W+x];
+    anchors.forEach(a=>{
+      const d=Math.hypot(nx-a.x,ny-a.y);
+      if(d<.18) v+=(0.18-d)*a.e*mult;
+    });
+    terrainGrid[y*TG.W+x]=Math.min(v,4.2);
+  }
+}
+
+function initTerrain(){
+  tCanvas.width=innerWidth; tCanvas.height=innerHeight;
+  TG.H=Math.floor(TG.W*(innerHeight/innerWidth));
+  terrainGrid=new Float32Array(TG.W*TG.H);
+  for(let y=0;y<TG.H;y++) for(let x=0;x<TG.W;x++){
+    const nx=x/TG.W, ny=y/TG.H;
+    let h=fbm2(nx*3.5,ny*3.5,5)*.1;
+    terrainGrid[y*TG.W+x]=Math.min(h,4);
+  }
+  stampAnchorsIntoTerrain(2.4);
+  buildTerrainLabels();
+  drawTerrain();
+}
+
+function drawTerrain(){
+  if(!S.terrainVisible){tCtx.clearRect(0,0,tCanvas.width,tCanvas.height);return;}
+  const W=tCanvas.width, H=tCanvas.height;
+  const lightMode=document.body.classList.contains('light-mode');
+  tCtx.clearRect(0,0,W,H);
+  tCtx.fillStyle=lightMode?'#f5f1e8':'#020408';
+  tCtx.fillRect(0,0,W,H);
+  const cw=W/TG.W, ch=H/TG.H, LEVELS=18;
+
+  // fills
+  for(let l=LEVELS;l>=1;l--){
+    const t=l*.15;
+    const hue=25+(l/LEVELS)*15;
+    tCtx.fillStyle=lightMode
+      ? `hsla(${hue},35%,45%,${.012+(l/LEVELS)*.03})`
+      : `hsla(${hue},55%,35%,${.005+(l/LEVELS)*.025})`;
+    for(let y=0;y<TG.H;y++) for(let x=0;x<TG.W;x++)
+      if(terrainGrid[y*TG.W+x]>=t) tCtx.fillRect(x*cw,y*ch,cw+.5,ch+.5);
+  }
+
+  // contour lines — amber earth tones
+  for(let l=1;l<=LEVELS;l++){
+    const t=l*.15, major=l%4===0;
+    tCtx.beginPath(); tCtx.lineWidth=major?.8:.25;
+    tCtx.strokeStyle=lightMode
+      ? (major?'rgba(84,68,48,.35)':'rgba(84,68,48,.12)')
+      : (major?'rgba(200,184,154,.3)':'rgba(100,80,50,.12)');
+    for(let y=0;y<TG.H-1;y++) for(let x=0;x<TG.W-1;x++){
+      const i=y*TG.W+x;
+      const v0=terrainGrid[i],v1=terrainGrid[i+1],v2=terrainGrid[i+TG.W+1],v3=terrainGrid[i+TG.W];
+      let b=0; if(v0>=t)b|=1; if(v1>=t)b|=2; if(v2>=t)b|=4; if(v3>=t)b|=8;
+      if(b===0||b===15) continue;
+      const lx=x*cw,ly=y*ch;
+      const a={x:lx+cw*.5,y:ly},bb={x:lx+cw,y:ly+ch*.5},c={x:lx+cw*.5,y:ly+ch},d={x:lx,y:ly+ch*.5};
+      switch(b){
+        case 1:case 14:tCtx.moveTo(d.x,d.y);tCtx.lineTo(a.x,a.y);break;
+        case 2:case 13:tCtx.moveTo(a.x,a.y);tCtx.lineTo(bb.x,bb.y);break;
+        case 4:case 11:tCtx.moveTo(bb.x,bb.y);tCtx.lineTo(c.x,c.y);break;
+        case 8:case 7: tCtx.moveTo(c.x,c.y);tCtx.lineTo(d.x,d.y);break;
+        case 3:case 12:tCtx.moveTo(d.x,d.y);tCtx.lineTo(bb.x,bb.y);break;
+        case 6:case 9: tCtx.moveTo(a.x,a.y);tCtx.lineTo(c.x,c.y);break;
+        case 5: tCtx.moveTo(d.x,d.y);tCtx.lineTo(a.x,a.y);tCtx.moveTo(bb.x,bb.y);tCtx.lineTo(c.x,c.y);break;
+        case 10:tCtx.moveTo(a.x,a.y);tCtx.lineTo(bb.x,bb.y);tCtx.moveTo(c.x,c.y);tCtx.lineTo(d.x,d.y);break;
+      }
+    }
+    tCtx.stroke();
+  }
+
+  // WAG portal (organic hole)
+  if(portalState.open && portalState.r>1){
+    const cx=portalState.cx, cy=portalState.cy, r=portalState.r;
+    const jagR=(angle,base)=>base*(1+Math.sin(angle*10+portalState.noiseOff)*.04+Math.cos(angle*22+1.3)*.015);
+    // poke hole
+    tCtx.save(); tCtx.globalCompositeOperation='destination-out';
+    tCtx.beginPath();
+    portalState.verts.forEach((v,i)=>{
+      const pr=jagR(v.angle,r);
+      const px=cx+Math.cos(v.angle)*pr, py=cy+Math.sin(v.angle)*pr;
+      i===0?tCtx.moveTo(px,py):tCtx.lineTo(px,py);
+    });
+    tCtx.closePath(); tCtx.fill(); tCtx.restore();
+    // strata rings
+    for(let j=0;j<3;j++){
+      tCtx.beginPath();
+      tCtx.strokeStyle=lightMode
+        ? (j%2===0?'rgba(70,56,38,.55)':'rgba(120,102,82,.3)')
+        : (j%2===0?'rgba(50,35,15,.8)':'rgba(200,184,154,.4)');
+      tCtx.lineWidth=2; tCtx.globalAlpha=.6-(j*.15);
+      const off=8+j*14;
+      portalState.verts.forEach((v,i)=>{
+        const pr=jagR(v.angle,r+off);
+        const px=cx+Math.cos(v.angle)*pr, py=cy+Math.sin(v.angle)*pr;
+        i===0?tCtx.moveTo(px,py):tCtx.lineTo(px,py);
+      });
+      tCtx.closePath(); tCtx.stroke(); tCtx.globalAlpha=1;
+    }
+  }
+}
+
+function buildTerrainLabels(){
+  const el=document.getElementById('terrain-labels');
+  el.innerHTML='';
+  getTerrainAnchors().forEach(r=>{
+    const div=document.createElement('div');
+    div.className='t-label';
+    div.style.left=(r.x*100)+'%'; div.style.top=(r.y*100)+'%';
+    div.innerHTML=`${r.label}<span class="t-sub">${r.sub}</span>`;
+    div.dataset.id=r.id;
+    div.onclick=()=>{
+      if(Number.isInteger(r.colId)) selectCol(r.colId);
+      else openPortalAt(r.x,r.y,r.label);
+    };
+    el.appendChild(div);
+  });
+}
+
+function openPortalAt(nx,ny,label='NODE'){
+  const W=innerWidth,H=innerHeight;
+  const dim=Math.hypot(W,H);
+  portalState={open:true,r:0,tR:dim*.55,cx:nx*W,cy:ny*H,noiseOff:0,
+    verts:Array.from({length:60},(_,i)=>({angle:(i/60)*Math.PI*2,n:Math.random()*.2}))};
+  S.eco.pd++;
+  chatMsg(`[PORTAL DIG] Terrain opens at ${label}`,'portal','');
+  updateEcology();
+  setTimeout(()=>closePortal(),1800);
+}
+
+function closePortal(){
+  portalState.tR=0;
+  setTimeout(()=>{portalState.open=false;},600);
+}
+
+// pulse terrain near a coord
+function pulseTerrain(nx,ny,intensity=.15){
+  const gx=Math.floor(nx*TG.W), gy=Math.floor(ny*TG.H), rad=10;
+  for(let dy=-rad;dy<=rad;dy++) for(let dx=-rad;dx<=rad;dx++){
+    const tx=gx+dx,ty=gy+dy;
+    if(tx>=0&&tx<TG.W&&ty>=0&&ty<TG.H){
+      const d=Math.hypot(dx,dy);
+      if(d<rad) terrainGrid[ty*TG.W+tx]+=intensity*(1-d/rad);
+    }
+  }
+}
+
+// ── THREE.JS COLUMNS (ORCA) ──────────────────────────────────────
+const container3=document.getElementById('three-wrap');
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x010204,.008);
+const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.1,1500);
+camera.position.set(26,32,54);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.setClearColor(0x000000,0);
+container3.appendChild(renderer.domElement);
+const orbitCtrl=new THREE.OrbitControls(camera,renderer.domElement);
+orbitCtrl.enableDamping=true; orbitCtrl.dampingFactor=.08;
+orbitCtrl.maxDistance=180; orbitCtrl.minDistance=6; orbitCtrl.maxPolarAngle=Math.PI/1.75;
+S.frustum.baseDistance=camera.position.length();
+orbitCtrl.addEventListener('start',()=>{S.frustum.userOverrideUntil=performance.now()+1200;});
+orbitCtrl.addEventListener('end',()=>{S.frustum.userOverrideUntil=performance.now()+320;});
+
+const clickables=[], colReg=[], mmCells=[], activeRipples=[];
+const GRID=12, RMAX=6.4, SPACE=10, CEN=GRID/2;
+const mmEl=document.getElementById('minimap');
+const clusterListEl=document.getElementById('map-cluster-list');
+const sideTabsToggleEl=document.getElementById('side-tabs-toggle');
+const sideTabsEl=document.getElementById('side-tabs');
+const dockPopupEl=document.getElementById('dock-popup');
+const dockPopupTitleEl=document.getElementById('dock-popup-title');
+const dockPopupBodyEl=document.getElementById('dock-popup-body');
+const dockPopupCloseEl=document.getElementById('dock-popup-close');
+const btnThemeEl=document.getElementById('btn-theme');
+
+const PANEL_EL = {
+  chat:document.getElementById('chat-wrap'),
+  eco:document.getElementById('ecology-panel'),
+  map:document.getElementById('minimap'),
+  stack:document.getElementById('map-cluster')
+};
+
+const DOCK_STATE = { popupMode:'', tabsHidden:false };
+
+for(let gy=0;gy<GRID;gy++) for(let gx=0;gx<GRID;gx++){
+  const dx=gx-CEN+.5, dy=gy-CEN+.5, r=Math.hypot(dx,dy);
+  const cell=document.createElement('div'); cell.className='mc-cell'; mmEl.appendChild(cell);
+  if(r<=RMAX){
+    const col={id:colReg.length, coord:`[${gx},${gy}]`,
+      gx, gy,
+      cx:dx*SPACE, cz:dy*SPACE, layers:0, msgs:[], sprites:[], tag:'DEFAULT',
+      entity:ENTITY_BANK[(colReg.length)%ENTITY_BANK.length],
+      alive:true,
+      phase:'latent',
+      phaseTick:0,
+      stageDirection:'',
+      pendingDecode:false,
+      queuedDecode:false,
+      decodeCooldownUntilTick:0,
+      topologyCooldownUntilTick:0,
+      lastWorldtext:'',
+      physics:{
+        entropy:0.1,
+        kinetic_energy:0.0,
+        structural_integrity:1.0,
+        coherence:1.0
+      },
+      dynamic_scalars:{},
+      sediment:{},
+      last_decoded_state:{}};
+    const bg=new THREE.Mesh(
+      new THREE.RingGeometry(1.8,2.3,24),
+      new THREE.MeshBasicMaterial({color:TAG_COLORS_HEX.DEFAULT,transparent:true,opacity:.12,side:THREE.DoubleSide}));
+    bg.rotation.x=-Math.PI/2; bg.position.set(col.cx,-1,col.cz);
+    bg.userData={colId:col.id}; scene.add(bg); clickables.push(bg); col.bg=bg;
+    colReg.push(col);
+    cell.dataset.colId=col.id;
+    cell.onclick=()=>{
+      selectCol(col.id);
+      const idx=findLastEventIndexByCoord(col.coord);
+      if(idx>=0) setTimelineCursor(idx,true);
+    };
+    mmCells.push({cell,colId:col.id});
+  } else cell.style.visibility='hidden';
+}
+
+function mkSprite(text){
+  const c=document.createElement('canvas'); c.width=1024; c.height=128;
+  const x=c.getContext('2d');
+  x.fillStyle='rgba(3,6,12,.97)'; x.fillRect(0,0,1024,128);
+  x.strokeStyle='rgba(255,255,255,.15)'; x.lineWidth=4; x.strokeRect(2,2,1020,124);
+  let fs=46; if(text.length>40)fs=36; if(text.length>60)fs=28; if(text.length>80)fs=22;
+  x.font=`bold ${fs}px "Courier New",monospace`;
+  x.textAlign='center'; x.textBaseline='middle'; x.fillStyle='#fff';
+  x.fillText(text.toUpperCase(),512,64,980);
+  const tex=new THREE.CanvasTexture(c); tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
+  sp.scale.set(14,1.85,1); return sp;
+}
+
+function mountLayerSprite(col,text,isNew=true,bornAt=performance.now()){
+  const sp=mkSprite(text.slice(0,80));
+  sp.material.color.setHex(TAG_COLORS_HEX[col.tag]||TAG_COLORS_HEX.DEFAULT);
+  const y0=isNew?(col.layers+10)*1.8:col.layers*1.8;
+  sp.position.set(col.cx,y0,col.cz);
+  sp.userData={colId:col.id,layer:col.layers,born:bornAt};
+  scene.add(sp); col.sprites.push(sp); clickables.push(sp); col.layers++;
+  return sp;
+}
+
+function addLayer(col,text,isNew=true){
+  const clean=cleanLine(text).slice(0,80);
+  const sp=mountLayerSprite(col,clean,isNew);
+  col.msgs.push(text);
+  armFrustumFocus(col,sp,isNew);
+  updateMinimap();
+  buildTerrainLabels();
+  stampAnchorsIntoTerrain(.18);
+  return sp;
+}
+
+function clearColSprites(col){
+  col.sprites.forEach(sp=>{
+    scene.remove(sp);
+    const idx=clickables.indexOf(sp);
+    if(idx>=0) clickables.splice(idx,1);
+    if(sp.material?.map) sp.material.map.dispose();
+    if(sp.material) sp.material.dispose();
+  });
+  col.sprites=[];
+  col.layers=0;
+}
+
+function rebuildColSprites(col){
+  const msgs=col.msgs.slice();
+  clearColSprites(col);
+  msgs.forEach((msg,i)=>{
+    mountLayerSprite(col,cleanLine(msg).slice(0,80),false,performance.now()-Math.max(0,(msgs.length-i)*30));
+  });
+  col.bg.material.color.setHex(TAG_COLORS_HEX[col.tag]||TAG_COLORS_HEX.DEFAULT);
+}
+
+function triggerRipple(cx,cz,intensity=1,color=TAG_COLORS_HEX.DEFAULT){
+  activeRipples.push({x:cx,z:cz,time:0,intensity:Math.min(intensity,1.5)});
+  if(activeRipples.length>24) activeRipples.shift();
+  const geo=new THREE.RingGeometry(.5,1.5,52);
+  const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.7,side:THREE.DoubleSide,depthWrite:false});
+  const mesh=new THREE.Mesh(geo,mat); mesh.rotation.x=-Math.PI/2; mesh.position.set(cx,-.5,cz);
+  scene.add(mesh);
+  const t0=performance.now(),dur=2600;
+  (function grow(){
+    const p=(performance.now()-t0)/dur;
+    if(p<1){const s=1+(1-Math.pow(1-p,3))*40; mesh.scale.set(s,s,s); mat.opacity=.7*(1-p); requestAnimationFrame(grow);}
+    else{scene.remove(mesh);geo.dispose();mat.dispose();}
+  })();
+  // pulse terrain
+  const nx=(cx/(GRID*SPACE/2)+1)/2, nz=(cz/(GRID*SPACE/2)+1)/2;
+  pulseTerrain(nx,nz,.12*intensity);
+}
+
+function buildPath(fromCol,toCol){
+  const sy=fromCol.layers*1.8+2, ey=toCol.layers*1.8+2;
+  const start=new THREE.Vector3(fromCol.cx,sy,fromCol.cz);
+  const end=new THREE.Vector3(toCol.cx,ey,toCol.cz);
+  const mid=new THREE.Vector3((start.x+end.x)/2,Math.max(sy,ey)+20,(start.z+end.z)/2);
+  const curve=new THREE.QuadraticBezierCurve3(start,mid,end);
+  const geo=new THREE.TubeGeometry(curve,32,.16,8,false);
+  const mat=new THREE.MeshBasicMaterial({color:TAG_COLORS_HEX[fromCol.tag]||TAG_COLORS_HEX.DEFAULT,
+    transparent:true,opacity:.75,blending:THREE.AdditiveBlending,depthWrite:false});
+  const mesh=new THREE.Mesh(geo,mat); scene.add(mesh);
+  // draw on SVG too
+  if(S.linksVisible) drawSVGLink(fromCol,toCol);
+  const t0=performance.now();
+  (function fade(){const p=(performance.now()-t0)/6000;
+    if(p<1){mat.opacity=.75*(1-p);requestAnimationFrame(fade);}
+    else{scene.remove(mesh);geo.dispose();mat.dispose();}
+  })();
+}
+
+function drawSVGLink(a,b){
+  const svg=document.getElementById('svg-connections');
+  const av=new THREE.Vector3(a.cx,a.layers*1.8,a.cz).project(camera);
+  const bv=new THREE.Vector3(b.cx,b.layers*1.8,b.cz).project(camera);
+  const ax=(av.x*.5+.5)*innerWidth, ay=(-av.y*.5+.5)*innerHeight;
+  const bx=(bv.x*.5+.5)*innerWidth, by=(-bv.y*.5+.5)*innerHeight;
+  const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+  line.setAttribute('x1',ax);line.setAttribute('y1',ay);
+  line.setAttribute('x2',bx);line.setAttribute('y2',by);
+  line.setAttribute('stroke','rgba(0,229,255,.25)');
+  line.setAttribute('stroke-width','1');
+  line.setAttribute('stroke-dasharray','3,6');
+  svg.appendChild(line);
+  setTimeout(()=>svg.removeChild(line),5000);
+}
+
+function clampNum(v,min,max){ return Math.max(min,Math.min(max,v)); }
+
+function cloneScalarMap(map){
+  const out={};
+  Object.entries(map||{}).forEach(([key,val])=>{
+    const num=Number(val)||0;
+    if(Math.abs(num)>=0.0001) out[key]=Number(num.toFixed(4));
+  });
+  return out;
+}
+
+function scalarAbsSum(map){
+  return Object.values(map||{}).reduce((sum,val)=>sum+Math.abs(Number(val)||0),0);
+}
+
+function topScalarEntries(map,limit=3){
+  return Object.entries(map||{})
+    .sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))
+    .slice(0,limit)
+    .map(([key,val])=>({key,value:Number((Number(val)||0).toFixed(4))}));
+}
+
+function summarizeScalarList(map,limit=3){
+  const top=topScalarEntries(map,limit);
+  return top.length ? top.map(entry=>`${entry.key}:${entry.value.toFixed(2)}`).join(' | ') : 'none';
+}
+
+function nodeStatus(col){
+  if(!col) return 'none';
+  if(col.phase) return col.phase;
+  if(col.alive===false) return 'collapsed';
+  if(col.pendingDecode) return 'decoding';
+  const dyn=scalarAbsSum(col.dynamic_scalars);
+  const sed=scalarAbsSum(col.sediment);
+  if(dyn>1.1) return 'surging';
+  if(dyn>0.34) return 'active';
+  if(sed>0.8 && dyn<0.12) return 'sedimented';
+  if(col.layers===0 && dyn<0.05) return 'latent';
+  return 'stable';
+}
+
+function dominantScalarKey(col){
+  const dynamic=topScalarEntries(col?.dynamic_scalars,1)[0];
+  if(dynamic) return dynamic.key;
+  const sediment=topScalarEntries(col?.sediment,1)[0];
+  return sediment ? sediment.key : 'none';
+}
+
+function compactWorldtext(text,maxChars=240){
+  const clean=cleanLine(text);
+  if(!clean) return '';
+  const sentences=clean.match(/[^.!?]+[.!?]?/g)?.map(s=>s.trim()).filter(Boolean) || [clean];
+  const compact=sentences.slice(0,2).join(' ');
+  if(compact.length<=maxChars) return compact;
+  return compact.slice(0,maxChars-1).replace(/\s+\S*$/,'') + '…';
+}
+
+function setNodePhase(col,phase){
+  if(!col) return;
+  const next=String(phase||'stable');
+  if(col.phase===next) return;
+  col.phase=next;
+  col.phaseTick=historyCount;
+}
+
+function shortEntityLabel(entity=''){
+  const clean=cleanLine(entity).toUpperCase();
+  if(!clean) return 'NODE';
+  return clean.split(' ').slice(0,3).join(' ');
+}
+
+function scalarCue(key=''){
+  const low=String(key||'').toLowerCase();
+  if(/tox|poison|blight|venom/.test(low)) return {verb:'TURNS BITTER', sentence:'A bitter taint spreads through the site.'};
+  if(/rust|corrode|oxide|decay|rot|structural_decay/.test(low)) return {verb:'STARTS TO ROT', sentence:'Decay crawls across the site and weakens what holds.'};
+  if(/heal|repair|clean|water|mercy/.test(low)) return {verb:'STEADIES', sentence:'A cleaner current settles the site and pulls it back toward coherence.'};
+  if(/static|spark|storm|lightning|charge/.test(low)) return {verb:'CRACKLES', sentence:'Static pressure crackles across the site and agitates the air.'};
+  if(/panic|fear|alarm/.test(low)) return {verb:'PANICS', sentence:'A sharp panic runs through the site and unsettles nearby movement.'};
+  if(/branch|split|fork|offshoot|clone/.test(low)) return {verb:'SPLITS', sentence:'The site throws off a secondary line of force nearby.'};
+  if(/dog|appears|arrival|presence/.test(low)) return {verb:'RECEIVES AN ARRIVAL', sentence:'A new presence steps into the site and shifts its balance.'};
+  if(/thaum|spell|ritual|phase|ghost|dream/.test(low)) return {verb:'PHASES', sentence:'The site slips into a stranger phase and begins to answer unseen pressure.'};
+  return {verb:'SHIFTS', sentence:'The site shifts under local pressure.'};
+}
+
+function normalizeStageDirection(text=''){
+  const clean=compactWorldtext(text,120);
+  if(!clean) return '';
+  if(/\b(node|tensor|scalar|prompt|simulation|physics engine|math)\b/i.test(clean)) return '';
+  return clean;
+}
+
+function actorOutputNeedsFallback(output){
+  const world=cleanLine(output?.worldtext||'');
+  if(!world) return true;
+  if(world.length>220) return true;
+  if((world.match(/\[\d+,\d+\]/g)||[]).length>1) return true;
+  return false;
+}
+
+function decoderQueueLength(){
+  return S.decodeQueue.length + (S.decodeActive ? 1 : 0);
+}
+
+function triggerKey(trigger){
+  return `${trigger?.type||'event'}:${trigger?.scalarKey||'none'}`;
+}
+
+function semanticScalarBias(key, magnitude){
+  const tag=String(key||'').toLowerCase();
+  const m=Number(magnitude)||0;
+  const out={entropy:0,kinetic:0,integrity:0,coherence:0};
+  if(/tox|poison|blight|rust|decay|rot|corrupt/.test(tag)){
+    out.entropy += m*0.07;
+    out.integrity -= m*0.05;
+    out.coherence -= m*0.03;
+  }else if(/heal|repair|clean|mend|water|mercy/.test(tag)){
+    out.integrity += m*0.04;
+    out.coherence += m*0.03;
+    out.entropy -= m*0.02;
+  }else if(/thaum|ritual|spell|echo|dream|ghost|phase/.test(tag)){
+    out.entropy += m*0.05;
+    out.kinetic += m*0.03;
+    out.coherence += m*0.01;
+  }else if(/panic|fear|alarm|hunger|grief/.test(tag)){
+    out.entropy += m*0.04;
+    out.kinetic += m*0.02;
+    out.coherence -= m*0.03;
+  }else{
+    out.entropy += m*0.02;
+    out.kinetic += m*0.01;
+  }
+  return out;
+}
+
+function getNeighbors(col){
+  return colReg.filter(other=>{
+    if(!other || other.id===col.id) return false;
+    if(other.alive===false) return false;
+    return Math.hypot(other.gx-col.gx,other.gy-col.gy)<=1.45;
+  });
+}
+
+function snapshotMeshState(reason='tick'){
+  graphHistory[historyHead]={
+    tick:historyCount,
+    time:S.simTime,
+    reason,
+    nodes:colReg.map(col=>({
+      id:col.id,
+      tag:col.tag,
+      entity:col.entity,
+      alive:col.alive!==false,
+      phase:col.phase||'stable',
+      phaseTick:Number.isInteger(col.phaseTick)?col.phaseTick:0,
+      queuedDecode:Boolean(col.queuedDecode),
+      decodeCooldownUntilTick:Number.isInteger(col.decodeCooldownUntilTick)?col.decodeCooldownUntilTick:0,
+      stageDirection:col.stageDirection||'',
+      lastWorldtext:col.lastWorldtext||'',
+      msgs:col.msgs.slice(),
+      physics:{...col.physics},
+      dynamic_scalars:cloneScalarMap(col.dynamic_scalars),
+      sediment:cloneScalarMap(col.sediment),
+      last_decoded_state:{...col.last_decoded_state}
+    }))
+  };
+  historyHead=(historyHead+1)%HISTORY_MAX;
+  historyCount++;
+}
+
+function findSnapshotByTick(targetTick){
+  let exact=null;
+  let nearest=null;
+  for(let i=0;i<HISTORY_MAX;i++){
+    const snap=graphHistory[i];
+    if(!snap) continue;
+    if(snap.tick===targetTick) return snap;
+    if(snap.tick<=targetTick && (!nearest || snap.tick>nearest.tick)) nearest=snap;
+  }
+  return exact||nearest;
+}
+
+function forceVisualSync(){
+  colReg.forEach(col=>{
+    rebuildColSprites(col);
+    col.bg.material.color.setHex(TAG_COLORS_HEX[col.tag]||TAG_COLORS_HEX.DEFAULT);
+  });
+  updateMinimap();
+  buildTerrainLabels();
+  stampAnchorsIntoTerrain(.18);
+  updateEcology();
+}
+
+function rollbackToTick(targetTick){
+  const snap=findSnapshotByTick(targetTick);
+  if(!snap){
+    console.warn('Tick lost to ring buffer overwrite:',targetTick);
+    return;
+  }
+  snap.nodes.forEach(snapNode=>{
+    const col=colReg[snapNode.id];
+    if(!col) return;
+    col.tag=snapNode.tag||'DEFAULT';
+    col.entity=snapNode.entity||col.entity;
+    col.alive=snapNode.alive!==false;
+    col.phase=snapNode.phase||'stable';
+    col.phaseTick=Number.isInteger(snapNode.phaseTick)?snapNode.phaseTick:0;
+    col.queuedDecode=Boolean(snapNode.queuedDecode);
+    col.decodeCooldownUntilTick=Number.isInteger(snapNode.decodeCooldownUntilTick)?snapNode.decodeCooldownUntilTick:0;
+    col.stageDirection=snapNode.stageDirection||'';
+    col.lastWorldtext=snapNode.lastWorldtext||'';
+    col.msgs=(snapNode.msgs||[]).slice();
+    col.physics={...snapNode.physics};
+    col.dynamic_scalars=cloneScalarMap(snapNode.dynamic_scalars);
+    col.sediment=cloneScalarMap(snapNode.sediment);
+    col.last_decoded_state={...snapNode.last_decoded_state};
+    col.pendingDecode=false;
+  });
+  S.decodeQueue.length=0;
+  S.decodeActive=false;
+  S.decodeActiveColId=-1;
+  S.decodeLastError='';
+  historyCount=snap.tick;
+  physicsLastTickMs=performance.now();
+  forceVisualSync();
+}
+
+function inferScalarKey(cmd,fallback='semantic_pressure'){
+  const text=String(cmd||'').toLowerCase();
+  if(/poison|toxic|venom|blight|sick/.test(text)) return 'toxicity';
+  if(/rust|corrode|iron|oxide/.test(text)) return 'rust_spore';
+  if(/wizard|spell|magic|thaum|ritual/.test(text)) return 'thaumaturgic_radiation';
+  if(/storm|spark|static|lightning/.test(text)) return 'static_charge';
+  if(/heal|repair|cleanse|mercy|water/.test(text)) return 'healing_flow';
+  if(/fear|panic|alarm/.test(text)) return 'panic_wave';
+  if(/hunger|want|need/.test(text)) return 'hunger_field';
+  const words=text.match(/[a-z]{5,}/g)||[];
+  return words.length ? cleanLine(words[0]).replace(/[^a-z0-9]+/g,'_') : fallback;
+}
+
+function localEncodeStoneToPhysics(cmd,target,mode){
+  const lower=String(cmd||'').toLowerCase();
+  const scalarA=inferScalarKey(lower);
+  const scalarB=mode==='SHIFT' ? 'phase_shear' : (mode==='GOAL' ? 'attraction_gradient' : (mode==='OBSTACLE' ? 'friction_lattice' : 'semantic_pressure'));
+  const intensity=clampNum(0.24 + Math.min(0.55, lower.length/180),0.24,0.84);
+  const deltas={
+    entropy:mode==='OBSTACLE' ? 0.18 : (mode==='SHIFT' ? 0.12 : 0.06),
+    kinetic_energy:mode==='GOAL' ? 0.22 : (mode==='SHIFT' ? 0.14 : 0.08),
+    structural_integrity:/heal|repair|cleanse|mercy/.test(lower) ? 0.08 : (/poison|rust|decay|collapse|break/.test(lower) ? -0.16 : -0.03),
+    coherence:mode==='GOAL' ? 0.12 : (mode==='SHIFT' ? -0.04 : 0.02)
+  };
+  const scalarPayload={};
+  scalarPayload[scalarA]=Number(intensity.toFixed(3));
+  if(scalarB!==scalarA) scalarPayload[scalarB]=Number((intensity*0.62).toFixed(3));
+  if(/poison|rust|decay|blight/.test(lower)) scalarPayload.structural_decay=Number((intensity*0.56).toFixed(3));
+  if(/heal|repair|cleanse|water/.test(lower)) scalarPayload.healing_flow=Number((intensity*0.54).toFixed(3));
+  const inferredTag=mode!=='DEFAULT'
+    ? mode
+    : (/goal|find|seek|reach|hunger|attract/.test(lower) ? 'GOAL'
+      : (/shift|become|phase|turn|transform/.test(lower) ? 'SHIFT'
+        : (/poison|rust|obstacle|block|collapse|break/.test(lower) ? 'OBSTACLE' : 'DEFAULT')));
+  return {
+    base_mechanics_deltas:deltas,
+    dynamic_scalars:scalarPayload,
+    tag:inferredTag
+  };
+}
+
+async function callOpenAIJson(messages){
+  if(!OPENAI.key) return null;
+  const res=await fetch(`${OPENAI.baseUrl}/chat/completions`,{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':`Bearer ${OPENAI.key}`
+    },
+    body:JSON.stringify({
+      model:OPENAI.model,
+      temperature:0.55,
+      max_tokens:700,
+      response_format:{type:'json_object'},
+      messages
+    })
+  });
+  if(!res.ok){
+    const errTxt=await res.text().catch(()=>'');
+    throw new Error(`API ${res.status} ${errTxt.slice(0,120)}`);
+  }
+  const data=await res.json();
+  return parseJsonObject(data?.choices?.[0]?.message?.content||'');
+}
+
+async function encodeStoneToPhysics(cmd,target,mode){
+  const fallback=localEncodeStoneToPhysics(cmd,target,mode);
+  if(!OPENAI.key) return fallback;
+  const parsed=await callOpenAIJson([
+    {
+      role:'system',
+      content:`You are a Semantic-to-Tensor Encoder for a mesh physics engine.
+Return JSON only.
+Schema:
+{
+  "base_mechanics_deltas":{"entropy":float,"kinetic_energy":float,"structural_integrity":float,"coherence":float},
+  "dynamic_scalars":{"invented_scalar_key":float},
+  "tag":"DEFAULT|OBSTACLE|GOAL|SHIFT"
+}
+Rules:
+- Invent 1 to 3 dynamic scalar keys when useful.
+- Delta magnitudes should usually stay between -0.4 and 0.4.
+- Stay diegetically neutral: output math, not story.`
+    },
+    {
+      role:'user',
+      content:`STONE: ${cmd}
+TARGET: ${target.coord} / ${target.entity}
+MODE: ${mode}
+RECENT_NODE_LINES: ${target.msgs.slice(-3).join(' | ') || 'none'}
+CURRENT_PHYSICS: ${JSON.stringify(target.physics)}
+CURRENT_DYNAMICS: ${JSON.stringify(target.dynamic_scalars)}`
+    }
+  ]).catch(()=>null);
+  if(!parsed) return fallback;
+  return {
+    base_mechanics_deltas:{...fallback.base_mechanics_deltas,...(parsed.base_mechanics_deltas||{})},
+    dynamic_scalars:{...fallback.dynamic_scalars,...(parsed.dynamic_scalars||{})},
+    tag:MODES.includes(String(parsed.tag||'').toUpperCase()) ? String(parsed.tag).toUpperCase() : fallback.tag
+  };
+}
+
+function applyPhysicsPayload(col,payload){
+  if(!col || !payload) return;
+  if(payload.tag && MODES.includes(payload.tag)) col.tag=payload.tag;
+  const deltas=payload.base_mechanics_deltas||{};
+  col.physics.entropy=clampNum(col.physics.entropy + (Number(deltas.entropy)||0),0,2);
+  col.physics.kinetic_energy=clampNum(col.physics.kinetic_energy + (Number(deltas.kinetic_energy)||0),0,2);
+  col.physics.structural_integrity=clampNum(col.physics.structural_integrity + (Number(deltas.structural_integrity)||0),0,1.2);
+  col.physics.coherence=clampNum(col.physics.coherence + (Number(deltas.coherence)||0),0,1.4);
+  Object.entries(payload.dynamic_scalars||{}).forEach(([key,val])=>{
+    const scalar=Number(val)||0;
+    if(!scalar) return;
+    col.dynamic_scalars[key]=Number(((col.dynamic_scalars[key]||0)+scalar).toFixed(4));
+  });
+  col.bg.material.color.setHex(TAG_COLORS_HEX[col.tag]||TAG_COLORS_HEX.DEFAULT);
+  setNodePhase(col,'encoded');
+}
+
+function buildTopologicalContextWindow(col,trigger){
+  const past=findSnapshotByTick(Math.max(0,historyCount-120));
+  const pastNode=past ? past.nodes.find(node=>node.id===col.id) : null;
+  return {
+    spatial_center:{
+      coord:col.coord,
+      entity:col.entity,
+      current_physics:{...col.physics},
+      current_dynamics:topScalarEntries(col.dynamic_scalars,4),
+      sediment_layers:topScalarEntries(col.sediment,4)
+    },
+    spatial_periphery:getNeighbors(col).slice(0,6).map(n=>({
+      coord:n.coord,
+      entity:n.entity,
+      alive:n.alive!==false,
+      physics:{...n.physics},
+      dynamics:topScalarEntries(n.dynamic_scalars,2),
+      sediment:topScalarEntries(n.sediment,2)
+    })),
+    temporal_sample:pastNode ? {
+      tick_then:past.tick,
+      dynamics_then:topScalarEntries(pastNode.dynamic_scalars,3),
+      sediment_then:topScalarEntries(pastNode.sediment,3)
+    } : null,
+    event_trigger:trigger
+  };
+}
+
+function localDirectorStage(col,trigger,contextWindow){
+  const sediment=summarizeScalarList(col.sediment,2);
+  const cue=scalarCue(trigger.scalarKey||dominantScalarKey(col));
+  if(trigger.type==='collapse'){
+    return `The ${col.entity.toLowerCase()} gives way and enters irreversible collapse.`;
+  }
+  if(trigger.type==='clone'){
+    return `A secondary site buds off nearby, carrying the parent residue into fresh ground.`;
+  }
+  if(trigger.type==='sediment'){
+    return `Old residue now rules this place, staining every fresh disturbance with ${sediment}.`;
+  }
+  return `The ${col.entity.toLowerCase()} ${cue.verb.toLowerCase()} as local pressure crosses a threshold.`;
+}
+
+async function callOpenAIDirectorStage(col,trigger,contextWindow){
+  if(!OPENAI.key) return null;
+  const parsed=await callOpenAIJson([
+    {
+      role:'system',
+      content:`You are the hidden director of a diegetic world model.
+Translate latent physics into a stage direction.
+Do not mention nodes, tensors, scalars, prompts, or math.
+Keep it strictly local to the target site.
+Return JSON only: {"stage_direction":"one sentence, <= 18 words"}`
+    },
+    {
+      role:'user',
+      content:JSON.stringify({
+        target:col.coord,
+        entity:col.entity,
+        context:contextWindow
+      },null,2)
+    }
+  ]).catch(()=>null);
+  return normalizeStageDirection(parsed?.stage_direction||'');
+}
+
+function localActorWorldtext(col,stageDirection,contextWindow){
+  const dominantDynamic=topScalarEntries(col.dynamic_scalars,1)[0];
+  const dominantSediment=topScalarEntries(col.sediment,1)[0];
+  const cue=scalarCue((dominantDynamic&&dominantDynamic.key) || (dominantSediment&&dominantSediment.key) || '');
+  let worldtext='';
+  if(col.alive===false){
+    worldtext=`The ${col.entity.toLowerCase()} gives way and drops out of the field. Only stressed residue remains in its place.`;
+  }else if(stageDirection){
+    worldtext=`${cue.sentence} ${stageDirection}`;
+  }else{
+    worldtext=cue.sentence;
+  }
+  const neighbor=contextWindow.spatial_periphery[0];
+  if(dominantSediment && neighbor){
+    worldtext += ` It now leans on the ${neighbor.entity.toLowerCase()} beside it.`;
+  }else if(dominantSediment){
+    worldtext += ` Old residue keeps pulling the site off balance.`;
+  }
+  return { fragment:'', worldtext:compactWorldtext(worldtext,180) };
+}
+
+function triggerLine(stageDirection,col,dominantDynamic,dominantSediment,trigger={}){
+  const name=shortEntityLabel(col.entity);
+  if(trigger.type==='collapse' || col.alive===false) return `${name} COLLAPSES.`;
+  if(trigger.type==='clone') return `${name} SPLITS OFF.`;
+  if(trigger.type==='sediment') return `${name} HOLDS RESIDUE.`;
+  const cue=scalarCue((dominantDynamic&&dominantDynamic.key) || (dominantSediment&&dominantSediment.key) || trigger.scalarKey || '');
+  return `${name} ${cue.verb}.`;
+}
+
+async function callOpenAIActorWorldtext(col,stageDirection,contextWindow){
+  if(!OPENAI.key) return null;
+  const parsed=await callOpenAIJson([
+    {
+      role:'system',
+      content:`You are the diegetic actor of a worldmodel.
+Write strictly in-world.
+Do not mention nodes, tensors, prompts, or simulation systems.
+Stay inside the target site.
+Mention at most one adjacent site if causally necessary.
+Keep the response compact and concrete.
+Return JSON only: {"fragment":"<= 48 chars","worldtext":"1 or 2 short sentences, <= 170 chars"}`
+    },
+    {
+      role:'user',
+      content:JSON.stringify({
+        entity:col.entity,
+        coord:col.coord,
+        stage_direction:stageDirection,
+        context:contextWindow
+      },null,2)
+    }
+  ]).catch(()=>null);
+  if(!parsed) return null;
+  return {
+    fragment:cleanLine(parsed.fragment||''),
+    worldtext:compactWorldtext(parsed.worldtext||'',180)
+  };
+}
+
+function enqueueDecoder(col,trigger){
+  if(!col) return false;
+  if(col.pendingDecode || col.queuedDecode) return false;
+  if(historyCount < (col.decodeCooldownUntilTick||0)) return false;
+  const item={
+    colId:col.id,
+    trigger:{...trigger},
+    contextWindow:buildTopologicalContextWindow(col,trigger),
+    enqueuedTick:historyCount,
+    key:triggerKey(trigger)
+  };
+  col.queuedDecode=true;
+  col.decodeCooldownUntilTick=historyCount+18;
+  if(!col.pendingDecode) setNodePhase(col, trigger.type==='collapse' ? 'pending_death' : (trigger.type==='clone' ? 'pending_spawn' : 'queued'));
+  S.decodeQueue.push(item);
+  forceVisualSync();
+  return true;
+}
+
+async function processDecodeQueue(){
+  if(S.decodeActive || !S.decodeQueue.length) return;
+  const item=S.decodeQueue.shift();
+  const col=colReg[item.colId];
+  if(!col){
+    S.decodeLastError='Queued node missing.';
+    return;
+  }
+  S.decodeActive=true;
+  S.decodeActiveColId=col.id;
+  col.queuedDecode=false;
+  try{
+    await triggerDecoder(col,item.trigger,item.contextWindow);
+    S.decodeLastError='';
+  }catch(err){
+    S.decodeLastError=String(err?.message||err);
+    chatMsg(`DECODE FALLBACK → ${S.decodeLastError}`,'sys','','',{record:false});
+    col.pendingDecode=false;
+    setNodePhase(col,'stable');
+    forceVisualSync();
+  }finally{
+    S.decodeActive=false;
+    S.decodeActiveColId=-1;
+  }
+}
+
+async function triggerDecoder(col,trigger,contextWindowOverride=null){
+  if(!col || col.pendingDecode) return;
+  col.pendingDecode=true;
+  setNodePhase(col,'directing');
+  forceVisualSync();
+  const contextWindow=contextWindowOverride || buildTopologicalContextWindow(col,trigger);
+  let stageDirection=await callOpenAIDirectorStage(col,trigger,contextWindow).catch(()=>null);
+  if(!stageDirection) stageDirection=localDirectorStage(col,trigger,contextWindow);
+  col.stageDirection=normalizeStageDirection(stageDirection) || localDirectorStage(col,trigger,contextWindow);
+  await new Promise(r=>setTimeout(r,OPENAI.key?220:280));
+  setNodePhase(col,'acting');
+  forceVisualSync();
+  let output=await callOpenAIActorWorldtext(col,col.stageDirection,contextWindow).catch(()=>null);
+  if(actorOutputNeedsFallback(output)) output=localActorWorldtext(col,col.stageDirection,contextWindow);
+  if(!output) output=localActorWorldtext(col,col.stageDirection,contextWindow);
+  const dominantDynamic=topScalarEntries(col.dynamic_scalars,1)[0];
+  const dominantSediment=topScalarEntries(col.sediment,1)[0];
+  const gridFragment=triggerLine(col.stageDirection,col,dominantDynamic,dominantSediment,trigger);
+  if(gridFragment){
+    addLayer(col,gridFragment,true);
+    triggerRipple(col.cx,col.cz,.85,TAG_COLORS_HEX[col.tag]||TAG_COLORS_HEX.DEFAULT);
+  }
+  if(output?.worldtext){
+    col.lastWorldtext=compactWorldtext(output.worldtext,180);
+    chatMsg(col.lastWorldtext,'therefore',col.coord,clockStr(S.simTime),{
+      meta:{
+        fromCoord:trigger.fromCoord||'',
+        scalar:trigger.scalarKey||'',
+        trigger:trigger.type,
+        tick:historyCount
+      }
+    });
+  }
+  col.pendingDecode=false;
+  setNodePhase(col,'written');
+  forceVisualSync();
+}
+
+function activateCloneNode(source,reasonKey){
+  const pool=getNeighbors(source).filter(n=>n.layers===0 && n.alive!==false);
+  const target=pool[0] || colReg.find(c=>c.layers===0 && c.id!==source.id && c.alive!==false);
+  if(!target) return null;
+  target.alive=true;
+  target.tag=source.tag;
+  target.entity=`${source.entity} Offshoot`;
+  target.physics={
+    entropy:clampNum(source.physics.entropy*0.72,0,2),
+    kinetic_energy:clampNum(source.physics.kinetic_energy*0.55,0,2),
+    structural_integrity:0.82,
+    coherence:clampNum(source.physics.coherence*0.84,0.35,1.3)
+  };
+  target.dynamic_scalars={};
+  topScalarEntries(source.dynamic_scalars,2).forEach(entry=>{
+    target.dynamic_scalars[entry.key]=Number((entry.value*0.42).toFixed(4));
+  });
+  target.sediment={};
+  topScalarEntries(source.sediment,2).forEach(entry=>{
+    target.sediment[entry.key]=Number((entry.value*0.24).toFixed(4));
+  });
+  target.last_decoded_state={};
+  target.stageDirection='';
+  target.topologyCooldownUntilTick=historyCount+60;
+  source.topologyCooldownUntilTick=historyCount+60;
+  setNodePhase(target,'spawned');
+  buildPath(source,target);
+  triggerRipple(target.cx,target.cz,.95,TAG_COLORS_HEX[source.tag]||TAG_COLORS_HEX.DEFAULT);
+  chatMsg(`[SPAWN @${target.coord}] A dormant site condenses from ${source.coord}.`,'spawn',target.coord,clockStr(S.simTime),{
+    meta:{fromCoord:source.coord,toCoord:target.coord,tick:historyCount,trigger:'clone'}
+  });
+  return target;
+}
+
+function collapseNode(col,reasonKey){
+  if(!col || col.alive===false) return;
+  col.alive=false;
+  col.tag='OBSTACLE';
+  col.physics.structural_integrity=0;
+  col.dynamic_scalars={};
+  col.topologyCooldownUntilTick=historyCount+120;
+  setNodePhase(col,'collapsed');
+  triggerRipple(col.cx,col.cz,1.3,TAG_COLORS_HEX.OBSTACLE);
+}
+
+function checkNodeThresholds(col){
+  if(!col) return;
+  if(col.pendingDecode || col.queuedDecode) return;
+  if(historyCount < (col.decodeCooldownUntilTick||0)) return;
+  let triggered=false;
+  Object.entries(col.dynamic_scalars).some(([key,val])=>{
+    const current=Number(val)||0;
+    const last=Number(col.last_decoded_state[key]||0);
+    if(Math.abs(current-last)>0.42){
+      col.last_decoded_state[key]=Number(current.toFixed(4));
+      enqueueDecoder(col,{type:'scalar_threshold',scalarKey:key,delta:Number((current-last).toFixed(4))});
+      triggered=true;
+      return true;
+    }
+    return false;
+  });
+  const sedimentLoad=scalarAbsSum(col.sediment);
+  const lastSed=Number(col.last_decoded_state.__sediment||0);
+  if(!triggered && sedimentLoad-lastSed>0.28){
+    col.last_decoded_state.__sediment=Number(sedimentLoad.toFixed(4));
+    enqueueDecoder(col,{type:'sediment',scalarKey:'sediment_load',delta:Number((sedimentLoad-lastSed).toFixed(4))});
+    triggered=true;
+  }
+  if(col.physics.structural_integrity<=0.12 && col.alive!==false && !col.last_decoded_state.__collapsed){
+    col.last_decoded_state.__collapsed=historyCount;
+    collapseNode(col,'structural_failure');
+    enqueueDecoder(col,{type:'collapse',scalarKey:'structural_integrity',delta:-1});
+    triggered=true;
+  }
+  if(!triggered && col.physics.coherence>=1.18 && scalarAbsSum(col.dynamic_scalars)>=0.8 && historyCount>=col.topologyCooldownUntilTick){
+    const clone=activateCloneNode(col,'coherence_bloom');
+    if(clone){
+      col.last_decoded_state.__clone=historyCount;
+      enqueueDecoder(clone,{type:'clone',scalarKey:'coherence',delta:clone.physics.coherence});
+    }
+  }
+}
+
+function tickPhysicsMesh(reason='tick'){
+  const diffusionRate=0.05;
+  const decayRate=0.05;
+  const sedimentConversion=0.18;
+  const nextStates=colReg.map(col=>({
+    dynamic:cloneScalarMap(col.dynamic_scalars)
+  }));
+
+  colReg.forEach((col,i)=>{
+    if(col.alive===false) return;
+    const neighbors=getNeighbors(col);
+    Object.entries(col.dynamic_scalars).forEach(([key,val])=>{
+      const current=Number(val)||0;
+      const magnitude=Math.abs(current);
+      if(magnitude<0.001) return;
+      const sign=Math.sign(current)||1;
+      const decayAmount=magnitude*decayRate;
+      nextStates[i].dynamic[key]=(nextStates[i].dynamic[key]||0) - (sign*decayAmount);
+      const sedimentAmount=decayAmount*sedimentConversion;
+      col.sediment[key]=Number(((col.sediment[key]||0)+sedimentAmount).toFixed(4));
+
+      const friction=clampNum(0.14 + col.physics.entropy*0.12 + (1-col.physics.structural_integrity)*0.18,0.14,0.88);
+      const transferTotal=magnitude*diffusionRate*(1-friction);
+      if(neighbors.length && transferTotal>0){
+        const share=transferTotal/neighbors.length;
+        neighbors.forEach(neighbor=>{
+          nextStates[neighbor.id].dynamic[key]=(nextStates[neighbor.id].dynamic[key]||0) + (sign*share);
+        });
+        nextStates[i].dynamic[key]=(nextStates[i].dynamic[key]||0) - (sign*transferTotal);
+      }
+    });
+  });
+
+  colReg.forEach((col,i)=>{
+    const dynamic=nextStates[i].dynamic;
+    Object.keys(dynamic).forEach(key=>{
+      if(Math.abs(dynamic[key])<0.001) delete dynamic[key];
+      else dynamic[key]=Number(dynamic[key].toFixed(4));
+    });
+    col.dynamic_scalars=dynamic;
+
+    const dynamicLoad=scalarAbsSum(col.dynamic_scalars);
+    const sedimentLoad=scalarAbsSum(col.sediment);
+    let entropy=col.physics.entropy*0.92 + dynamicLoad*0.05 + sedimentLoad*0.01;
+    let kinetic=col.physics.kinetic_energy*0.84 + dynamicLoad*0.18;
+    let integrity=col.physics.structural_integrity - dynamicLoad*0.006 - sedimentLoad*0.0016;
+    let coherence=col.physics.coherence*0.95 + (col.tag==='GOAL'?0.018:0) + (col.tag==='SHIFT'?0.01:0) - entropy*0.02;
+
+    Object.entries(col.dynamic_scalars).forEach(([key,val])=>{
+      const bias=semanticScalarBias(key,Math.abs(val));
+      entropy += bias.entropy;
+      kinetic += bias.kinetic;
+      integrity += bias.integrity;
+      coherence += bias.coherence;
+    });
+    Object.entries(col.sediment).forEach(([key,val])=>{
+      const bias=semanticScalarBias(key,Math.abs(val)*0.35);
+      entropy += bias.entropy*0.6;
+      kinetic += bias.kinetic*0.4;
+      integrity += bias.integrity*0.45;
+      coherence += bias.coherence*0.45;
+    });
+
+    col.physics.entropy=clampNum(Number(entropy.toFixed(4)),0,2);
+    col.physics.kinetic_energy=clampNum(Number(kinetic.toFixed(4)),0,2);
+    col.physics.structural_integrity=clampNum(Number(integrity.toFixed(4)),0,1.2);
+    col.physics.coherence=clampNum(Number(coherence.toFixed(4)),0,1.4);
+    if(col.alive===false) setNodePhase(col,'collapsed');
+    else if(col.pendingDecode){
+      // preserve directing/acting phase while decoder is active
+    } else if(dynamicLoad>1.1) setNodePhase(col,'surging');
+    else if(dynamicLoad>0.34) setNodePhase(col,'diffusing');
+    else if(sedimentLoad>0.8) setNodePhase(col,'sedimented');
+    else if(col.layers===0 && !col.lastWorldtext) setNodePhase(col,'latent');
+    else setNodePhase(col,'stable');
+    col.bg.material.color.setHex(TAG_COLORS_HEX[col.tag]||TAG_COLORS_HEX.DEFAULT);
+  });
+
+  colReg.forEach(checkNodeThresholds);
+  snapshotMeshState(reason);
+}
+
+function buildBranchStats(){
+  const outByCoord=new Map();
+  const inByCoord=new Map();
+  TIMELINE_EVENTS.forEach(ev=>{
+    if(ev.type==='spawn' && ev.fromCoord && ev.coord){
+      outByCoord.set(ev.fromCoord,(outByCoord.get(ev.fromCoord)||0)+1);
+      inByCoord.set(ev.coord,(inByCoord.get(ev.coord)||0)+1);
+    }
+  });
+  return {outByCoord,inByCoord};
+}
+
+function updateMinimap(){
+  mmCells.forEach(mc=>{
+    const col=colReg[mc.colId];
+    const dynamicLoad=scalarAbsSum(col.dynamic_scalars)+(scalarAbsSum(col.sediment)*0.35)+col.physics.kinetic_energy;
+    mc.cell.className='mc-cell';
+    if(col.layers>0 || dynamicLoad>0.08){
+      mc.cell.classList.add('live');
+      if(col.layers>=3 || dynamicLoad>0.28) mc.cell.classList.add('hot');
+      mc.cell.style.opacity=String(Math.min(1,0.28+col.layers*.13+dynamicLoad*.12));
+      mc.cell.style.transform=`scale(${Math.min(1.4,1+col.layers*.06+dynamicLoad*.04)})`;
+    }else{
+      mc.cell.style.opacity='';
+      mc.cell.style.transform='';
+    }
+    if(S.selectedCol===col.id) mc.cell.classList.add('sel');
+    const tc=col.tag;
+    if(col.alive===false) mc.cell.classList.add('obstacle');
+    else if(tc!=='DEFAULT'&&(col.layers>0 || dynamicLoad>0.12)) mc.cell.classList.add(tc.toLowerCase());
+  });
+  renderMinimapEventDots();
+  renderMapClusterList();
+}
+
+function getColForEvent(ev){
+  if(!ev) return null;
+  if(Number.isInteger(ev.colId) && ev.colId>=0 && colReg[ev.colId]) return colReg[ev.colId];
+  if(ev.coord) return colReg.find(c=>c.coord===ev.coord) || null;
+  return null;
+}
+
+function renderMinimapEventDots(){
+  if(!mmEl) return;
+  mmEl.querySelectorAll('.mc-event-dot').forEach(n=>n.remove());
+  if(!TIMELINE_EVENTS.length) return;
+
+  const cellByColId=new Map(mmCells.map(mc=>[mc.colId,mc.cell]));
+  const colDotCount=new Map();
+
+  TIMELINE_EVENTS.forEach((ev,i)=>{
+    const col=getColForEvent(ev);
+    if(!col) return;
+    const cell=cellByColId.get(col.id);
+    if(!cell) return;
+
+    const count=colDotCount.get(col.id) || 0;
+    colDotCount.set(col.id,count+1);
+    const ring=Math.floor(count/6);
+    const angle=((count%6)/6)*Math.PI*2;
+    const spread=Math.min(4,ring*1.8);
+    const cx=cell.offsetLeft + cell.offsetWidth/2 + Math.cos(angle)*spread;
+    const cy=cell.offsetTop + cell.offsetHeight/2 + Math.sin(angle)*spread;
+
+    const dot=document.createElement('button');
+    dot.type='button';
+    dot.className='mc-event-dot'+(isMajorType(ev.type)?' major':'')+(i===timelineCursor?' active':'');
+    const c=timelineColorForType(ev.type);
+    dot.style.left=`${cx}px`;
+    dot.style.top=`${cy}px`;
+    dot.style.background=c;
+    dot.style.color=c;
+    dot.title=`#${i+1} ${getEventMeta(ev.type).label} ${ev.coord || ''}`.trim();
+    dot.onclick=(e)=>{
+      e.stopPropagation();
+      setTimelineCursor(i,true);
+    };
+    mmEl.appendChild(dot);
+  });
+}
+
+function findLastEventIndexByCoord(coord){
+  for(let i=TIMELINE_EVENTS.length-1;i>=0;i--){
+    if(TIMELINE_EVENTS[i].coord===coord) return i;
+  }
+  return -1;
+}
+
+function renderMapClusterList(){
+  if(!clusterListEl) return;
+  const active=colReg
+    .filter(c=>c.layers>0 || scalarAbsSum(c.dynamic_scalars)>0.12 || c.alive===false)
+    .sort((a,b)=>(b.layers + scalarAbsSum(b.dynamic_scalars)) - (a.layers + scalarAbsSum(a.dynamic_scalars)));
+  const branchStats=buildBranchStats();
+  if(!active.length){
+    clusterListEl.innerHTML='<div class="cluster-empty">No active clusters</div>';
+    return;
+  }
+  clusterListEl.innerHTML='';
+  active.slice(0,10).forEach(col=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='cluster-item'+(S.selectedCol===col.id?' active':'');
+    const last=cleanLine(col.msgs[col.layers-1]||col.lastWorldtext||'').slice(0,56) || 'NO MESSAGE';
+    const outCount=branchStats.outByCoord.get(col.coord)||0;
+    const inCount=branchStats.inByCoord.get(col.coord)||0;
+    btn.innerHTML=`<div class="cluster-main"><span>${col.coord}</span><span style="color:${TAG_CSS[col.tag]||'var(--ink)'}">${nodeStatus(col)} · ${col.tag}</span></div><div class="cluster-sub">${last}</div><div class="cluster-sub">DYN ${dominantScalarKey(col)} · BRANCH +${outCount} / -${inCount}</div>`;
+    btn.onclick=()=>{
+      selectCol(col.id);
+      const idx=findLastEventIndexByCoord(col.coord);
+      if(idx>=0) setTimelineCursor(idx,true);
+    };
+    clusterListEl.appendChild(btn);
+  });
+}
+
+function setTabsHidden(hidden){
+  // Tabs are locked visible for reliability: all controls stay on screen.
+  DOCK_STATE.tabsHidden=false;
+  sideTabsEl.classList.remove('hidden');
+  if(sideTabsToggleEl){
+    sideTabsToggleEl.textContent='Tabs Locked';
+    sideTabsToggleEl.classList.add('active');
+  }
+}
+
+function panelVisible(key){
+  if(key==='chat') return !S.chatCollapsed;
+  const el=PANEL_EL[key];
+  return !!(el && !el.classList.contains('panel-hidden'));
+}
+
+function setPanelVisible(key,visible){
+  if(key==='chat'){
+    S.chatCollapsed=!visible;
+    PANEL_EL.chat.classList.toggle('collapsed',S.chatCollapsed);
+    document.getElementById('chat-toggle-btn').textContent=S.chatCollapsed?'▶':'◀';
+    syncSideTabs();
+    return;
+  }
+  const el=PANEL_EL[key];
+  if(!el) return;
+  el.classList.toggle('panel-hidden',!visible);
+  syncSideTabs();
+}
+
+function hideDockPopup(){
+  DOCK_STATE.popupMode='';
+  dockPopupEl.classList.remove('show');
+  syncSideTabs();
+}
+
+function htmlSafe(val=''){
+  return String(val)
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'",'&#39;');
+}
+
+function buildNodeInspectHtml(col){
+  if(!col) return `<div class="dock-empty">No node selected. Click a site to inspect its solver state.</div>`;
+  const context=buildTopologicalContextWindow(col,{
+    type:'inspect',
+    scalarKey:dominantScalarKey(col),
+    delta:0
+  });
+  const recentMsgs=col.msgs.slice(-4).reverse();
+  const tensor={
+    tag:col.tag,
+    phase:col.phase||nodeStatus(col),
+    alive:col.alive!==false,
+    pendingDecode:Boolean(col.pendingDecode),
+    entropy:Number(col.physics.entropy.toFixed(3)),
+    kinetic:Number(col.physics.kinetic_energy.toFixed(3)),
+    integrity:Number(col.physics.structural_integrity.toFixed(3)),
+    coherence:Number(col.physics.coherence.toFixed(3)),
+    dominant:dominantScalarKey(col)
+  };
+  const dynamics=topScalarEntries(col.dynamic_scalars,4);
+  const sediment=topScalarEntries(col.sediment,4);
+  const neighbors=context.spatial_periphery.map(n=>`${n.coord} ${n.entity} · ${n.alive ? 'live' : 'collapsed'} · dyn ${n.dynamics.map(d=>`${d.key}:${d.value.toFixed(2)}`).join(' | ') || 'none'}`);
+  const temporal=context.temporal_sample
+    ? `tick ${context.temporal_sample.tick_then} · dyn ${context.temporal_sample.dynamics_then.map(d=>`${d.key}:${d.value.toFixed(2)}`).join(' | ') || 'none'} · sed ${context.temporal_sample.sediment_then.map(d=>`${d.key}:${d.value.toFixed(2)}`).join(' | ') || 'none'}`
+    : 'No older snapshot in current buffer window.';
+  return `
+    <div class="dock-meta">
+      <div><b>${htmlSafe(col.entity)}</b></div>
+      <div>${htmlSafe(col.coord)} · ${htmlSafe(nodeStatus(col))} · ${htmlSafe(col.tag)}</div>
+      <div>Tick ${historyCount} · last phase tick ${Number.isInteger(col.phaseTick)?col.phaseTick:'—'} · queue ${decoderQueueLength()}</div>
+    </div>
+    <div class="dock-item">
+      <div class="dock-item-head"><span>Process</span><span>${htmlSafe(col.phase||'stable')}</span></div>
+      <div class="dock-item-body">Phase: ${htmlSafe(col.phase||'stable')}<br>Pending decode: ${col.pendingDecode?'yes':'no'}<br>Director: ${htmlSafe(col.stageDirection || 'Awaiting threshold.')}</div>
+    </div>
+    <div class="dock-item">
+      <div class="dock-item-head"><span>Tensor</span><span>${htmlSafe(dominantScalarKey(col))}</span></div>
+      <div class="dock-item-body" style="white-space:pre-wrap;font-family:var(--mono);">${htmlSafe(JSON.stringify(tensor,null,2))}</div>
+    </div>
+    <div class="dock-item">
+      <div class="dock-item-head"><span>Dynamics</span><span>${dynamics.length}</span></div>
+      <div class="dock-item-body" style="white-space:pre-wrap;font-family:var(--mono);">${htmlSafe(dynamics.map(d=>`${d.key}:${d.value.toFixed(3)}`).join('\n') || 'none')}</div>
+    </div>
+    <div class="dock-item">
+      <div class="dock-item-head"><span>Sediment</span><span>${sediment.length}</span></div>
+      <div class="dock-item-body" style="white-space:pre-wrap;font-family:var(--mono);">${htmlSafe(sediment.map(d=>`${d.key}:${d.value.toFixed(3)}`).join('\n') || 'none')}</div>
+    </div>
+    <div class="dock-item">
+      <div class="dock-item-head"><span>Latest Worldtext</span><span>${htmlSafe(shortEntityLabel(col.entity))}</span></div>
+      <div class="dock-item-body">${htmlSafe(col.lastWorldtext || 'Awaiting actor output.')}</div>
+    </div>
+    <div class="dock-item">
+      <div class="dock-item-head"><span>Local Umwelt</span><span>${neighbors.length}</span></div>
+      <div class="dock-item-body" style="white-space:pre-wrap;font-family:var(--mono);">${htmlSafe(neighbors.join('\n') || 'No live neighbors in the local window.')}</div>
+    </div>
+    <div class="dock-item">
+      <div class="dock-item-head"><span>Temporal Sample</span><span>Ring Buffer</span></div>
+      <div class="dock-item-body" style="white-space:pre-wrap;font-family:var(--mono);">${htmlSafe(temporal)}</div>
+    </div>
+    <div class="dock-item">
+      <div class="dock-item-head"><span>Recent Grid Lines</span><span>${recentMsgs.length}</span></div>
+      <div class="dock-item-body" style="white-space:pre-wrap;font-family:var(--mono);">${htmlSafe(recentMsgs.join('\n') || 'No local lines yet.')}</div>
+    </div>
+  `;
+}
+
+function buildDockEventsList(type){
+  const events=TIMELINE_EVENTS
+    .map((ev,i)=>({ev,idx:i}))
+    .filter(({ev})=>String(ev.type||'').toLowerCase()===type)
+    .slice(-48)
+    .reverse();
+  if(!events.length) return `<div class="dock-empty">No ${type} events yet.</div>`;
+  return events.map(({ev,idx})=>{
+    const meta=getEventMeta(ev.type);
+    const headRight = type==='spawn'
+      ? `${ev.fromCoord||'ROOT'} → ${ev.coord||'UNSET'}`
+      : (ev.coord||'UNSET');
+    return `<button class="dock-item" data-ev-idx="${idx}">
+      <div class="dock-item-head">
+        <span style="color:${meta.color}">#${idx+1} ${meta.label}</span>
+        <span>${headRight}</span>
+      </div>
+      <div class="dock-item-body">${htmlSafe(ev.text||'')}</div>
+    </button>`;
+  }).join('');
+}
+
+function compactStamp(){
+  return new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+Z$/,'Z');
+}
+
+function fileExtFromMime(mime='video/webm'){
+  const raw=String(mime||'').toLowerCase();
+  if(raw.includes('mp4')) return 'mp4';
+  if(raw.includes('ogg')) return 'ogv';
+  return 'webm';
+}
+
+function downloadBlob(blob,mime,fileName,keepUrl=true){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  if(!keepUrl){
+    setTimeout(()=>URL.revokeObjectURL(url),800);
+    return {name:fileName,url:''};
+  }
+  return {name:fileName,url};
+}
+
+function clearRecordingLinks(){
+  REC.lastFiles.forEach(f=>{
+    if(f?.url){
+      try{ URL.revokeObjectURL(f.url); }catch{}
+    }
+  });
+  REC.lastFiles=[];
+}
+
+function setLastFile(kind,file){
+  const prev=REC.lastFiles.find(f=>f.kind===kind);
+  if(prev?.url){
+    try{ URL.revokeObjectURL(prev.url); }catch{}
+  }
+  REC.lastFiles=[...REC.lastFiles.filter(f=>f.kind!==kind),{kind,...file}];
+}
+
+function buildTimelineExport(){
+  return {
+    engine:'rcc-eco',
+    exported_at:new Date().toISOString(),
+    sim_seconds:Number(S.simTime.toFixed(3)),
+    total_events:TIMELINE_EVENTS.length,
+    events:TIMELINE_EVENTS.map(ev=>({
+      id:ev.id,
+      type:ev.type,
+      text:ev.text,
+      coord:ev.coord||'',
+      from_coord:ev.fromCoord||'',
+      layer:Number.isInteger(ev.layer)?ev.layer:-1,
+      ts:ev.ts||'',
+      sim:Number(ev.sim||0)
+    }))
+  };
+}
+
+function buildTranscriptMarkdown(){
+  const out=[
+    '# RIPPLE SESSION TRANSCRIPT',
+    '',
+    `- build: rcc-eco`,
+    `- exported_at: ${new Date().toISOString()}`,
+    `- events: ${TIMELINE_EVENTS.length}`,
+    `- sim_time: ${clockStr(S.simTime)}`,
+    ''
+  ];
+  TIMELINE_EVENTS.forEach(ev=>{
+    const coord=ev.coord?` ${ev.coord}`:'';
+    const from=ev.fromCoord?` <- ${ev.fromCoord}`:'';
+    const ts=ev.ts||clockStr(ev.sim||0);
+    out.push(`- [${ts}] [${String(ev.type||'sys').toUpperCase()}]${coord}${from} ${ev.text||''}`.trim());
+  });
+  return out.join('\n');
+}
+
+function exportTranscript(){
+  const name=`rcc-eco_${compactStamp()}.transcript.md`;
+  const file=downloadBlob(new Blob([buildTranscriptMarkdown()],{type:'text/markdown'}),'text/markdown',name,true);
+  setLastFile('transcript',file);
+  chatMsg(`EXPORT READY: ${name}`,'sys','','',{record:false});
+  if(DOCK_STATE.popupMode) renderDockPopup();
+}
+
+function exportTimelineJson(){
+  const name=`rcc-eco_${compactStamp()}.timeline.json`;
+  const payload=JSON.stringify(buildTimelineExport(),null,2);
+  const file=downloadBlob(new Blob([payload],{type:'application/json'}),'application/json',name,true);
+  setLastFile('timeline',file);
+  chatMsg(`EXPORT READY: ${name}`,'sys','','',{record:false});
+  if(DOCK_STATE.popupMode) renderDockPopup();
+}
+
+function recordingLabel(){
+  return REC.active ? `REC LIVE · TAKE ${String(REC.take).padStart(2,'0')}` : 'REC OFF';
+}
+
+function createSafeRecorder(stream){
+  const prefs=[
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  ];
+  for(const p of prefs){
+    if(window.MediaRecorder?.isTypeSupported?.(p)){
+      return {recorder:new MediaRecorder(stream,{mimeType:p}), mimeType:p};
+    }
+  }
+  const recorder=new MediaRecorder(stream);
+  return {recorder,mimeType:recorder.mimeType||'video/webm'};
+}
+
+async function startSceneRecording(reason='manual'){
+  if(REC.active) return true;
+  if(typeof MediaRecorder==='undefined'){
+    chatMsg('RECORDING UNSUPPORTED IN THIS BROWSER.','sys','','',{record:false});
+    return false;
+  }
+  if(!renderer?.domElement?.captureStream){
+    chatMsg('SCENE CAPTURE UNAVAILABLE: captureStream missing.','sys','','',{record:false});
+    return false;
+  }
+
+  try{
+    REC.stream=renderer.domElement.captureStream(30);
+    const videoTracks=REC.stream.getVideoTracks?.()||[];
+    if(!videoTracks.length){
+      chatMsg('RECORDING FAILED: no video track from canvas.','sys','','',{record:false});
+      REC.stream=null;
+      return false;
+    }
+    const safe=createSafeRecorder(REC.stream);
+    REC.recorder=safe.recorder;
+    REC.mimeType=safe.mimeType||'video/webm';
+    REC.chunks=[];
+
+    REC.recorder.ondataavailable=(e)=>{
+      if(e.data && e.data.size>0) REC.chunks.push(e.data);
+    };
+    REC.recorder.onerror=(e)=>{
+      const err=e?.error?.message||e?.name||'unknown';
+      chatMsg(`RECORDER ERROR: ${err}`,'sys','','',{record:false});
+    };
+    REC.recorder.onstop=()=>{
+      const took=Math.max(0,Date.now()-REC.startedAtMs);
+      REC.active=false;
+      const files=[];
+      if(REC.chunks.length){
+        const mime=String(REC.mimeType||'video/webm');
+        const ext=fileExtFromMime(mime);
+        const stamp=compactStamp();
+        const take=String(Math.max(1,REC.take)).padStart(2,'0');
+        const videoName=`rcc-eco_take${take}_${stamp}.${ext}`;
+        const videoBlob=new Blob(REC.chunks,{type:mime});
+        files.push({kind:'video',...downloadBlob(videoBlob,mime,videoName,true)});
+      }
+      const transcriptName=`rcc-eco_take${String(Math.max(1,REC.take)).padStart(2,'0')}_${compactStamp()}.transcript.md`;
+      files.push({kind:'transcript',...downloadBlob(new Blob([buildTranscriptMarkdown()],{type:'text/markdown'}),'text/markdown',transcriptName,true)});
+      clearRecordingLinks();
+      files.forEach(f=>setLastFile(f.kind,f));
+      chatMsg(`RECORDING STOPPED (${Math.round(took/1000)}s). FILES READY.`,'sys','','',{record:false});
+
+      if(REC.stream){
+        REC.stream.getTracks().forEach(t=>t.stop());
+      }
+      REC.stream=null;
+      REC.chunks=[];
+      REC.recorder=null;
+      if(typeof REC.stopResolve==='function'){
+        const done=REC.stopResolve;
+        REC.stopResolve=null;
+        done(true);
+      }
+      if(DOCK_STATE.popupMode) renderDockPopup();
+      syncSideTabs();
+    };
+
+    REC.take+=1;
+    REC.startedAtMs=Date.now();
+    REC.active=true;
+    REC.recorder.start(800);
+    chatMsg(`RECORDING STARTED (${reason.toUpperCase()})`,'sys','','',{record:false});
+    if(DOCK_STATE.popupMode) renderDockPopup();
+    syncSideTabs();
+    return true;
+  }catch(err){
+    chatMsg(`RECORDING FAILED: ${String(err?.message||err)}`,'sys','','',{record:false});
+    if(REC.stream){
+      REC.stream.getTracks().forEach(t=>t.stop());
+    }
+    REC.stream=null;
+    REC.recorder=null;
+    REC.active=false;
+    syncSideTabs();
+    return false;
+  }
+}
+
+async function stopSceneRecording(){
+  if(!REC.active || !REC.recorder) return false;
+  return await new Promise(resolve=>{
+    REC.stopResolve=resolve;
+    try{ REC.recorder.stop(); }catch{ resolve(false); }
+  });
+}
+
+function renderDockPopup(){
+  if(!DOCK_STATE.popupMode){
+    dockPopupEl.classList.remove('show');
+    return;
+  }
+  dockPopupEl.classList.add('show');
+  const mode=DOCK_STATE.popupMode;
+  if(mode==='menu'){
+    dockPopupTitleEl.textContent='Quick Menu';
+    dockPopupBodyEl.innerHTML=`
+      <button class="dock-action" data-act="record-panel">Recording Controls</button>
+      <button class="dock-action" data-act="export-panel">Export Controls</button>
+      <button class="dock-action" data-act="terrain">Terrain ${S.terrainVisible?'On':'Off'}</button>
+      <button class="dock-action" data-act="columns">Columns ${S.columnsVisible?'On':'Off'}</button>
+      <button class="dock-action" data-act="links">Links ${S.linksVisible?'On':'Off'}</button>
+      <button class="dock-action" data-act="autoplay">Auto ${S.autoplay?'On':'Off'}</button>
+      <button class="dock-action" data-act="frustum">Frustum ${S.frustum.enabled?'On':'Off'}</button>
+      <button class="dock-action" data-act="api">API Settings</button>
+      <button class="dock-action" data-act="chat">Toggle Chat</button>
+      <button class="dock-action" data-act="eco">Toggle Eco Panel</button>
+      <button class="dock-action" data-act="map">Toggle Map</button>
+      <button class="dock-action" data-act="stack">Toggle Stack</button>
+    `;
+    dockPopupBodyEl.querySelectorAll('.dock-action').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const act=btn.dataset.act;
+        if(act==='record-panel') toggleDockPopup('record');
+        else if(act==='export-panel') toggleDockPopup('export');
+        else if(act==='terrain') document.getElementById('btn-terrain').click();
+        else if(act==='columns') document.getElementById('btn-columns').click();
+        else if(act==='links') document.getElementById('btn-links').click();
+        else if(act==='autoplay') document.getElementById('btn-autoplay').click();
+        else if(act==='frustum') document.getElementById('btn-frustum').click();
+        else if(act==='api') openApiModal();
+        else if(act==='chat') setPanelVisible('chat',!panelVisible('chat'));
+        else if(act==='eco') setPanelVisible('eco',!panelVisible('eco'));
+        else if(act==='map') setPanelVisible('map',!panelVisible('map'));
+        else if(act==='stack') setPanelVisible('stack',!panelVisible('stack'));
+        renderDockPopup();
+      });
+    });
+    return;
+  }
+
+  if(mode==='inspect'){
+    dockPopupTitleEl.textContent='Node Inspect';
+    dockPopupBodyEl.innerHTML=buildNodeInspectHtml(S.selectedCol!==-1 ? colReg[S.selectedCol] : null);
+    return;
+  }
+
+  if(mode==='record'){
+    dockPopupTitleEl.textContent='Recording';
+    dockPopupBodyEl.innerHTML=`
+      <div class="dock-meta">
+        <div><b>${recordingLabel()}</b></div>
+        <div>Mode: Scene Canvas</div>
+        <div>Record First Stone: <b>${REC.recordOnFirst?'On':'Off'}</b></div>
+      </div>
+      <button class="dock-action" data-act="rec-toggle">${REC.active?'Stop Recording':'Start Recording'}</button>
+      <button class="dock-action" data-act="rec-first">${REC.recordOnFirst?'Disable':'Enable'} Record First Stone</button>
+      <button class="dock-action" data-act="rec-clear">Clear Saved Recording Links</button>
+      <div class="dock-links">
+        ${REC.lastFiles.map(f=>`<a class="dock-link" href="${htmlSafe(f.url||'#')}" ${f.url?'target="_blank" rel="noopener"':''}>Open ${htmlSafe(f.name||f.kind||'file')}</a>`).join('')}
+      </div>
+    `;
+    dockPopupBodyEl.querySelectorAll('.dock-action').forEach(btn=>{
+      btn.addEventListener('click',async ()=>{
+        const act=btn.dataset.act;
+        if(act==='rec-toggle'){
+          if(REC.active) await stopSceneRecording();
+          else await startSceneRecording('manual');
+        }else if(act==='rec-first'){
+          REC.recordOnFirst=!REC.recordOnFirst;
+          chatMsg(`RECORD FIRST STONE ${REC.recordOnFirst?'ON':'OFF'}`,'sys','','',{record:false});
+        }else if(act==='rec-clear'){
+          clearRecordingLinks();
+          chatMsg('CLEARED SAVED RECORDING LINKS.','sys','','',{record:false});
+        }
+        renderDockPopup();
+        syncSideTabs();
+      });
+    });
+    return;
+  }
+
+  if(mode==='export'){
+    dockPopupTitleEl.textContent='Export';
+    dockPopupBodyEl.innerHTML=`
+      <div class="dock-meta">
+        <div><b>Events: ${TIMELINE_EVENTS.length}</b></div>
+        <div>Live cursor: ${Math.round(S.pct*100)}%</div>
+      </div>
+      <button class="dock-action" data-act="exp-transcript">Export Transcript (.md)</button>
+      <button class="dock-action" data-act="exp-json">Export Timeline (.json)</button>
+      <div class="dock-links">
+        ${REC.lastFiles.map(f=>`<a class="dock-link" href="${htmlSafe(f.url||'#')}" ${f.url?'target="_blank" rel="noopener"':''}>Open ${htmlSafe(f.name||f.kind||'file')}</a>`).join('')}
+      </div>
+    `;
+    dockPopupBodyEl.querySelectorAll('.dock-action').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const act=btn.dataset.act;
+        if(act==='exp-transcript') exportTranscript();
+        else if(act==='exp-json') exportTimelineJson();
+        renderDockPopup();
+      });
+    });
+    return;
+  }
+
+  if(mode==='therefore'){
+    dockPopupTitleEl.textContent='Therefore Stream';
+    dockPopupBodyEl.innerHTML=buildDockEventsList('therefore');
+  } else if(mode==='spawn'){
+    dockPopupTitleEl.textContent='Spawn Stream';
+    dockPopupBodyEl.innerHTML=buildDockEventsList('spawn');
+  }
+
+  dockPopupBodyEl.querySelectorAll('.dock-item[data-ev-idx]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const idx=Number(btn.dataset.evIdx);
+      if(Number.isInteger(idx)) setTimelineCursor(idx,true);
+    });
+  });
+}
+
+function toggleDockPopup(mode){
+  if(DOCK_STATE.popupMode===mode){
+    hideDockPopup();
+    return;
+  }
+  DOCK_STATE.popupMode=mode;
+  renderDockPopup();
+  syncSideTabs();
+}
+
+function syncSideTabs(){
+  if(!sideTabsEl) return;
+  DOCK_STATE.tabsHidden=false;
+  sideTabsEl.classList.remove('hidden');
+  if(sideTabsToggleEl){
+    sideTabsToggleEl.textContent='Tabs Locked';
+    sideTabsToggleEl.classList.add('active');
+  }
+  const tfCount=TIMELINE_EVENTS.filter(ev=>ev.type==='therefore').length;
+  const spCount=TIMELINE_EVENTS.filter(ev=>ev.type==='spawn').length;
+  sideTabsEl.querySelectorAll('.side-tab').forEach(tab=>{
+    const key=tab.dataset.tab;
+    if(key==='therefore') tab.textContent=`TF ${tfCount}`;
+    else if(key==='spawn') tab.textContent=`SP ${spCount}`;
+    else if(key==='inspect') tab.textContent='Node';
+    else if(key==='record') tab.textContent=REC.active?'REC ON':'REC';
+    else if(key==='export') tab.textContent='EXPORT';
+    else if(key==='menu') tab.textContent='Menu';
+    else if(key==='chat') tab.textContent='Chat';
+    else if(key==='eco') tab.textContent='Eco';
+    else if(key==='map') tab.textContent='Map';
+    else if(key==='stack') tab.textContent='Stack';
+    let active=false;
+    if(['chat','eco','map','stack'].includes(key)) active=panelVisible(key);
+    else active=DOCK_STATE.popupMode===key;
+    tab.classList.toggle('active',active);
+  });
+}
+
+function syncFrustumButton(){
+  const btn=document.getElementById('btn-frustum');
+  if(!btn) return;
+  btn.textContent=S.frustum.enabled?'FRUSTUM ON':'FRUSTUM OFF';
+  btn.classList.toggle('active',S.frustum.enabled);
+}
+
+function setActiveFrustumItem(item){
+  if(!item){
+    S.frustum.activeColId=-1;
+    S.frustum.activeLayer=-1;
+    S.frustum.activeSprite=null;
+    S.frustum.activeIsFall=false;
+    S.frustum.activeUntil=0;
+    return;
+  }
+  S.frustum.activeColId=item.colId;
+  S.frustum.activeLayer=item.layer;
+  S.frustum.activeSprite=item.sprite||null;
+  S.frustum.activeIsFall=Boolean(item.isFall);
+  S.frustum.activeUntil=item.until;
+}
+
+function armFrustumFocus(col,sprite=null,isFall=true,targetLayer=null){
+  if(!col) return;
+  const now=performance.now();
+  const resolvedLayer=Number.isInteger(targetLayer)
+    ? Math.max(0,Math.min(targetLayer,Math.max(0,col.layers-1)))
+    : Math.max(0,col.layers-1);
+  const item={
+    colId:col.id,
+    layer:resolvedLayer,
+    sprite:sprite||null,
+    isFall:Boolean(isFall),
+    until:now+(isFall?760:1400)
+  };
+
+  if(!isFall){
+    S.frustum.queue.length=0;
+    setActiveFrustumItem(item);
+    return;
+  }
+
+  S.frustum.queue.push(item);
+  if(S.frustum.queue.length>32) S.frustum.queue.splice(0,S.frustum.queue.length-32);
+  if(now>=S.frustum.activeUntil || S.frustum.activeColId===-1){
+    setActiveFrustumItem(S.frustum.queue.shift());
+  }
+}
+
+function applyTimelineDotFocus(ev,col){
+  if(!ev || !col) return;
+  if(S.frustum.dotFocusEventId===ev.id){
+    S.frustum.dotFocusStep=Math.min(6,S.frustum.dotFocusStep+1);
+  } else {
+    S.frustum.dotFocusEventId=ev.id;
+    S.frustum.dotFocusStep=1;
+  }
+  const depthPct=TIMELINE_EVENTS.length>1 ? (ev.id/(TIMELINE_EVENTS.length-1)) : 0;
+  const targetLayer=Number.isInteger(ev.layer)
+    ? Math.max(0,Math.min(ev.layer,Math.max(0,col.layers-1)))
+    : Math.max(0,col.layers-1);
+  const sprite=col.sprites[targetLayer] || null;
+  S.frustum.dotFocusBias=(depthPct*9)+(S.frustum.dotFocusStep*6);
+  armFrustumFocus(col,sprite,false,targetLayer);
+}
+
+function eventColorHex(type){
+  const raw=timelineColorForType(type);
+  try { return new THREE.Color(raw).getHex(); }
+  catch { return TAG_COLORS_HEX.DEFAULT; }
+}
+
+function flashEventLayer(col,layer,eventType){
+  if(!col) return;
+  const y=Math.max(0,layer)*1.8+.34;
+  const color=eventColorHex(eventType);
+  const geo=new THREE.RingGeometry(1.8,2.35,40);
+  const mat=new THREE.MeshBasicMaterial({
+    color,
+    transparent:true,
+    opacity:.85,
+    side:THREE.DoubleSide,
+    depthWrite:false
+  });
+  const ring=new THREE.Mesh(geo,mat);
+  ring.rotation.x=-Math.PI/2;
+  ring.position.set(col.cx,y,col.cz);
+  scene.add(ring);
+  const t0=performance.now(),dur=950;
+  (function animateLayerPulse(){
+    const p=(performance.now()-t0)/dur;
+    if(p<1){
+      const s=1+(p*1.3);
+      ring.scale.set(s,s,s);
+      mat.opacity=.85*(1-p);
+      requestAnimationFrame(animateLayerPulse);
+    }else{
+      scene.remove(ring);
+      geo.dispose();
+      mat.dispose();
+    }
+  })();
+}
+
+function getFrustumAnchor(now){
+  const f=S.frustum;
+  if(now>=f.activeUntil && f.queue.length){
+    setActiveFrustumItem(f.queue.shift());
+  }
+  if(f.activeColId!==-1 && f.activeSprite && f.activeSprite.parent && now<=f.activeUntil){
+    const born=Number(f.activeSprite.userData?.born)||now;
+    const age=now-born;
+    const p=f.activeSprite.position.clone();
+    p.y+=0.15;
+    return {pos:p,col:colReg[f.activeColId]||null,isFall:f.activeIsFall && age<1600};
+  }
+  if(f.activeColId!==-1 && now<=f.activeUntil){
+    const col=colReg[f.activeColId];
+    if(col){
+      const l=Math.max(0,Math.min(f.activeLayer,col.layers-1));
+      return {pos:new THREE.Vector3(col.cx,l*1.8+1.2,col.cz),col,isFall:false};
+    }
+  }
+  if(S.selectedCol!==-1){
+    const col=colReg[S.selectedCol];
+    return {pos:new THREE.Vector3(col.cx,Math.max(0,col.layers-1)*0.9+1.2,col.cz),col,isFall:false};
+  }
+  return {pos:new THREE.Vector3(0,0,0),col:null,isFall:false};
+}
+
+function updateFrustumFocus(now){
+  if(!S.frustum.enabled){
+    if(S.selectedCol!==-1){
+      const col=colReg[S.selectedCol];
+      orbitCtrl.target.lerp(new THREE.Vector3(col.cx,col.layers*1.8*.5,col.cz),.09);
+    } else orbitCtrl.target.lerp(new THREE.Vector3(0,0,0),.02);
+    return;
+  }
+
+  const anchor=getFrustumAnchor(now);
+  const a=anchor.pos;
+  const col=anchor.col;
+  const isFall=anchor.isFall;
+  const proj=a.clone().project(camera);
+  const offCenter=Math.hypot(proj.x,proj.y);
+  const centerBoost=Math.min(.22,offCenter*.25);
+  orbitCtrl.target.lerp(a,(isFall ? .24 : .1)+centerBoost);
+
+  if(now<S.frustum.userOverrideUntil) return;
+
+  const curOff=camera.position.clone().sub(orbitCtrl.target);
+  if(curOff.lengthSq()<0.0001) curOff.set(38,45,76);
+  const layerDepth=col?Math.max(0,col.layers-1):0;
+  const focusBias=S.frustum.dotFocusBias||0;
+  const desiredDistRaw=S.frustum.baseDistance-(layerDepth*2.7)+(isFall? -14:-3)-focusBias;
+  const desiredDist=Math.max(S.frustum.minDistance,Math.min(S.frustum.maxDistance,desiredDistRaw));
+  const desiredOff=curOff.clone().setLength(desiredDist);
+  const minY=isFall?12:7;
+  if(desiredOff.y<minY) desiredOff.y=minY;
+  const desiredPos=a.clone().add(desiredOff);
+  camera.position.lerp(desiredPos,(isFall ? .28 : .11)+centerBoost*.6);
+  S.frustum.dotFocusBias=Math.max(0,focusBias*.9-.03);
+}
+
+// ── INTERACTION ──────────────────────────────────────────────────
+const ray=new THREE.Raycaster(), mouseV=new THREE.Vector2();
+let ptrDown={x:0,y:0}, ptrDrag=false;
+
+renderer.domElement.addEventListener('pointerdown',e=>{ptrDown={x:e.clientX,y:e.clientY};ptrDrag=false;});
+renderer.domElement.addEventListener('pointermove',e=>{
+  if(Math.hypot(e.clientX-ptrDown.x,e.clientY-ptrDown.y)>6) ptrDrag=true;
+  mouseV.x=(e.clientX/innerWidth)*2-1; mouseV.y=-(e.clientY/innerHeight)*2+1;
+  ray.setFromCamera(mouseV,camera);
+  const hits=ray.intersectObjects(clickables);
+  const rd=document.getElementById('hover-rd');
+  if(hits.length){
+    const col=colReg[hits[0].object.userData.colId];
+    rd.style.opacity=1; rd.style.left=(e.clientX+12)+'px'; rd.style.top=(e.clientY-28)+'px';
+    rd.textContent=[
+      `NODE ${col.coord} [${col.tag}] ${col.alive===false ? 'COLLAPSED' : ''}`.trim(),
+      `${col.entity} · ${col.layers} layers`,
+      `STATE ${nodeStatus(col)} · DOM ${dominantScalarKey(col)}`,
+      `H ${col.physics.entropy.toFixed(2)} · K ${col.physics.kinetic_energy.toFixed(2)} · I ${col.physics.structural_integrity.toFixed(2)} · C ${col.physics.coherence.toFixed(2)}`,
+      `DYN ${summarizeScalarList(col.dynamic_scalars,2)}`,
+      `SED ${summarizeScalarList(col.sediment,2)}`
+    ].join('\n');
+  } else rd.style.opacity=0;
+});
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(ptrDrag) return;
+  mouseV.x=(e.clientX/innerWidth)*2-1; mouseV.y=-(e.clientY/innerHeight)*2+1;
+  ray.setFromCamera(mouseV,camera);
+  const hits=ray.intersectObjects(clickables);
+  if(hits.length){
+    const colId=hits[0].object.userData.colId;
+    if(e.button===2||e.ctrlKey) openCtx(colId,e.clientX,e.clientY);
+    else selectCol(colId);
+  } else { ctxClose(); selectCol(-1); }
+});
+renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+
+function selectCol(colId){
+  S.selectedCol=colId; updateMinimap();
+  buildTerrainLabels();
+  if(colId!==-1){
+    const col=colReg[colId];
+    S.frustum.dotFocusEventId=-1;
+    S.frustum.dotFocusStep=0;
+    S.frustum.dotFocusBias=0;
+    armFrustumFocus(col,null,false,col.layers-1);
+    triggerRipple(col.cx,col.cz,.6,TAG_COLORS_HEX[col.tag]);
+    filterChat(col.coord);
+  } else clearChatFilter();
+  if(DOCK_STATE.popupMode==='inspect') renderDockPopup();
+}
+
+// ── CONTEXT MENU ────────────────────────────────────────────────
+const ctxEl=document.getElementById('ctx-ring');
+function openCtx(colId,sx,sy){
+  S.ctxColId=colId; ctxEl.style.display='block';
+  ctxEl.style.left=sx+'px'; ctxEl.style.top=sy+'px';
+}
+function ctxClose(){ctxEl.style.display='none';S.ctxColId=-1;}
+window.ctxTag=function(tag){
+  if(S.ctxColId===-1)return;
+  const col=colReg[S.ctxColId]; col.tag=tag;
+  col.bg.material.color.setHex(TAG_COLORS_HEX[tag]);
+  col.sprites.forEach(s=>s.material.color.setHex(TAG_COLORS_HEX[tag]));
+  chatMsg(`NODE ${col.coord} → [${tag}]`,tag.toLowerCase(),col.coord);
+  triggerRipple(col.cx,col.cz,1.3,TAG_COLORS_HEX[tag]);
+  buildTerrainLabels();
+  stampAnchorsIntoTerrain(.1);
+  updateEcology(); updateMinimap(); ctxClose();
+};
+window.ctxBranch=function(){
+  if(S.ctxColId===-1)return;
+  const src=colReg[S.ctxColId];
+  const emp=colReg.filter(c=>c.layers===0);
+  const dst=emp[Math.floor(Math.random()*emp.length)]||colReg[Math.floor(Math.random()*colReg.length)];
+  if(!dst)return;
+  addLayer(dst,src.msgs[src.layers-1]||'branch',true);
+  buildPath(src,dst);
+  triggerRipple(dst.cx,dst.cz,.8,TAG_COLORS_HEX[dst.tag]);
+  chatMsg(`⎇ BRANCH ${src.coord}→${dst.coord}`,'spawn',dst.coord,clockStr(S.simTime),{
+    meta:{fromCoord:src.coord,toCoord:dst.coord}
+  });
+  ctxClose();
+};
+window.ctxPortal=function(){
+  if(S.ctxColId===-1)return;
+  const col=colReg[S.ctxColId];
+  const n=coordToNorm(col.cx,col.cz);
+  openPortalAt(n.x,n.y,col.coord); ctxClose();
+};
+
+// ── TIMELINE ────────────────────────────────────────────────────
+const tlTrack=document.getElementById('tl-track');
+const tlHead=document.getElementById('tl-head');
+const tlProg=document.getElementById('tl-progress');
+const tlTip=document.getElementById('tl-tip');
+const chatRow=document.getElementById('tl-chat-row');
+const epochBar=document.getElementById('epoch-bar');
+const branchTreeSvg=document.getElementById('branch-tree');
+const branchTreeEmpty=document.getElementById('branch-tree-empty');
+const tlCompress=document.getElementById('tl-compress');
+const tlStack=document.getElementById('tl-stack');
+let timelineVisibleDotCount=0;
+
+function getEventMeta(type){
+  const key=String(type||'sys').toLowerCase();
+  return EVENT_META[key] || {label:key.toUpperCase(), color:'rgba(255,255,255,.35)'};
+}
+
+function timelineColorForType(type){
+  return getEventMeta(type).color;
+}
+
+function isMajorType(type){
+  return ['stone','spawn','therefore','shift','goal','obstacle','portal','epoch'].includes(type);
+}
+
+function buildBranchLayout(){
+  const depthByIndex=[];
+  const lastIdxByCoord=new Map();
+  const coordDepth=new Map();
+  const links=[];
+
+  TIMELINE_EVENTS.forEach((ev,i)=>{
+    let depth=0;
+    const coord=ev.coord||'';
+    if(coord){
+      if(ev.type==='spawn' && ev.fromCoord){
+        const fromIdx=lastIdxByCoord.get(ev.fromCoord);
+        const fromDepth=fromIdx!=null ? (depthByIndex[fromIdx]||0) : (coordDepth.get(ev.fromCoord)||0);
+        depth=Math.min(7,fromDepth+1);
+        if(Number.isInteger(fromIdx)) links.push({from:fromIdx,to:i,kind:'branch'});
+      } else if(coordDepth.has(coord)){
+        depth=coordDepth.get(coord)||0;
+        const prev=lastIdxByCoord.get(coord);
+        if(Number.isInteger(prev)) links.push({from:prev,to:i,kind:'stack'});
+      }
+      coordDepth.set(coord,depth);
+      lastIdxByCoord.set(coord,i);
+    }
+    depthByIndex[i]=depth;
+  });
+
+  return {depthByIndex,links,maxDepth:depthByIndex.length?Math.max(...depthByIndex):0};
+}
+
+function eventPctByIndex(i){
+  if(TIMELINE_EVENTS.length<=1) return 0;
+  return i/(TIMELINE_EVENTS.length-1);
+}
+
+function renderEpochBar(){
+  epochBar.innerHTML='';
+  if(!TIMELINE_EVENTS.length){
+    const span=document.createElement('span');
+    span.className='epoch-label active';
+    span.textContent='AWAITING STONE';
+    span.style.color='var(--ink-dim)';
+    epochBar.appendChild(span);
+    return;
+  }
+
+  const firstIdxByType=new Map();
+  const countByType=new Map();
+  TIMELINE_EVENTS.forEach((ev,i)=>{
+    const t=String(ev.type||'sys').toLowerCase();
+    if(!firstIdxByType.has(t)) firstIdxByType.set(t,i);
+    countByType.set(t,(countByType.get(t)||0)+1);
+  });
+  const orderedTypes=[...firstIdxByType.entries()].sort((a,b)=>a[1]-b[1]).map(([t])=>t);
+  const activeType=timelineCursor>=0?String(TIMELINE_EVENTS[Math.min(timelineCursor,TIMELINE_EVENTS.length-1)]?.type||'sys').toLowerCase():null;
+
+  orderedTypes.forEach(type=>{
+    const meta=getEventMeta(type);
+    const span=document.createElement('span');
+    span.className='epoch-label';
+    span.textContent=`${meta.label} ${countByType.get(type)}`;
+    span.style.color=meta.color;
+    span.onclick=()=>setTimelineCursor(firstIdxByType.get(type),true);
+    if(type===activeType) span.classList.add('active');
+    epochBar.appendChild(span);
+  });
+}
+
+function stackLabelForEvent(ev){
+  const meta=getEventMeta(ev.type);
+  return `${meta.label}${ev.coord ? ` ${ev.coord}` : ''}`;
+}
+
+function renderCompressedTimeline(){
+  if(!tlCompress) return;
+  const bins=72;
+  tlCompress.innerHTML='';
+
+  const bucketed=Array.from({length:bins},()=>[]);
+  if(TIMELINE_EVENTS.length){
+    TIMELINE_EVENTS.forEach((ev,i)=>{
+      const pct=eventPctByIndex(i);
+      const b=Math.max(0,Math.min(bins-1,Math.round(pct*(bins-1))));
+      bucketed[b].push({ev,idx:i});
+    });
+  }
+
+  const activeBin=timelineCursor>=0?Math.max(0,Math.min(bins-1,Math.round(eventPctByIndex(timelineCursor)*(bins-1)))):-1;
+  for(let b=0;b<bins;b++){
+    const bin=document.createElement('div');
+    bin.className='tl-cbin';
+    const entries=bucketed[b];
+    if(!entries.length){
+      bin.classList.add('empty');
+      bin.style.height='2px';
+    }else{
+      const last=entries[entries.length-1];
+      const count=entries.length;
+      bin.style.background=timelineColorForType(last.ev.type);
+      bin.style.height=`${Math.min(9,2+count*2)}px`;
+      bin.title=`${count} events · ${stackLabelForEvent(last.ev)}`;
+      bin.onclick=()=>setTimelineCursor(entries[0].idx,true);
+    }
+    if(b===activeBin) bin.classList.add('active');
+    tlCompress.appendChild(bin);
+  }
+}
+
+function renderTimelineStack(){
+  if(!tlStack) return;
+  tlStack.innerHTML='';
+  if(!TIMELINE_EVENTS.length){
+    const empty=document.createElement('span');
+    empty.className='tl-stack-item active';
+    empty.textContent='Awaiting Stone';
+    tlStack.appendChild(empty);
+    return;
+  }
+  TIMELINE_EVENTS.forEach((ev,i)=>{
+    const item=document.createElement('button');
+    item.type='button';
+    item.className='tl-stack-item'+(i===timelineCursor?' active':'');
+    item.dataset.idx=String(i);
+    item.textContent=`${i+1} ${stackLabelForEvent(ev)}`;
+    item.title=ev.text||stackLabelForEvent(ev);
+    item.style.borderColor=timelineColorForType(ev.type);
+    item.onclick=()=>setTimelineCursor(i,true);
+    tlStack.appendChild(item);
+  });
+  const active=tlStack.querySelector(`.tl-stack-item[data-idx="${timelineCursor}"]`);
+  if(active) active.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
+}
+
+function buildTimelineRenderIndices(){
+  const total=TIMELINE_EVENTS.length;
+  if(!total) return [];
+  const trackW=Math.max(240,Math.floor(tlTrack.getBoundingClientRect().width || (innerWidth-24)));
+  const mobile=window.matchMedia('(max-width: 900px)').matches;
+  const maxDots=Math.max(mobile?30:48,Math.floor(trackW/(mobile?8:10)));
+  if(total<=maxDots){
+    return Array.from({length:total},(_,i)=>i);
+  }
+
+  const indices=[];
+  for(let b=0;b<maxDots;b++){
+    const start=Math.floor((b/maxDots)*total);
+    const end=Math.max(start+1,Math.floor(((b+1)/maxDots)*total));
+    let chosen=end-1;
+
+    if(timelineCursor>=start && timelineCursor<end){
+      chosen=timelineCursor;
+    }else{
+      for(let k=end-1;k>=start;k--){
+        if(isMajorType(TIMELINE_EVENTS[k].type)){ chosen=k; break; }
+      }
+    }
+    if(indices[indices.length-1]!==chosen) indices.push(chosen);
+  }
+
+  if(timelineCursor>=0 && !indices.includes(timelineCursor)){
+    indices.push(timelineCursor);
+    indices.sort((a,b)=>a-b);
+  }
+  return indices;
+}
+
+function renderTimelineEvents(){
+  tlTrack.querySelectorAll('.tl-dot.dynamic').forEach(n=>n.remove());
+  if(chatRow) chatRow.innerHTML='';
+  const layout=buildBranchLayout();
+  const indices=buildTimelineRenderIndices();
+  timelineVisibleDotCount=indices.length;
+  const laneByPx=new Map();
+  const laneMax=3;
+  indices.forEach(i=>{
+    const ev=TIMELINE_EVENTS[i];
+    const pct=eventPctByIndex(i);
+    const color=timelineColorForType(ev.type);
+    const pxKey=Math.round(pct*1000);
+    const baseLane=layout.depthByIndex[i]||0;
+    const lane=((laneByPx.get(pxKey)||0)+baseLane)%laneMax;
+    laneByPx.set(pxKey,(laneByPx.get(pxKey)||0)+1);
+
+    const dot=document.createElement('div');
+    dot.className='tl-dot dynamic '+(isMajorType(ev.type)?'major':'minor')+' '+(lane%2===0?'lane-a':'lane-b')+(i===timelineCursor?' active':'');
+    dot.dataset.idx=String(i);
+    dot.style.left=(pct*100)+'%';
+    dot.style.background=color;
+    dot.style.color=color;
+    dot.style.borderColor=color;
+    dot.title=ev.text.slice(0,80);
+    dot.onmouseenter=e=>{tlTip.textContent=ev.text.slice(0,100);tlTip.style.display='block';tlTip.style.left=(e.clientX+10)+'px';tlTip.style.top=(e.clientY-32)+'px';};
+    dot.onmouseleave=()=>tlTip.style.display='none';
+    dot.onclick=()=>setTimelineCursor(i,true);
+    tlTrack.appendChild(dot);
+  });
+  updateTimelineDotActive();
+  updateTimelineMeta();
+}
+
+function renderBranchTree(){
+  if(!branchTreeSvg || !branchTreeEmpty) return;
+  branchTreeSvg.innerHTML='';
+  if(!TIMELINE_EVENTS.length){
+    branchTreeEmpty.style.display='flex';
+    return;
+  }
+  branchTreeEmpty.style.display='none';
+
+  const rect=branchTreeSvg.getBoundingClientRect();
+  const w=Math.max(120,Math.floor(rect.width||branchTreeSvg.clientWidth||tlTrack.clientWidth||300));
+  const h=Math.max(36,Math.floor(rect.height||branchTreeSvg.clientHeight||54));
+  branchTreeSvg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+
+  const layout=buildBranchLayout();
+  const rowGap=Math.min(10,Math.max(6,Math.floor((h-12)/Math.max(1,layout.maxDepth+1))));
+  const top=8;
+  const points=TIMELINE_EVENTS.map((ev,i)=>({
+    i,
+    x:Math.round(eventPctByIndex(i)*(w-16))+8,
+    y:top+(layout.depthByIndex[i]||0)*rowGap,
+    color:timelineColorForType(ev.type)
+  }));
+
+  layout.links.forEach(link=>{
+    const a=points[link.from];
+    const b=points[link.to];
+    if(!a||!b) return;
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    const midX=(a.x+b.x)/2;
+    const curve=link.kind==='branch' ? 8 : 3;
+    path.setAttribute('d',`M ${a.x} ${a.y} C ${midX} ${a.y-curve}, ${midX} ${b.y+curve}, ${b.x} ${b.y}`);
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke',link.kind==='branch'?'rgba(245,158,11,.55)':'rgba(0,229,255,.35)');
+    path.setAttribute('stroke-width',link.kind==='branch'?'1.4':'1');
+    path.setAttribute('stroke-dasharray',link.kind==='branch'?'':'2 2');
+    branchTreeSvg.appendChild(path);
+  });
+
+  points.forEach(p=>{
+    const ev=TIMELINE_EVENTS[p.i];
+    const node=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    const major=isMajorType(ev.type);
+    const active=p.i===timelineCursor;
+    node.setAttribute('cx',String(p.x));
+    node.setAttribute('cy',String(p.y));
+    node.setAttribute('r',String(active?4.6:(major?3.8:2.8)));
+    node.setAttribute('fill',p.color);
+    node.setAttribute('stroke',active?'#00e5ff':'#020408');
+    node.setAttribute('stroke-width',active?'1.5':'1');
+    node.style.cursor='pointer';
+    node.addEventListener('mouseenter',e=>{
+      tlTip.textContent=ev.text.slice(0,100);
+      tlTip.style.display='block';
+      tlTip.style.left=(e.clientX+10)+'px';
+      tlTip.style.top=(e.clientY-32)+'px';
+    });
+    node.addEventListener('mouseleave',()=>{tlTip.style.display='none';});
+    node.addEventListener('click',()=>setTimelineCursor(p.i,true));
+    branchTreeSvg.appendChild(node);
+  });
+}
+
+function updateTimelineDotActive(){
+  const dots=tlTrack.querySelectorAll('.tl-dot.dynamic');
+  dots.forEach(dot=>dot.classList.toggle('active',Number(dot.dataset.idx)===timelineCursor));
+}
+
+function updateTimelineMeta(){
+  const total=TIMELINE_EVENTS.length;
+  const last=total?TIMELINE_EVENTS[total-1]:null;
+  const tf=TIMELINE_EVENTS.filter(e=>e.type==='therefore').length;
+  const sp=TIMELINE_EVENTS.filter(e=>e.type==='spawn').length;
+  const sh=TIMELINE_EVENTS.filter(e=>e.type==='shift').length;
+  const pos=Math.round(S.pct*100);
+  document.getElementById('tl-l-events').textContent=`EVENTS ${total} · VIEW ${timelineVisibleDotCount}`;
+  document.getElementById('tl-l-last').textContent=`LAST ${last?String(last.type).toUpperCase():'NONE'}`;
+  document.getElementById('tl-l-pos').textContent=`CURSOR ${pos}%`;
+  document.getElementById('tl-l-tf').textContent=`THEREFORE ${tf}`;
+  document.getElementById('tl-l-spawn').textContent=`SPAWN ${sp}`;
+  document.getElementById('tl-l-shift').textContent=`SHIFT ${sh}`;
+  renderCompressedTimeline();
+  renderEpochBar();
+  renderBranchTree();
+  syncSideTabs();
+  if(DOCK_STATE.popupMode) renderDockPopup();
+}
+
+// drag scrubber
+tlTrack.addEventListener('mousedown',e=>{S.draggingTL=true;handleTL(e);});
+window.addEventListener('mousemove',e=>{if(S.draggingTL)handleTL(e);});
+window.addEventListener('mouseup',()=>{S.draggingTL=false;});
+tlTrack.addEventListener('touchstart',e=>{S.draggingTL=true;handleTL(e.touches[0]);},{passive:true});
+window.addEventListener('touchmove',e=>{if(S.draggingTL)handleTL(e.touches[0]);},{passive:true});
+window.addEventListener('touchend',()=>S.draggingTL=false);
+tlCompress.addEventListener('wheel',e=>{
+  if(!TIMELINE_EVENTS.length) return;
+  e.preventDefault();
+  const step=Math.max(1,Math.floor(TIMELINE_EVENTS.length*0.03));
+  const cur=timelineCursor>=0?timelineCursor:TIMELINE_EVENTS.length-1;
+  const next=cur + (e.deltaY>0 ? step : -step);
+  setTimelineCursor(next,true);
+},{passive:false});
+
+function handleTL(e){
+  const r=tlTrack.getBoundingClientRect();
+  seekTo((e.clientX-r.left)/r.width);
+}
+
+function seekTo(pct){
+  S.pct=Math.max(0,Math.min(1,pct));
+  if(!TIMELINE_EVENTS.length){
+    tlProg.style.width=(S.pct*100)+'%';
+    tlHead.style.left=(S.pct*100)+'%';
+    updateEpochLabel();
+    updateTimelineMeta();
+    return;
+  }
+  const idx=Math.round(S.pct*(TIMELINE_EVENTS.length-1));
+  setTimelineCursor(idx,true);
+}
+
+function updateEpochLabel(){
+  let cur={label:'AWAITING STONE',color:'var(--ink-dim)'};
+  if(TIMELINE_EVENTS.length){
+    const idx=timelineCursor>=0?Math.min(timelineCursor,TIMELINE_EVENTS.length-1):TIMELINE_EVENTS.length-1;
+    const ev=TIMELINE_EVENTS[idx];
+    cur=getEventMeta(ev?.type);
+  }
+  document.getElementById('chat-epoch-name').textContent=cur.label;
+  document.getElementById('chat-epoch-pct').textContent=Math.round(S.pct*100)+'%';
+  document.getElementById('chat-epoch-name').style.color=cur.color;
+  renderEpochBar();
+}
+
+function focusChatEvent(eventId){
+  chatLog.querySelectorAll('.msg.ev-focus').forEach(el=>el.classList.remove('ev-focus'));
+  const row=chatLog.querySelector(`.msg[data-event-id="${eventId}"]`);
+  if(row){
+    row.classList.add('ev-focus');
+    row.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }
+}
+
+function setTimelineCursor(idx,focus=true){
+  if(!TIMELINE_EVENTS.length){timelineCursor=-1;return;}
+  timelineCursor=Math.max(0,Math.min(idx,TIMELINE_EVENTS.length-1));
+  S.pct=eventPctByIndex(timelineCursor);
+  tlProg.style.width=(S.pct*100)+'%';
+  tlHead.style.left=(S.pct*100)+'%';
+  updateTimelineDotActive();
+  const ev=TIMELINE_EVENTS[timelineCursor];
+  if(focus){
+    if(Number.isInteger(ev.tick)) rollbackToTick(ev.tick);
+    focusChatEvent(ev.id);
+    const col=getColForEvent(ev);
+    if(col){
+      S.selectedCol=col.id;
+      applyTimelineDotFocus(ev,col);
+      flashEventLayer(col,Number.isInteger(ev.layer)?ev.layer:Math.max(0,col.layers-1),ev.type);
+      updateMinimap();
+      buildTerrainLabels();
+      filterChat(col.coord);
+    } else clearChatFilter();
+  }
+  renderMinimapEventDots();
+  updateEpochLabel();
+  updateTimelineMeta();
+}
+
+function recordTimelineEvent(evt){
+  const id=TIMELINE_EVENTS.length;
+  const meta=(evt.meta && typeof evt.meta==='object') ? evt.meta : {};
+  const rawCoord=evt.coord||meta.toCoord||'';
+  const fromCoord=String(meta.fromCoord||meta.parentCoord||'').trim();
+  const col=rawCoord ? (colReg.find(c=>c.coord===rawCoord)||null) : null;
+  const fromCol=fromCoord ? (colReg.find(c=>c.coord===fromCoord)||null) : null;
+  const rec={
+    id,
+    type:evt.type||'sys',
+    text:evt.text||'',
+    coord:col?col.coord:rawCoord,
+    colId:col?col.id:-1,
+    fromCoord:fromCol?fromCol.coord:fromCoord,
+    fromColId:fromCol?fromCol.id:-1,
+    layer:col?Math.max(0,col.layers-1):-1,
+    tick:Number.isInteger(meta.tick)?meta.tick:historyCount,
+    ts:evt.ts||'',
+    sim:S.simTime
+  };
+  TIMELINE_EVENTS.push(rec);
+  renderTimelineEvents();
+  setTimelineCursor(TIMELINE_EVENTS.length-1,false);
+  return rec;
+}
+
+// ── CHAT ────────────────────────────────────────────────────────
+const chatLog=document.getElementById('chat-log');
+
+function chatMsg(text,type='sys',coord='',ts='',opts={}){
+  const shouldRecord=opts.record!==false;
+  const tsText=ts||clockStr(S.simTime);
+  const rec=shouldRecord?recordTimelineEvent({type,text,coord,ts:tsText,meta:opts.meta||null}):null;
+  const nowMs=performance.now();
+  if(type==='stone') S.lastStoneAtMs=nowMs;
+  if(type==='therefore' || type==='spawn') S.lastNarrativeAtMs=nowMs;
+  const div=document.createElement('div');
+  div.className='msg t-'+type;
+  if(coord){const sp=document.createElement('span');sp.className='coord';sp.textContent=coord;div.appendChild(sp);}
+  if(tsText){const s=document.createElement('span');s.className='ts';s.textContent=tsText;div.appendChild(s);}
+  if(rec) div.dataset.eventId=String(rec.id);
+  div.appendChild(document.createTextNode(text));
+  chatLog.appendChild(div);
+  if(shouldRecord) setTimelineCursor(rec.id,false);
+  chatLog.scrollTo({top:chatLog.scrollHeight,behavior:'smooth'});
+  return div;
+}
+
+function filterChat(coord){
+  chatLog.querySelectorAll('.msg').forEach(m=>{
+    const c=m.querySelector('.coord');
+    if(!c){m.style.opacity='1';return;}
+    m.style.opacity=c.textContent===coord?'1':'0.15';
+    m.style.transition='opacity .3s';
+  });
+}
+function clearChatFilter(){chatLog.querySelectorAll('.msg').forEach(m=>m.style.opacity='1');}
+
+// ── INPUT ────────────────────────────────────────────────────────
+document.getElementById('mode-cycle').addEventListener('click',cycleMode);
+document.getElementById('stone-submit').addEventListener('click',()=>processStone(document.getElementById('stone-input').value));
+document.getElementById('stone-input').addEventListener('keydown',e=>{if(e.key==='Enter')processStone(e.target.value);});
+
+function cycleMode(){
+  const i=MODES.indexOf(S.inputMode);
+  S.inputMode=MODES[(i+1)%MODES.length];
+  const mc=document.getElementById('mode-cycle');
+  mc.textContent=MODE_SYM[S.inputMode]+' '+S.inputMode;
+  mc.className='mc-'+S.inputMode.toLowerCase();
+}
+
+let typingEl=null;
+
+function cleanLine(s=''){
+  return String(s).replace(/\s+/g,' ').trim();
+}
+
+function normalizeStoneInput(cmd,opts={}){
+  const raw=cleanLine(cmd);
+  let role=opts.auto ? 'auto' : 'manual';
+  let surface=raw;
+  let semantic=raw;
+  if(/^therefore:\s*/i.test(raw)){
+    role='therefore';
+    semantic=raw.replace(/^therefore:\s*/i,'').trim();
+  }else if(/^continue from:\s*/i.test(raw)){
+    role='continue';
+    semantic=raw.replace(/^continue from:\s*/i,'').trim();
+  }else if(/^branch from:\s*/i.test(raw)){
+    role='branch';
+    semantic=raw.replace(/^branch from:\s*/i,'').trim();
+  }
+  semantic=semantic
+    .replace(/\bNODE\s*\[[^\]]+\]\s*→\s*\[[A-Z]+\]/gi,'')
+    .replace(/\b(therefore|continue|branch)\b[: ]*/gi,'')
+    .replace(/\s+/g,' ')
+    .trim();
+  if(!semantic || /^the field waits\. drop the first premise\.?$/i.test(semantic)){
+    semantic=opts.fallbackSemantic || 'pressure moves through the field';
+  }
+  if(opts.auto) surface=semantic;
+  return {raw,surface,semantic,role};
+}
+
+function parseJsonObject(text=''){
+  const raw=String(text||'').trim();
+  if(!raw) return null;
+  try{return JSON.parse(raw);}catch{}
+  const m=raw.match(/\{[\s\S]*\}/);
+  if(!m) return null;
+  try{return JSON.parse(m[0]);}catch{return null;}
+}
+
+function pickSpawnTarget(coordRaw,targetId){
+  const coord=String(coordRaw||'').replace(/\s+/g,'');
+  if(/^\[\d+,\d+\]$/.test(coord)){
+    const hit=colReg.find(c=>c.coord===coord&&c.id!==targetId);
+    if(hit) return hit;
+  }
+  const empties=colReg.filter(c=>c.layers===0&&c.id!==targetId);
+  if(empties.length) return empties[Math.floor(Math.random()*empties.length)];
+  const pool=colReg.filter(c=>c.id!==targetId);
+  return pool[Math.floor(Math.random()*pool.length)]||null;
+}
+
+async function callOpenAIStone(cmd,target,mode){
+  if(!OPENAI.key) return null;
+  const recent=target.msgs.slice(-4).map(cleanLine).filter(Boolean);
+  const liveCoords=colReg.filter(c=>c.layers>0).map(c=>c.coord).slice(0,28);
+  const emptyCoords=colReg.filter(c=>c.layers===0).map(c=>c.coord).slice(0,28);
+  const system=`You are the RIPPLE THEREFORE ENGINE.
+Return JSON only. No markdown.
+Schema:
+{
+  "fragments": ["2-4 short concrete lines"],
+  "therefore": "One line starting with Therefore,",
+  "spawn": {"coord":"[x,y]","text":"short line"} or null,
+  "tag":"DEFAULT|OBSTACLE|GOAL|SHIFT"
+}
+Rules:
+- Keep each line <= 80 chars.
+- Be consequential and scene-specific.
+- Respect mode bias: OBSTACLE/GOAL/SHIFT alters valence.
+- If mode is DEFAULT, you may keep tag DEFAULT unless strong reason.`;
+  const user=`STONE: ${cmd}
+MODE: ${mode}
+TARGET_COORD: ${target.coord}
+TIMELINE_PCT: ${(S.pct*100).toFixed(1)}%
+RECENT_TARGET_LINES: ${recent.length?recent.join(' | '):'none'}
+LIVE_COORDS: ${liveCoords.length?liveCoords.join(', '):'none'}
+EMPTY_COORDS: ${emptyCoords.length?emptyCoords.join(', '):'none'}`;
+
+  const res=await fetch(`${OPENAI.baseUrl}/chat/completions`,{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':`Bearer ${OPENAI.key}`
+    },
+    body:JSON.stringify({
+      model:OPENAI.model,
+      temperature:0.72,
+      max_tokens:420,
+      response_format:{type:'json_object'},
+      messages:[
+        {role:'system',content:system},
+        {role:'user',content:user}
+      ]
+    })
+  });
+  if(!res.ok){
+    const errTxt=await res.text().catch(()=>'');
+    throw new Error(`API ${res.status} ${errTxt.slice(0,120)}`);
+  }
+  const data=await res.json();
+  const content=data?.choices?.[0]?.message?.content||'';
+  const parsed=parseJsonObject(content);
+  if(!parsed) throw new Error('Invalid JSON payload.');
+
+  const out={fragments:[],therefore:'',spawn:null,tag:'DEFAULT'};
+  const fr=Array.isArray(parsed.fragments)?parsed.fragments:[];
+  out.fragments=fr.map(cleanLine).filter(Boolean).slice(0,4);
+  out.therefore=cleanLine(parsed.therefore||'');
+  if(!out.therefore.toLowerCase().startsWith('therefore')) out.therefore=`Therefore, ${out.therefore||'consequence is now routed to this node.'}`;
+
+  if(parsed.spawn&&typeof parsed.spawn==='object'){
+    const st=cleanLine(parsed.spawn.text||'');
+    const sc=cleanLine(parsed.spawn.coord||'');
+    if(st) out.spawn={coord:sc,text:st};
+  }
+
+  const tg=String(parsed.tag||'DEFAULT').toUpperCase();
+  out.tag=MODES.includes(tg)?tg:'DEFAULT';
+  return out;
+}
+
+async function processStone(cmd,opts={}){
+  if(!cmd.trim()||S.isTyping) return;
+
+  if(REC.recordOnFirst && !REC.active && !opts.auto){
+    REC.recordOnFirst=false;
+    await startSceneRecording('first-stone');
+  }
+
+  S.isTyping=true;
+  document.getElementById('stone-input').value='';
+
+  // pick target col
+  let target=opts.targetCol && opts.targetCol.alive!==false ? opts.targetCol : null;
+  if(!target && S.selectedCol!==-1 && colReg[S.selectedCol]?.alive!==false) target=colReg[S.selectedCol];
+  else if(!target){
+    const emp=colReg.filter(c=>c.layers===0 && c.alive!==false);
+    target=emp[Math.floor(Math.random()*emp.length)]||colReg.find(c=>c.alive!==false)||colReg[0];
+  }
+  const normalized=normalizeStoneInput(cmd,{
+    auto:opts.auto,
+    fallbackSemantic:target ? `pressure moves through the ${target.entity.toLowerCase()}` : 'pressure moves through the field'
+  });
+
+  if(S.inputMode!=='DEFAULT'){
+    target.tag=S.inputMode;
+    target.bg.material.color.setHex(TAG_COLORS_HEX[S.inputMode]);
+    target.sprites.forEach(s=>s.material.color.setHex(TAG_COLORS_HEX[S.inputMode]));
+    chatMsg(`TAG ${target.coord} -> ${S.inputMode}`,S.inputMode.toLowerCase(),target.coord,clockStr(S.simTime));
+  }
+
+  addLayer(target,normalized.surface.slice(0,70),true);
+  triggerRipple(target.cx,target.cz,1.2,TAG_COLORS_HEX[target.tag]);
+  chatMsg(normalized.surface,'stone',target.coord,clockStr(S.simTime),{
+    meta:{tick:historyCount,role:normalized.role}
+  });
+
+  typingEl=chatMsg('ENCODING STONE INTO MESH PHYSICS','sys','','',{record:false});
+  typingEl.classList.add('typing');
+
+  let payload=null;
+  try{
+    payload=await encodeStoneToPhysics(normalized.semantic,target,S.inputMode);
+    if(OPENAI.key) setApiStatus('API connected · encoder/decoder live');
+  }catch(err){
+    if(OPENAI.key){
+      chatMsg(`API FALLBACK → ${err.message}`,'sys');
+      setApiStatus(`API error · fallback active`,true);
+    }
+    payload=localEncodeStoneToPhysics(normalized.semantic,target,S.inputMode);
+  }
+  payload=payload||localEncodeStoneToPhysics(normalized.semantic,target,S.inputMode);
+
+  applyPhysicsPayload(target,payload);
+  await new Promise(r=>setTimeout(r,180));
+  typingEl&&typingEl.remove(); typingEl=null;
+  chatMsg(
+    `[ENCODE ${target.coord}] ${summarizeScalarList(payload.dynamic_scalars,3)} / entropy ${target.physics.entropy.toFixed(2)} / integrity ${target.physics.structural_integrity.toFixed(2)}`,
+    'sys',
+    target.coord,
+    clockStr(S.simTime),
+    {meta:{tick:historyCount,trigger:'encode'}}
+  );
+
+  for(let i=0;i<3;i++) tickPhysicsMesh('stone');
+  checkNodeThresholds(target);
+  forceVisualSync();
+
+  S.eco.nodes=colReg.filter(c=>c.layers>0).length;
+  updateEcology(); updateMinimap();
+  if(opts.auto) S.autoStoneNextAt=performance.now()+9500+Math.random()*4500;
+  S.isTyping=false;
+}
+
+function demoFragments(cmd,mode,target){
+  const seed=cleanLine(cmd).replace(/[.?!]+$/,'').slice(0,62)||'the premise';
+  const where=target?.coord||'[?,?]';
+  const core=[
+    `${seed} settles at ${where}.`,
+    `The field records pressure at ${where}.`,
+    `Relation expands from ${where} to nearby nodes.`
+  ];
+  if(mode==='OBSTACLE'){
+    core.push(`Constraint hardens around ${where}.`);
+    core.push(`Friction redirects the chain from ${where}.`);
+  }else if(mode==='GOAL'){
+    core.push(`Attraction increases toward ${where}.`);
+    core.push(`Nearby nodes align around this objective.`);
+  }else if(mode==='SHIFT'){
+    core.push(`Valence pivots at ${where}.`);
+    core.push(`Downstream routing rewrites from this pivot.`);
+  }else{
+    core.push(`Consequence remains addressable after output.`);
+    core.push(`Memory persists as topography, not transcript.`);
+  }
+  return core.slice(0,4);
+}
+
+// ── ECOLOGY ─────────────────────────────────────────────────────
+const pgCanvas=document.getElementById('pressure-graph');
+const pgCtx=pgCanvas.getContext('2d');
+pgCanvas.width=148; pgCanvas.height=28;
+
+function updateEcology(){
+  const live=colReg.filter(c=>c.layers>0 || scalarAbsSum(c.dynamic_scalars)>0.08 || c.alive===false).length;
+  const obCount=colReg.filter(c=>c.tag==='OBSTACLE').length;
+  const goCount=colReg.filter(c=>c.tag==='GOAL').length;
+  const shCount=colReg.filter(c=>c.tag==='SHIFT').length;
+  const collapsedCount=colReg.filter(c=>c.alive===false).length;
+  const sedimentLoad=colReg.reduce((sum,col)=>sum+scalarAbsSum(col.sediment),0);
+  S.eco.nodes=live;
+  S.eco.ob=obCount;
+  S.eco.go=goCount;
+  S.eco.sh=shCount;
+  S.eco.pd=collapsedCount;
+  document.getElementById('e-nodes').textContent=live;
+  document.getElementById('e-tf').textContent=S.eco.tf;
+  document.getElementById('e-ob').textContent=obCount;
+  document.getElementById('e-go').textContent=goCount;
+  document.getElementById('e-sh').textContent=shCount;
+  document.getElementById('e-pd').textContent=S.eco.pd;
+  const p=Math.min(1,(live*.03+S.eco.tf*.05+S.eco.ob*.08+S.eco.go*.04+S.eco.sh*.05+collapsedCount*.04+sedimentLoad*.002));
+  document.getElementById('e-pr').textContent=p.toFixed(2);
+  const bar=document.getElementById('e-bar');
+  bar.style.width=(p*100)+'%';
+  bar.style.background=p>.7?'var(--alert)':p>.4?'var(--amber)':'var(--cyan)';
+  document.getElementById('e-time').textContent=clockStr(S.simTime);
+  // sparkline
+  S.eco.pressureHistory.push(p);
+  if(S.eco.pressureHistory.length>148) S.eco.pressureHistory.shift();
+  pgCtx.clearRect(0,0,148,28);
+  pgCtx.strokeStyle=p>.7?'#ff4d4d':p>.4?'#f59e0b':'#00e5ff';
+  pgCtx.lineWidth=1.2; pgCtx.beginPath();
+  S.eco.pressureHistory.forEach((v,i)=>{
+    const x=i*(148/148), y=28-(v*26);
+    i===0?pgCtx.moveTo(x,y):pgCtx.lineTo(x,y);
+  });
+  pgCtx.stroke();
+}
+
+// ── API UI + STATE ──────────────────────────────────────────────
+function setApiStatus(msg,isErr=false){
+  const el=document.getElementById('api-status');
+  el.textContent=msg;
+  el.style.color=isErr?'var(--alert)':'var(--ink-dim)';
+}
+
+function syncApiButton(){
+  const btn=document.getElementById('btn-api');
+  const on=!!OPENAI.key;
+  btn.textContent=on?'API ON':'API OFF';
+  btn.classList.toggle('active',on);
+  btn.classList.toggle('warn',!on);
+}
+
+function openApiModal(){
+  document.getElementById('api-modal').classList.add('show');
+  document.getElementById('api-key-input').value=OPENAI.key||'';
+  setApiStatus(OPENAI.key?'API connected in this browser.':'API disconnected.');
+  document.getElementById('api-key-input').focus();
+}
+
+function closeApiModal(){
+  document.getElementById('api-modal').classList.remove('show');
+}
+
+function loadApiKey(){
+  const stored=localStorage.getItem(OPENAI.keyStorage)||'';
+  OPENAI.key=stored.trim();
+  syncApiButton();
+}
+
+function applyThemeVisuals(){
+  const isLight=document.body.classList.contains('light-mode');
+  scene.fog.color.setHex(isLight ? 0xe9e2d4 : 0x010204);
+  if(isLight){
+    scene.fog.density=.006;
+  }else{
+    scene.fog.density=.008;
+  }
+  drawTerrain();
+}
+
+function syncThemeButton(){
+  const isLight=document.body.classList.contains('light-mode');
+  btnThemeEl.textContent=isLight?'DARK':'LIGHT';
+  btnThemeEl.classList.toggle('active',isLight);
+}
+
+function setLightTheme(enabled){
+  document.body.classList.toggle('light-mode',!!enabled);
+  localStorage.setItem(UI_PREF.lightTheme,enabled?'1':'0');
+  syncThemeButton();
+  applyThemeVisuals();
+}
+
+function loadThemePref(){
+  const isLight=localStorage.getItem(UI_PREF.lightTheme)==='1';
+  document.body.classList.toggle('light-mode',isLight);
+  syncThemeButton();
+}
+
+// ── HEADER BUTTONS ───────────────────────────────────────────────
+document.getElementById('btn-terrain').addEventListener('click',function(){
+  S.terrainVisible=!S.terrainVisible;
+  this.classList.toggle('active',S.terrainVisible);
+  document.getElementById('terrain-labels').style.opacity=S.terrainVisible?'1':'0';
+  drawTerrain();
+  renderDockPopup();
+});
+document.getElementById('btn-columns').addEventListener('click',function(){
+  S.columnsVisible=!S.columnsVisible;
+  this.classList.toggle('active',S.columnsVisible);
+  document.getElementById('three-wrap').style.opacity=S.columnsVisible?'1':'0';
+  renderDockPopup();
+});
+document.getElementById('btn-links').addEventListener('click',function(){
+  S.linksVisible=!S.linksVisible;
+  this.classList.toggle('active',S.linksVisible);
+  document.getElementById('svg-connections').style.opacity=S.linksVisible?'1':'0';
+  renderDockPopup();
+});
+document.getElementById('btn-autoplay').addEventListener('click',function(){
+  S.autoplay=!S.autoplay;
+  this.textContent=S.autoplay?'⏸ PAUSE':'▶ PLAY';
+  this.classList.toggle('active',S.autoplay);
+  if(S.autoplay){
+    const nowMs=performance.now();
+    S.autoNextAt=nowMs+700;
+    S.autoStoneNextAt=nowMs+1800;
+  }
+  chatMsg(`AUTO FIELD ${S.autoplay?'ON':'OFF'}`,'sys','','',{record:false});
+  renderDockPopup();
+});
+document.getElementById('btn-frustum').addEventListener('click',function(){
+  S.frustum.enabled=!S.frustum.enabled;
+  if(!S.frustum.enabled){
+    S.frustum.queue.length=0;
+    S.frustum.dotFocusBias=0;
+    S.frustum.dotFocusStep=0;
+    S.frustum.dotFocusEventId=-1;
+    setActiveFrustumItem(null);
+  }
+  syncFrustumButton();
+  chatMsg(`FRUSTUM FOCUS ${S.frustum.enabled?'ON':'OFF'}`,'sys');
+  if(S.frustum.enabled && S.selectedCol!==-1){
+    const col=colReg[S.selectedCol];
+    if(col) armFrustumFocus(col,null,false);
+  }
+  renderDockPopup();
+});
+btnThemeEl.addEventListener('click',function(){
+  const isLight=document.body.classList.contains('light-mode');
+  setLightTheme(!isLight);
+  renderDockPopup();
+});
+document.getElementById('chat-toggle-btn').addEventListener('click',function(){
+  S.chatCollapsed=!S.chatCollapsed;
+  document.getElementById('chat-wrap').classList.toggle('collapsed',S.chatCollapsed);
+  this.textContent=S.chatCollapsed?'▶':'◀';
+  syncSideTabs();
+  renderDockPopup();
+});
+
+sideTabsToggleEl.addEventListener('click',()=>{
+  setTabsHidden(!DOCK_STATE.tabsHidden);
+  syncSideTabs();
+});
+
+if(sideTabsEl){
+  sideTabsEl.querySelectorAll('.side-tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const mode=btn.dataset.tab;
+      if(['chat','eco','map','stack'].includes(mode)){
+        setPanelVisible(mode,!panelVisible(mode));
+        return;
+      }
+      if(['menu','inspect','record','export','therefore','spawn'].includes(mode)){
+        toggleDockPopup(mode);
+      }
+    });
+  });
+}
+
+function bindQuickMenuGesture(el){
+  if(!el) return;
+  const isTouchFirstLayout=()=>window.matchMedia('(max-width: 900px), (any-pointer: coarse)').matches;
+
+  el.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    // Keep critical quick menu desktop-only; disable mobile long-press/double-tap entry.
+    const touchOrigin=Boolean(e?.sourceCapabilities && e.sourceCapabilities.firesTouchEvents);
+    if(isTouchFirstLayout() || touchOrigin) return;
+    toggleDockPopup('menu');
+  });
+}
+
+[...document.querySelectorAll('#hdr-right .hdr-btn, #side-tabs .side-tab, #side-tabs-toggle, #chat-toggle-btn')]
+  .forEach(bindQuickMenuGesture);
+
+dockPopupCloseEl.addEventListener('click',hideDockPopup);
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape' && DOCK_STATE.popupMode) hideDockPopup();
+});
+document.addEventListener('pointerdown',e=>{
+  if(!DOCK_STATE.popupMode) return;
+  if(dockPopupEl.contains(e.target) || sideTabsEl.contains(e.target) || sideTabsToggleEl.contains(e.target)) return;
+  hideDockPopup();
+});
+
+document.getElementById('btn-api').addEventListener('click',openApiModal);
+document.getElementById('api-close').addEventListener('click',closeApiModal);
+document.getElementById('api-modal').addEventListener('click',e=>{
+  if(e.target.id==='api-modal') closeApiModal();
+});
+document.getElementById('api-save').addEventListener('click',()=>{
+  const key=document.getElementById('api-key-input').value.trim();
+  if(!key.startsWith('sk-')){
+    setApiStatus('Invalid key format. Expected sk-...',true);
+    return;
+  }
+  OPENAI.key=key;
+  localStorage.setItem(OPENAI.keyStorage,key);
+  syncApiButton();
+  setApiStatus('Key saved locally. Live generation enabled.');
+  chatMsg('API CONNECTED: live model generation on.','sys');
+  closeApiModal();
+});
+document.getElementById('api-clear').addEventListener('click',()=>{
+  OPENAI.key='';
+  localStorage.removeItem(OPENAI.keyStorage);
+  syncApiButton();
+  setApiStatus('Key cleared.');
+  chatMsg('API CLEARED: fallback demo generation active.','sys');
+});
+document.getElementById('api-key-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter') document.getElementById('api-save').click();
+  if(e.key==='Escape') closeApiModal();
+});
+
+// ── UTILS ────────────────────────────────────────────────────────
+function clockStr(s){const m=Math.floor(s/60),ss=Math.floor(s%60);return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function pickAutoSource(){
+  const active=colReg.filter(c=>
+    c.alive!==false &&
+    (c.layers>0 || scalarAbsSum(c.dynamic_scalars)>0.05 || scalarAbsSum(c.sediment)>0.08)
+  );
+  if(!active.length) return null;
+  if(S.selectedCol!==-1 && colReg[S.selectedCol]?.alive!==false) return colReg[S.selectedCol];
+  return pick(active.sort((a,b)=>
+    (scalarAbsSum(b.dynamic_scalars)+scalarAbsSum(b.sediment)+b.physics.kinetic_energy)-
+    (scalarAbsSum(a.dynamic_scalars)+scalarAbsSum(a.sediment)+a.physics.kinetic_energy)
+  ).slice(0,6));
+}
+
+function buildAutoStone(srcOverride=null){
+  const src=srcOverride || pickAutoSource();
+  if(!src) return '';
+  const cue=scalarCue(dominantScalarKey(src));
+  const entity=src.entity.toLowerCase();
+  const variants=[
+    cue.sentence.replace(/the site/gi,`the ${entity}`),
+    `Pressure moves outward from the ${entity}.`,
+    src.phase==='collapsed'
+      ? `Fragments keep falling from the ${entity}.`
+      : `The ${entity} keeps answering the last disturbance.`,
+    `The ${entity} shifts under local pressure.`,
+    `The ${entity} remains charged with residue.`
+  ].map(cleanLine).filter(Boolean);
+  return pick(variants) || `Pressure moves outward from the ${entity}.`;
+}
+
+function buildAutoPulsePayload(col){
+  const dominant=dominantScalarKey(col);
+  const key=dominant!=='none' ? dominant : inferScalarKey(col.entity,'semantic_pressure');
+  const base=0.08 + Math.min(0.12, scalarAbsSum(col.sediment)*0.03);
+  const payload={
+    base_mechanics_deltas:{
+      entropy:0.01,
+      kinetic_energy:0.02,
+      structural_integrity:0,
+      coherence:col.tag==='GOAL' ? 0.015 : 0.005
+    },
+    dynamic_scalars:{},
+    tag:col.tag||'DEFAULT'
+  };
+  payload.dynamic_scalars[key]=Number(base.toFixed(4));
+  if(/tox|poison|decay|rust/.test(key)) payload.base_mechanics_deltas.entropy+=0.02;
+  if(/heal|water|repair/.test(key)) payload.base_mechanics_deltas.structural_integrity+=0.01;
+  return payload;
+}
+
+function runAutoplayPulse(){
+  const src=pickAutoSource();
+  if(!src) return;
+  applyPhysicsPayload(src,buildAutoPulsePayload(src));
+  triggerRipple(src.cx,src.cz,0.55,TAG_COLORS_HEX[src.tag]||TAG_COLORS_HEX.DEFAULT);
+  tickPhysicsMesh('auto');
+  forceVisualSync();
+}
+
+async function runAutoplayStone(){
+  const src=pickAutoSource();
+  if(!src || S.isTyping) return;
+  const autoText=buildAutoStone(src);
+  if(!autoText) return;
+  await processStone(autoText,{auto:true,targetCol:src});
+}
+
+// ── ANIMATION LOOP ───────────────────────────────────────────────
+const clock3=new THREE.Clock();
+function loop(){
+  requestAnimationFrame(loop);
+  const delta=clock3.getDelta();
+  S.simTime+=delta;
+  const nowMs=performance.now();
+
+  if(nowMs-physicsLastTickMs>100){
+    tickPhysicsMesh('loop');
+    physicsLastTickMs=nowMs;
+    if(DOCK_STATE.popupMode==='inspect') renderDockPopup();
+  }
+
+  // autoplay
+  if(S.autoplay && !S.isTyping && nowMs>=S.autoNextAt){
+    S.autoNextAt=nowMs+2400+Math.random()*1800;
+    runAutoplayPulse();
+  }
+  if(S.autoplay && !S.isTyping && nowMs>=S.autoStoneNextAt){
+    const silenceFor=nowMs-(S.lastNarrativeAtMs||0);
+    const hasTherefore=TIMELINE_EVENTS.some(ev=>ev.type==='therefore');
+    if(!hasTherefore || silenceFor>7000){
+      S.autoStoneNextAt=nowMs+9500+Math.random()*4500;
+      void runAutoplayStone();
+    }else{
+      S.autoStoneNextAt=nowMs+2500;
+    }
+  }
+
+  processDecodeQueue();
+
+  // portal animation
+  if(portalState.open){
+    portalState.r+=(portalState.tR-portalState.r)*.06;
+    portalState.noiseOff+=.012;
+    drawTerrain();
+  } else if(portalState.r>0){
+    portalState.r*=.88; drawTerrain();
+  } else if(S.terrainVisible) drawTerrain();
+
+  // ripple physics
+  for(let i=activeRipples.length-1;i>=0;i--){activeRipples[i].time+=delta;if(activeRipples[i].time>3.5)activeRipples.splice(i,1);}
+
+  // column animation
+  const flowR=S.isTyping?2.5:.55;
+  colReg.forEach(col=>{
+    const isSel=S.selectedCol===col.id;
+    const dynamicLoad=scalarAbsSum(col.dynamic_scalars);
+    const sedimentLoad=scalarAbsSum(col.sediment);
+    const liveLoad=dynamicLoad+(sedimentLoad*0.35)+col.physics.kinetic_energy;
+    if(col.alive===false){
+      col.bg.material.color.setHex(TAG_COLORS_HEX.OBSTACLE);
+      col.bg.material.opacity=isSel?.48:.08;
+      col.bg.scale.setScalar(1.02);
+    }else{
+      col.bg.material.color.setHex(TAG_COLORS_HEX[col.tag]||TAG_COLORS_HEX.DEFAULT);
+      col.bg.material.opacity=isSel?.72:(col.layers>0?.18:.07) + Math.min(.24,liveLoad*.08);
+      col.bg.scale.setScalar(1+Math.min(.22,liveLoad*.06));
+    }
+    const wave=Math.sin((col.cx*.1)+(col.cz*.1)+(S.simTime*flowR));
+    let roff=0;
+    activeRipples.forEach(r=>{
+      const d=Math.hypot(col.cx-r.x,col.cz-r.z);
+      const wf=r.time*38,diff=wf-d;
+      if(diff>0&&diff<12) roff+=Math.sin((diff/12)*Math.PI)*5.5*r.intensity*(1-r.time/3.5);
+    });
+    col.sprites.forEach((sp,l)=>{
+      const fresh=performance.now()-sp.userData.born<900;
+      let ty=l*1.8+wave*.2+roff + (dynamicLoad*1.4) + (sedimentLoad*0.4);
+      if(fresh)ty+=4; if(isSel)ty+=2.5;
+      sp.position.y+=(ty-sp.position.y)*.12;
+      const tc=TAG_COLORS_HEX[col.tag]||TAG_COLORS_HEX.DEFAULT;
+      if(isSel){sp.material.color.setHex(l===col.layers-1?0xffffff:tc);sp.material.opacity=1;}
+      else if(S.selectedCol!==-1){sp.material.opacity=.06;}
+      else{
+        sp.material.color.setHex(tc);
+        sp.material.opacity=l===col.layers-1?1:(l===col.layers-2?.16:.04);
+      }
+    });
+  });
+
+  updateFrustumFocus(performance.now());
+
+  orbitCtrl.update();
+  if(S.columnsVisible) renderer.render(scene,camera);
+  updateEcology();
+}
+
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  initTerrain();
+  updateMinimap();
+  renderBranchTree();
+});
+
+// ── BOOT ─────────────────────────────────────────────────────────
+chatMsg('RCC-ECO-GNN BOOTED','sys');
+chatMsg('Sedimentary ring buffer and hidden diegetic decoder armed.','sys');
+chatMsg('Drop a stone to inject physics, then scrub the timeline to rewind state.','sys');
+syncFrustumButton();
+loadThemePref();
+loadApiKey();
+if(OPENAI.key) chatMsg('API READY: OpenAI live generation connected.','sys');
+else chatMsg('API OFF: using local fallback until key is added.','sys');
+S.autoplay=true;
+S.autoNextAt=performance.now()+800;
+S.autoStoneNextAt=performance.now()+1400;
+document.getElementById('btn-autoplay').textContent='⏸ PAUSE';
+document.getElementById('btn-autoplay').classList.add('active');
+chatMsg('AUTO FIELD ON','sys','','',{record:false});
+initTerrain();
+snapshotMeshState('boot');
+applyThemeVisuals();
+setPanelVisible('chat',false);
+setPanelVisible('eco',false);
+setPanelVisible('stack',false);
+setPanelVisible('map',true);
+renderTimelineEvents();
+updateEpochLabel();
+syncSideTabs();
+loop();
+</script>
+<!-- Code injected by live-server -->
+<script>
+	// <![CDATA[  <-- For SVG support
+	if ('WebSocket' in window) {
+		(function () {
+			function refreshCSS() {
+				var sheets = [].slice.call(document.getElementsByTagName("link"));
+				var head = document.getElementsByTagName("head")[0];
+				for (var i = 0; i < sheets.length; ++i) {
+					var elem = sheets[i];
+					var parent = elem.parentElement || head;
+					parent.removeChild(elem);
+					var rel = elem.rel;
+					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
+						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
+						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
+					}
+					parent.appendChild(elem);
+				}
+			}
+			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+			var address = protocol + window.location.host + window.location.pathname + '/ws';
+			var socket = new WebSocket(address);
+			socket.onmessage = function (msg) {
+				if (msg.data == 'reload') window.location.reload();
+				else if (msg.data == 'refreshcss') refreshCSS();
+			};
+			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
+				console.log('Live reload enabled.');
+				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
+			}
+		})();
+	}
+	else {
+		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
+	}
+	// ]]>
+</script>
+</body>
+</html>

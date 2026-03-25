@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>METAHIVE — The Apiary Manifest</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        html, body {
+            width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden;
+            background: #020203; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #4a5568;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;700;900&display=swap');
+
+        #grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            min-height: 100vh;
+            border: 20px solid #000;
+        }
+
+        .axis {
+            border-right: 1px solid #d4a84b;
+            background: #000;
+            padding: 40px;
+            display: flex; flex-direction: column; justify-content: space-between;
+            position: sticky; top: 0; height: calc(100vh - 40px);
+        }
+
+        h1 { font-family: 'Inter', sans-serif; font-size: 28px; font-weight: 900; letter-spacing: -0.02em; color: #fff; line-height: 1.1; margin-bottom: 16px; text-transform: uppercase;}
+        .sub { font-size: 12px; color: #718096; line-height: 1.6; max-width: 90%; margin-bottom: 24px; }
+        .cost { font-size: 9px; color: #d4a84b; text-transform: uppercase; letter-spacing: 0.1em; display: inline-block; margin-bottom: 12px;}
+
+        .warn-btn {
+            display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: #718096; text-decoration: none; transition: color 0.1s; margin-bottom: 6px;
+        }
+        .warn-btn:hover { color: #fff; }
+
+        /* SESSION STATS in axis */
+        .agg{margin-top:20px;border-top:1px solid #1a202c;padding-top:12px}
+        .agg-row{display:flex;justify-content:space-between;padding:2px 0;font-size:9px}
+        .agg-lbl{color:#4a5568}.agg-val{color:#a0aec0;font-weight:600}
+        .agg-hd{font-size:8px;color:#d4a84b;text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
+        .imp-row{display:flex;gap:6px;margin-top:8px}
+        .imp-btn{font-family:inherit;font-size:8px;background:none;border:1px solid #2d3748;color:#718096;padding:3px 8px;cursor:pointer;text-transform:uppercase;letter-spacing:.08em;transition:all .15s}
+        .imp-btn:hover{border-color:#d4a84b;color:#d4a84b}
+
+        .content-col { display: flex; flex-direction: column; }
+
+        /* SECTION HEADERS */
+        .sec-hd{padding:16px 60px 8px;font-family:'Inter',sans-serif;font-size:10px;font-weight:900;letter-spacing:.15em;text-transform:uppercase;color:#d4a84b;border-bottom:1px solid #1a202c;background:#050508}
+        .sec-hd .sec-count{color:#4a5568;font-weight:400;margin-left:8px}
+        .sec-hd .sec-bridge{font-size:8px;color:#718096;text-transform:none;letter-spacing:0;font-weight:400;margin-left:12px}
+
+        /* COLLAPSIBLE SECTIONS */
+        .manifest-sec{border-bottom:1px solid #0a0a10}
+        .manifest-sec summary.sec-hd{cursor:pointer;list-style:none;user-select:none}
+        .manifest-sec summary.sec-hd::-webkit-details-marker{display:none}
+        .manifest-sec summary.sec-hd::before{content:'▸';margin-right:8px;color:#4a5568;font-size:8px;transition:transform .15s}
+        .manifest-sec[open] summary.sec-hd::before{content:'▾';color:#d4a84b}
+        .manifest-sec[open]{border-left:2px solid rgba(212,168,75,.15)}
+
+        /* WORM LINKS (matching other indexes) */
+        .html-worms { display: flex; flex-wrap: wrap; gap: 8px; padding: 20px 60px; }
+
+        .worm {
+            display: inline-block; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700;
+            color: #e2e8f0; text-decoration: none; padding: 16px 22px; border: 1px solid #2d3748;
+            background: #000; transition: border-color 0.15s, color 0.15s, transform 0.15s; letter-spacing: 0.03em;
+            position: relative;
+        }
+        .worm:hover { color: #d4a84b; border-color: #d4a84b; transform: translateY(-2px); }
+        .worm .meta { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #718096; text-transform: none; letter-spacing: 0; margin-top: 6px; font-weight: 400; }
+        .worm .live-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#4af626;margin-right:4px;box-shadow:0 0 4px #4af626}
+        .worm .tag{font-size:7px;color:#d4a84b;letter-spacing:.08em;text-transform:uppercase;font-weight:500;margin-left:6px}
+
+        /* ENGINE LIST */
+        .eng-row{padding:4px 60px;font-size:10px;color:#718096;display:flex;gap:12px}
+        .eng-row b{color:#22d3ee;font-weight:600;min-width:160px}
+
+        .stop-factor {
+            position: absolute; bottom: 40px; right: 40px; text-align: right;
+            font-family: 'Inter', sans-serif; font-weight: 900; font-size: 80px; letter-spacing: -0.04em;
+            color: #050508; pointer-events: none; z-index: 0;
+        }
+
+        #ecology-container{position:relative;min-height:100vh;overflow-y:auto;background:#050508}
+
+        /* ── RESPONSIVE ── */
+        @media(max-width:900px){
+            #grid{grid-template-columns:1fr;border-width:8px}
+            .axis{position:relative;height:auto;border-right:none;border-bottom:1px solid #d4a84b;padding:24px 20px 16px}
+            h1{font-size:22px;margin-bottom:10px}
+            .sub{font-size:11px;max-width:100%;margin-bottom:14px}
+            .agg{margin-top:12px;padding-top:8px}
+            .sec-hd{padding:12px 16px 6px;font-size:9px}
+            .sec-hd .sec-bridge{display:block;margin:4px 0 0}
+            .html-worms{padding:12px 16px;gap:6px}
+            .worm{font-size:13px;padding:14px 16px;width:100%}
+            .worm .meta{font-size:8px;margin-top:4px}
+            .eng-row{padding:3px 16px;font-size:9px;flex-direction:column;gap:2px}
+            .eng-row b{min-width:auto}
+            .warn-btn{font-size:9px;padding:6px 0;display:block}
+            /* Kill EcologyEngine overlay on mobile */
+            #ecology-container{position:static !important;height:auto !important;overflow:visible !important}
+            #eco-vc,#eco-camera,#eco-hud{display:none !important}
+        }
+        @media(max-width:480px){
+            #grid{border-width:4px}
+            .axis{padding:16px 14px 12px}
+            h1{font-size:18px}
+            .sub{font-size:10px;line-height:1.5}
+            .html-worms{padding:8px 10px;gap:5px}
+            .worm{font-size:12px;padding:12px 14px}
+            .sec-hd{padding:10px 10px 5px;font-size:8px}
+            .eng-row{padding:3px 10px;font-size:8px}
+            .imp-btn{font-size:7px;padding:4px 6px}
+        }
+    </style>
+</head>
+<body>
+
+<div id="grid">
+    <div class="axis">
+        <div>
+            <h1>The Apiary Manifest</h1>
+            <div class="sub">Twenty honeycomb cells. Eleven engines. Seven agentic LLM interfaces with session logging, screen recording, and TTS. The stained glass refracts every context pulse. The bees keep the film.</div>
+            <div class="cost">Cost: Total archival exposure.</div>
+
+            <div class="agg" id="aggPanel">
+                <div class="agg-hd">Session Archive</div>
+                <div id="aggStats">
+                    <div class="agg-row"><span class="agg-lbl">Sessions</span><span class="agg-val" id="sSess">0</span></div>
+                    <div class="agg-row"><span class="agg-lbl">LLM Calls</span><span class="agg-val" id="sLLM">0</span></div>
+                    <div class="agg-row"><span class="agg-lbl">Est. Tokens</span><span class="agg-val" id="sTok">0</span></div>
+                    <div class="agg-row"><span class="agg-lbl">Interfaces</span><span class="agg-val" id="sInt">0</span></div>
+                </div>
+                <div class="imp-row">
+                    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importSession(event)">
+                    <button class="imp-btn" onclick="document.getElementById('importFile').click()">↑ Import</button>
+                    <button class="imp-btn" onclick="exportAll()">↓ Export</button>
+                    <button class="imp-btn" onclick="scanLS()">⟳ Scan</button>
+                </div>
+            </div>
+        </div>
+        <div>
+            <a href="index.html" class="warn-btn">← Retreat to Bees Network</a><br>
+            <a href="../index_of_indexes.html" class="warn-btn">↑ Ascend to Federal Index</a><br>
+            <a href="../STAINED CONTEXT/index.html" class="warn-btn">→ Cross to Stained Context</a>
+        </div>
+    </div>
+
+    <div class="content-col" id="ecology-container">
+        <!-- FALLBACK: structured manifest with collapsible sections -->
+        <div id="manifestBody">
+            <details open class="manifest-sec">
+                <summary class="sec-hd">◆ Agentic Interfaces<span class="sec-count">7</span><span class="sec-bridge">LLM • Logger • TTS • Recording</span></summary>
+                <div class="html-worms" id="worms-agentic"></div>
+            </details>
+
+            <details class="manifest-sec">
+                <summary class="sec-hd">◇ Navigation Interfaces<span class="sec-count">5</span></summary>
+                <div class="html-worms" id="worms-nav"></div>
+            </details>
+
+            <details class="manifest-sec">
+                <summary class="sec-hd">○ Experimental / Legacy<span class="sec-count">8</span></summary>
+                <div class="html-worms" id="worms-exp"></div>
+            </details>
+
+            <details class="manifest-sec">
+                <summary class="sec-hd" style="border-top:1px solid #1a202c;margin-top:8px">◈ Stained Context Bridge<span class="sec-count">14</span><span class="sec-bridge">Anatomical nodes linked via cosine refraction</span></summary>
+                <div class="html-worms" id="worms-stained"></div>
+            </details>
+
+            <details class="manifest-sec">
+                <summary class="sec-hd">⚙ Data & Engines<span class="sec-count">11</span></summary>
+                <div id="engines-list"></div>
+            </details>
+        </div>
+    </div>
+</div>
+
+<script>
+const AGENTIC = [
+    { file:'skill-analyzer.html', name:'World God Mansion', meta:'Voronoi · Operators · Delaunay affinity', live:true },
+    { file:'hive-control-tower.html', name:'ATC Control Tower', meta:'Code pulses · Stained-glass filter · Flight log', live:true },
+    { file:'hive-repl.html', name:'Hive REPL', meta:'Shell nav · Semantic compiler · cd/ls/grep', live:true },
+    { file:'hive-dream.html', name:'Hive Dream', meta:'Prompt→program vectorization · Bee swarms', live:true },
+    { file:'hive-field.html', name:'Hive Field', meta:'Physics lattice · Retarded potentials · c-speed', live:true },
+    { file:'train-hive-field.html', name:'Train Hive Field', meta:'Moving context window · Cell chat · Ripples', live:true },
+    { file:'wagyo-hive.html', name:'Wagyo Hive', meta:'Three.js assembler · Isometric hex · Scene graph', live:true }
+];
+const NAV = [
+    { file:'hive-library.html', name:'Hive Library', meta:'228-cell honeycomb · Waggle dance · CAI' },
+    { file:'hive-sim.html', name:'Hive Sim', meta:'Biographic simulation · Persistent identity' },
+    { file:'hive-land.html', name:'Hive Land', meta:'Flower nodes · Bee actors · Pheromones' },
+    { file:'navigator.html', name:'Navigator', meta:'World graph traversal' },
+    { file:'semiotic-orrery.html', name:'Semiotic Orrery', meta:'Orbital visualization · Planetary mechanics' }
+];
+const EXP = [
+    { file:'hive-apiary.html', name:'Hive Apiary', meta:'Original prototype' },
+    { file:'hive-jockey.html', name:'Hive Jockey', meta:'DJ mixing · Narrative blending' },
+    { file:'hive-prism.html', name:'Hive Prism', meta:'Spectral decomposition' },
+    { file:'hive-train.html', name:'Hive Train', meta:'Linear traversal' },
+    { file:'context-field.html', name:'Context Field', meta:'Early field experiment' },
+    { file:'twine-bridge.html', name:'Twine Bridge', meta:'Twine↔POML bridge' },
+    { file:'world-analyzer.html', name:'World Analyzer', meta:'Entity/relation stats' },
+    { file:'index.html', name:'Bees Network Index', meta:'Original ecology index' }
+];
+const STAINED = [
+    { file:'../STAINED CONTEXT/stained-glass.html', name:'Stained Glass', meta:'Core refraction engine' },
+    { file:'../STAINED CONTEXT/stained-glass-field.html', name:'Glass Field', meta:'Field propagation' },
+    { file:'../STAINED CONTEXT/stained-atlas.html', name:'Atlas', meta:'Cervical node' },
+    { file:'../STAINED CONTEXT/stained-clavicle.html', name:'Clavicle', meta:'Shoulder node' },
+    { file:'../STAINED CONTEXT/stained-sternum.html', name:'Sternum', meta:'Central node' },
+    { file:'../STAINED CONTEXT/stained-rib.html', name:'Rib', meta:'Lateral node' },
+    { file:'../STAINED CONTEXT/stained-lat.html', name:'Latissimus', meta:'Dorsal node' },
+    { file:'../STAINED CONTEXT/stained-bicep.html', name:'Bicep', meta:'Flexor node' },
+    { file:'../STAINED CONTEXT/stained-radius.html', name:'Radius', meta:'Forearm node' },
+    { file:'../STAINED CONTEXT/stained-carpal.html', name:'Carpal', meta:'Wrist node' },
+    { file:'../STAINED CONTEXT/stained-bone.html', name:'Bone', meta:'Structural node' },
+    { file:'../STAINED CONTEXT/stained-tarsal.html', name:'Tarsal', meta:'Ankle node' },
+    { file:'../STAINED CONTEXT/stained-skill.html', name:'Skill', meta:'Ability node' },
+    { file:'../STAINED CONTEXT/stained-plus.html', name:'Plus', meta:'Augment node' }
+];
+const ENGINES = [
+    { file:'data.js', desc:'228 POML world entries' },
+    { file:'route-engine.js', desc:'Data parsing, route computation' },
+    { file:'hive-logger.js', desc:'Session logging, recording, TTS' },
+    { file:'library-engine.js', desc:'Honeycomb lattice, pollen, waggle dance' },
+    { file:'sim-engine.js', desc:'Biographic simulation' },
+    { file:'jockey-engine.js', desc:'DJ world mixing' },
+    { file:'prism-engine.js', desc:'Spectral decomposition' },
+    { file:'train-engine.js', desc:'Linear train traversal' },
+    { file:'hive-engine.js', desc:'Core hive primitives' },
+    { file:'screenplay-director.js', desc:'Markov narrative state machine' },
+    { file:'synthesized_data.js', desc:'Pre-synthesized analytics' }
+];
+
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+
+function renderWorms(containerId, items, opts={}) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = items.map(it => `
+        <a href="${it.file}" class="worm">
+            ${opts.live && it.live ? '<span class="live-dot"></span>' : ''}${esc(it.name)}
+            ${opts.live && it.live ? '<span class="tag">LLM</span>' : ''}
+            <span class="meta">${esc(it.meta)}</span>
+        </a>
+    `).join('');
+}
+
+function renderEngines() {
+    document.getElementById('engines-list').innerHTML = ENGINES.map(e =>
+        `<div class="eng-row"><b>${esc(e.file)}</b><span>${esc(e.desc)}</span></div>`
+    ).join('');
+}
+
+// ── Session Archive ──
+let sessions = [];
+
+function scanLS() {
+    sessions = [];
+    Object.keys(localStorage).filter(k => k.startsWith('hivelog_')).forEach(k => {
+        try { const d = JSON.parse(localStorage.getItem(k)); if (d?.sessionId) sessions.push(d); } catch(e){}
+    });
+    renderAgg();
+}
+
+function renderAgg() {
+    const llm = sessions.reduce((s,d) => s + (d.entries||[]).filter(e=>e.type==='llm_call').length, 0);
+    const tok = sessions.reduce((s,d) => s + (d.entries||[]).filter(e=>e.type==='llm_call').reduce((t,e) => t+(e.promptTokensEst||0)+(e.responseTokensEst||0),0), 0);
+    const ifs = new Set(sessions.map(s=>s.interface).filter(Boolean));
+    document.getElementById('sSess').textContent = sessions.length;
+    document.getElementById('sLLM').textContent = llm;
+    document.getElementById('sTok').textContent = tok.toLocaleString();
+    document.getElementById('sInt').textContent = ifs.size;
+}
+
+function importSession(e) {
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+        try {
+            const d = JSON.parse(ev.target.result);
+            if(d.sessionId){sessions.push(d);localStorage.setItem('hivelog_'+d.sessionId,JSON.stringify(d));renderAgg();}
+        } catch(er){}
+    };
+    r.readAsText(f); e.target.value='';
+}
+
+function exportAll() {
+    const blob = new Blob([JSON.stringify({exportTime:new Date().toISOString(),sessions},null,2)],{type:'application/json'});
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=u; a.download=`metahive_archive_${Date.now()}.json`; a.click();
+    URL.revokeObjectURL(u);
+}
+
+// ── Init ──
+renderWorms('worms-agentic', AGENTIC, {live:true});
+renderWorms('worms-nav', NAV);
+renderWorms('worms-exp', EXP);
+renderWorms('worms-stained', STAINED);
+renderEngines();
+scanLS();
+</script>
+
+<script src="../d3-delaunay.min.js"></script>
+<script src="../ecology-engine.js"></script>
+<script>
+    // EcologyEngine overlay — same as other indexes
+    const nodesData = [
+        ...AGENTIC.map((a,i) => ({ id:'a'+i, title:a.name, url:a.file, group:'AGENTIC' })),
+        ...NAV.map((n,i) => ({ id:'n'+i, title:n.name, url:n.file, group:'NAVIGATION' })),
+        ...EXP.map((e,i) => ({ id:'e'+i, title:e.name, url:e.file, group:'EXPERIMENTAL' })),
+        ...STAINED.map((s,i) => ({ id:'s'+i, title:s.name, url:s.file, group:'STAINED' }))
+    ];
+    window.onload = () => {
+        if (window.innerWidth > 960) {
+            try { const engine = new EcologyEngine('ecology-container', nodesData); } catch(e) {}
+        }
+    };
+</script>
+</body>
+</html>

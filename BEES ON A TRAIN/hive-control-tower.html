@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>HIVE CONTROL TOWER — ATC Context Graph</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}
+        body{font-family:'IBM Plex Mono',monospace;font-size:11px;user-select:none;background:#02060a;color:#8ab0c4}
+        :root{--bg:#02060a;--bg2:#060a12;--bg3:#0a0e18;--ink:#8ab0c4;--ink2:#c0d8e8;--ink3:rgba(140,180,210,.28);--gold:#d4a84b;--gold2:rgba(212,168,75,.25);--green:#4af626;--green2:rgba(74,246,38,.12);--red:#ef4444;--red2:rgba(239,68,68,.15);--cyan:#22d3ee;--cyan2:rgba(34,211,238,.12);--rule:rgba(140,180,210,.07);--rule2:rgba(140,180,210,.035);--pulse:rgba(34,211,238,.7)}
+        #app{display:flex;flex-direction:column;height:100vh}
+
+        .topbar{height:38px;background:var(--bg2);border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 14px;gap:12px;flex-shrink:0;z-index:50}
+        .logo{font-size:10px;font-weight:600;letter-spacing:.3em;color:var(--cyan);text-transform:uppercase;text-shadow:0 0 12px rgba(34,211,238,.3)}
+        .logo-sub{font-size:6px;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase}
+        .stat{font-size:8px;color:var(--ink3);letter-spacing:.06em}.stat b{color:var(--ink2)}
+        .topbar-spacer{flex:1}
+        .t-btn{background:none;border:1px solid var(--rule);color:var(--ink3);font-family:inherit;font-size:7px;padding:4px 12px;cursor:pointer;letter-spacing:.12em;text-transform:uppercase;transition:all .2s}
+        .t-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+        .t-btn.active{border-color:var(--cyan);color:var(--cyan);background:var(--cyan2)}
+
+        .main{flex:1;display:flex;overflow:hidden;min-height:0}
+
+        /* FLIGHT LOG (LEFT) */
+        .flight-panel{width:280px;background:var(--bg2);border-right:1px solid var(--rule);display:flex;flex-direction:column;flex-shrink:0}
+        .fp-header{height:26px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 10px;flex-shrink:0;gap:6px}
+        .fp-title{font-size:7px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--cyan)}
+        .fp-count{font-size:7px;color:var(--ink3);margin-left:auto}
+        .fp-body{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--cyan2) transparent}
+        .fp-body::-webkit-scrollbar{width:5px;background:transparent}
+        .fp-body::-webkit-scrollbar-thumb{background:var(--cyan2);border-radius:3px}
+        .fp-body::-webkit-scrollbar-thumb:hover{background:rgba(34,211,238,.25)}
+        .flight-entry{padding:8px 10px;border-bottom:1px solid var(--rule2);transition:background .15s;cursor:pointer;font-size:9px}
+        .flight-entry:hover{background:var(--cyan2)}
+        .fe-route{display:flex;align-items:center;gap:4px;margin-bottom:3px}
+        .fe-from,.fe-to{color:var(--ink2);font-weight:600;font-size:8px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .fe-arrow{color:var(--cyan);font-size:10px}
+        .fe-status{font-size:6px;letter-spacing:.1em;text-transform:uppercase;padding:1px 4px;border-radius:1px;margin-left:auto}
+        .fe-status.clear{color:var(--green);background:var(--green2)}
+        .fe-status.blocked{color:var(--red);background:var(--red2)}
+        .fe-status.active{color:var(--cyan);background:var(--cyan2)}
+        .fe-code{font-size:8px;color:var(--ink3);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .fe-meta{font-size:6px;color:var(--ink3);margin-top:2px;display:flex;gap:6px}
+
+        /* RADAR CANVAS */
+        .radar-wrap{flex:1;position:relative;overflow:hidden}
+        #radar{position:absolute;inset:0}
+
+        /* NODE INSPECTOR (RIGHT) */
+        .inspector{width:320px;background:var(--bg);border-left:1px solid var(--rule);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+        .ins-header{height:26px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 10px;flex-shrink:0;background:var(--bg2)}
+        .ins-title{font-size:7px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)}
+        .ins-body{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--gold2) transparent;padding:0}
+        .ins-body::-webkit-scrollbar{width:5px;background:transparent}
+        .ins-body::-webkit-scrollbar-thumb{background:var(--gold2);border-radius:3px}
+        .ins-body::-webkit-scrollbar-thumb:hover{background:rgba(212,168,75,.4)}
+        .node-card{padding:14px 14px 8px}
+        .nc-name{font-size:13px;font-weight:600;color:var(--cyan);letter-spacing:.04em;margin-bottom:2px}
+        .nc-uid{font-size:7px;color:var(--ink3);letter-spacing:.1em;margin-bottom:4px}
+        .nc-genre{font-size:7px;text-transform:uppercase;letter-spacing:.15em;color:var(--ink3);padding:2px 6px;background:var(--cyan2);border-radius:2px;display:inline-block;margin-bottom:8px}
+        .nc-desc{font-family:'Cormorant Garamond',serif;font-size:14px;font-style:italic;color:var(--ink2);line-height:1.65;margin-bottom:8px}
+        .nc-ai{font-size:22px;font-weight:600;font-family:'Cormorant Garamond',serif;color:var(--gold);margin-right:8px}
+        .ai-row{display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--rule2);border-bottom:1px solid var(--rule2)}
+        .ai-label{font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+        .sec-hd{font-size:6px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--ink3);padding:8px 14px 3px}
+        .ent-row{padding:2px 14px;font-size:9px;color:var(--ink2)}.ent-row b{color:var(--cyan);font-weight:600}
+
+        /* DECISION TRACE */
+        .trace-section{border-top:1px solid var(--rule);padding:8px 14px}
+        .trace-hd{font-size:6px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+        .trace-entry{font-size:8px;color:var(--ink);border-left:2px solid var(--cyan2);padding:3px 0 3px 8px;margin-bottom:3px;line-height:1.4}
+        .trace-entry.blocked{border-color:var(--red2);color:var(--ink3)}
+        .trace-entry .te-code{color:var(--cyan);font-style:italic}
+
+        /* HONEY */
+        .honey-section{border-top:1px solid var(--rule);padding:12px 14px;background:linear-gradient(180deg,rgba(212,168,75,.03),transparent);position:relative}
+        .honey-hd{font-size:6px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+        .honey-text{font-family:'Cormorant Garamond',serif;font-size:14px;font-style:italic;color:var(--ink2);line-height:1.6}
+        .honey-copy{background:none;border:1px solid var(--gold2);color:var(--gold);font-family:inherit;font-size:6px;padding:2px 6px;cursor:pointer;letter-spacing:.1em;opacity:.3;transition:opacity .15s}
+        .honey-copy:hover{opacity:.8}
+        .fe-honey{border-left:2px solid var(--gold2) !important}
+
+        /* DISPATCH BAR */
+        .dispatch-bar{height:42px;border-top:1px solid var(--rule);display:flex;background:var(--bg2);flex-shrink:0;z-index:40}
+        .dispatch-input{flex:1;background:transparent;border:none;color:var(--ink2);font-family:inherit;font-size:12px;padding:0 14px;outline:none;caret-color:var(--cyan)}
+        .dispatch-input::placeholder{color:rgba(34,211,238,.15)}
+        .dispatch-send{background:var(--cyan2);border:none;border-left:1px solid var(--rule);color:var(--cyan);font-family:inherit;font-size:7px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;padding:0 18px;cursor:pointer;transition:all .2s}
+        .dispatch-send:hover{background:rgba(34,211,238,.2)}
+
+        /* OP OVERLAY */
+        .op-overlay{position:fixed;inset:0;background:rgba(2,6,10,.9);z-index:200;display:none;justify-content:center;align-items:center}
+        .op-overlay.show{display:flex}
+        .op-box{background:var(--bg2);border:1px solid var(--rule);padding:20px;width:300px}
+        .op-title{font-size:7px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--cyan);margin-bottom:10px}
+        .op-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+        .op-lbl{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);width:36px;flex-shrink:0}
+        .op-inp{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:inherit;font-size:9px;padding:4px 6px;flex:1;outline:none}
+        .op-close{background:none;border:1px solid var(--cyan);color:var(--cyan);font-family:inherit;font-size:8px;padding:4px 12px;cursor:pointer;margin-top:8px}
+
+        /* SCANLINES */
+        .scanlines{position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.06;background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,.3) 50%),linear-gradient(90deg,rgba(34,211,238,.01),rgba(0,255,0,.003),rgba(0,0,255,.01));background-size:100% 3px,3px 100%}
+    </style>
+    <script src="data.js"></script>
+    <script src="route-engine.js"></script>
+    <script src="hive-logger.js"></script>
+</head>
+<body>
+<div id="app">
+    <div class="topbar">
+        <span class="logo">ATC_CONTROL_TOWER</span>
+        <span class="logo-sub">Distributed Context Nodes</span>
+        <span class="stat">Nodes: <b id="sNodes">0</b></span>
+        <span class="stat">Flights: <b id="sFlights">0</b></span>
+        <span class="stat">Active: <b id="sActive">0</b></span>
+        <span class="stat">Blocked: <b id="sBlocked">0</b></span>
+        <span class="stat">🍯 Honey: <b id="sHoney" style="color:var(--gold)">0</b></span>
+        <div class="topbar-spacer"></div>
+        <button class="t-btn" id="btnSnd" onclick="toggleSound()">🔇 SOUND</button>
+        <button class="t-btn" id="btnAuto" onclick="toggleAuto()">AUTO-DISPATCH: OFF</button>
+        <button class="t-btn" onclick="document.getElementById('opOverlay').classList.toggle('show')">⚙ API</button>
+    </div>
+    <div class="main">
+        <div class="flight-panel">
+            <div class="fp-header"><span class="fp-title">Flight Log</span><span class="fp-count" id="fpCount">0 flights</span></div>
+            <div class="fp-body" id="flightLog"></div>
+        </div>
+        <div class="radar-wrap" id="radarWrap"><canvas id="radar"></canvas></div>
+        <div class="inspector">
+            <div class="ins-header"><span class="ins-title">Node Inspector</span></div>
+            <div class="ins-body" id="insBody">
+                <div style="padding:30px 14px;font-family:'Cormorant Garamond',serif;font-size:14px;font-style:italic;color:var(--ink3);line-height:1.7">
+                    <strong style="color:var(--cyan);font-style:normal">ATC Control Tower</strong><br><br>
+                    Each POML world is an autonomous <em>context node</em>. Nodes interact via <em>code pulses</em> — executable queries validated by the ontological stained-glass filter.<br><br>
+                    Click a node. Dispatch a code pulse. Watch the flight path. Read the decision trace.<br><br>
+                    <em>No direct memory access. Code-mediated operation only.</em>
+                </div>
+            </div>
+            <div class="dispatch-bar">
+                <input class="dispatch-input" id="dispatchInput" placeholder="dispatch code pulse..." onkeydown="if(event.key==='Enter')dispatch()">
+                <button class="dispatch-send" onclick="dispatch()">▸ DISPATCH</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="scanlines"></div>
+
+<div class="op-overlay" id="opOverlay">
+    <div class="op-box">
+        <div class="op-title">API Configuration</div>
+        <div class="op-row"><span class="op-lbl">Key</span><input type="password" class="op-inp" id="opKey" placeholder="sk-..." oninput="saveCfg()"></div>
+        <div class="op-row"><span class="op-lbl">Model</span><input class="op-inp" id="opModel" value="gpt-4o-mini" oninput="saveCfg()"></div>
+        <div class="op-row"><span class="op-lbl">Base</span><input class="op-inp" id="opBase" value="https://api.openai.com/v1" oninput="saveCfg()"></div>
+        <button class="op-close" onclick="document.getElementById('opOverlay').classList.remove('show')">Close</button>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// ATC CONTROL TOWER ENGINE
+//
+// Distributed Stateless Context Nodes
+// Each POML world = autonomous node
+// Nodes interact via CODE PULSES
+// ATC validates flight paths via ontological filter
+// Forensic decision trace for all interactions
+// ═══════════════════════════════════════════
+
+let worlds=[], routes=[], worldByUid={};
+let canvas, ctx, dpr;
+let nodes=[];
+let selectedNode=null;
+let codePulses=[];  // animated flight paths
+let flightEntries=[]; // decision trace log
+let flightSeq=0;
+let blockedCount=0;
+let autoDispatch=false, autoTimer=null;
+let sndOn=false, AC=null;
+const HEX_R=40, AT=15;
+
+// ═══ SOUND SYSTEM ═══
+function initAudio(){
+    if(AC) return;
+    try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+}
+function toggleSound(){
+    sndOn=!sndOn;
+    el('btnSnd').textContent = sndOn ? '🔊 SOUND' : '🔇 SOUND';
+    el('btnSnd').classList.toggle('active', sndOn);
+    if(sndOn) initAudio();
+}
+function sndPulse(){
+    if(!sndOn||!AC) return;
+    const now=AC.currentTime;
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type='sine';o.frequency.setValueAtTime(800,now);o.frequency.exponentialRampToValueAtTime(1600,now+.08);
+    g.gain.setValueAtTime(.06,now);g.gain.exponentialRampToValueAtTime(.001,now+.15);
+    o.connect(g);g.connect(AC.destination);o.start(now);o.stop(now+.15);
+}
+function sndBlocked(){
+    if(!sndOn||!AC) return;
+    const now=AC.currentTime;
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type='sawtooth';o.frequency.value=120;
+    g.gain.setValueAtTime(.04,now);g.gain.exponentialRampToValueAtTime(.001,now+.12);
+    o.connect(g);g.connect(AC.destination);o.start(now);o.stop(now+.12);
+}
+function sndHoney(){
+    if(!sndOn||!AC) return;
+    const now=AC.currentTime;
+    [440,554,659].forEach((f,i)=>{
+        const o=AC.createOscillator(),g=AC.createGain();
+        o.type='sine';o.frequency.value=f;
+        g.gain.setValueAtTime(.03,now+i*.04);g.gain.exponentialRampToValueAtTime(.001,now+.4+i*.04);
+        o.connect(g);g.connect(AC.destination);o.start(now+i*.04);o.stop(now+.45+i*.04);
+    });
+}
+function sndSelect(){
+    if(!sndOn||!AC) return;
+    const now=AC.currentTime;
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type='sine';o.frequency.value=1200;
+    g.gain.setValueAtTime(.03,now);g.gain.exponentialRampToValueAtTime(.001,now+.06);
+    o.connect(g);g.connect(AC.destination);o.start(now);o.stop(now+.06);
+}
+
+function assemblyIndex(w){return(w.entities.length*2)+(w.relations.length*3)+(w.events.length*4)+w.states.length}
+
+// ═══════════════════
+// NODE GRAPH
+// ═══════════════════
+function buildNodes(){
+    nodes=[];
+    const cols=Math.ceil(Math.sqrt(worlds.length*1.35));
+    worlds.forEach((w,i)=>{
+        const row=Math.floor(i/cols),col=i%cols;
+        const off=(row%2)?HEX_R*.87:0;
+        const ai=assemblyIndex(w);
+        nodes.push({
+            x:col*HEX_R*1.76+off+HEX_R*1.5,
+            y:row*(HEX_R*1.52)+HEX_R*1.5,
+            world:w, idx:i, ai, alive:ai>AT,
+            history:[],  // biographic history
+            pulseCount:0,
+            _sx:0,_sy:0
+        });
+    });
+}
+
+// ─── Ontological Stained Glass Filter ───
+// Validates if a code pulse between two nodes is logically reachable
+function validateFlight(from, to, code){
+    // 1. Genre compatibility — shared genre family
+    const genreMatch = from.world.genre === to.world.genre;
+    // 2. Entity overlap — shared semantic space
+    const fromEntities = new Set(from.world.entities.map(e=>e.name.toLowerCase()));
+    const toEntities = new Set(to.world.entities.map(e=>e.name.toLowerCase()));
+    let entityOverlap = 0;
+    fromEntities.forEach(e=>{if(toEntities.has(e))entityOverlap++;});
+    // 3. Route weight — pre-computed semantic distance
+    const route = routes.find(r=>(r.from===from.world.uid&&r.to===to.world.uid)||(r.to===from.world.uid&&r.from===to.world.uid));
+    const routeWeight = route ? route.weight : 0;
+    // 4. Code relevance — does the code mention entities in target?
+    const codeLower = code.toLowerCase();
+    let codeRelevance = 0;
+    toEntities.forEach(e=>{if(codeLower.includes(e))codeRelevance++;});
+
+    const score = (genreMatch?3:0) + entityOverlap*2 + routeWeight + codeRelevance*2;
+    const cleared = score >= 2;
+
+    return {
+        cleared, score,
+        genreMatch, entityOverlap, routeWeight, codeRelevance,
+        reason: cleared
+            ? `Flight cleared (score:${score}). ${genreMatch?'Genre match. ':''}${entityOverlap?entityOverlap+' shared entities. ':''}${routeWeight?'Route exists. ':''}`
+            : `BLOCKED (score:${score}). No-Fly Zone: insufficient ontological reachability.`
+    };
+}
+
+// ═══════════════════
+// CODE PULSE DISPATCH
+// ═══════════════════
+function dispatchPulse(from, to, code, isAuto){
+    flightSeq++;
+    const validation = validateFlight(from, to, code);
+
+    const entry = {
+        seq: flightSeq,
+        fromName: from.world.name.replace(/([A-Z])/g,' $1').trim(),
+        toName: to.world.name.replace(/([A-Z])/g,' $1').trim(),
+        fromIdx: from.idx, toIdx: to.idx,
+        code, cleared: validation.cleared,
+        score: validation.score,
+        reason: validation.reason,
+        genreMatch: validation.genreMatch,
+        entityOverlap: validation.entityOverlap,
+        time: Date.now()
+    };
+    flightEntries.unshift(entry);
+
+    // Biographic history
+    from.history.push({type:'sent',to:entry.toName,code,cleared:validation.cleared,seq:flightSeq});
+    to.history.push({type:'received',from:entry.fromName,code,cleared:validation.cleared,seq:flightSeq});
+    from.pulseCount++;
+
+    if(validation.cleared){
+        sndPulse();
+        codePulses.push({
+            ox:from._sx||from.x*.3, oy:from._sy||from.y*.3,
+            tx:to._sx||to.x*.3, ty:to._sy||to.y*.3,
+            progress:0, speed:.008+Math.random()*.006,
+            color:'#22d3ee', code: code.slice(0,20),
+            fromIdx:from.idx, toIdx:to.idx
+        });
+    } else {
+        blockedCount++;
+        sndBlocked();
+        codePulses.push({
+            ox:from._sx||from.x*.3, oy:from._sy||from.y*.3,
+            tx:(from._sx+to._sx)/2||from.x*.3, ty:(from._sy+to._sy)/2||from.y*.3,
+            progress:0, speed:.025, color:'#ef4444', code:'BLOCKED',
+            fromIdx:from.idx, toIdx:-1
+        });
+    }
+
+    renderFlightLog();
+    updateStats();
+
+    // If cleared and LLM: synthesize response
+    if(validation.cleared && el('opKey').value.trim()){
+        llmPulse(from, to, code, entry);
+    }
+
+    if(selectedNode===from||selectedNode===to) renderInspector(selectedNode);
+}
+
+// ═══════════════════
+// LLM — Code-mediated synthesis
+// ═══════════════════
+async function llmPulse(from, to, code, entry){
+    const key=el('opKey').value.trim();if(!key)return;
+    const base=el('opBase').value.trim(),model=el('opModel').value.trim();
+    const wFrom=from.world, wTo=to.world;
+
+    const sysPrompt=`You are a Transient Head — a stateless execution node in a distributed context graph. You receive a code pulse from node "${entry.fromName}" targeting node "${entry.toName}". Execute the query, synthesize a response, then purge all registers. Be precise. 2-3 sentences. End with [TRACE: flight#${entry.seq}]`;
+
+    const userPrompt=`CODE PULSE: "${code}"
+
+SOURCE NODE: "${wFrom.name.replace(/([A-Z])/g,' $1').trim()}" (AI:${from.ai}, ${wFrom.genre})
+  ${wFrom.description.slice(0,150)}
+  Entities: ${wFrom.entities.map(e=>e.name).join(', ')}
+
+TARGET NODE: "${wTo.name.replace(/([A-Z])/g,' $1').trim()}" (AI:${to.ai}, ${wTo.genre})
+  ${wTo.description.slice(0,150)}
+  Entities: ${wTo.entities.map(e=>e.name).join(', ')}
+
+VALIDATION: Score ${entry.score}. ${entry.reason}
+
+Execute the code pulse. What does the target node return?`;
+
+    try{
+        const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages:[{role:'system',content:sysPrompt},{role:'user',content:userPrompt}],max_tokens:150,temperature:.8})});
+        const data=await resp.json();
+        if(data.choices?.[0]){
+            entry.honey=data.choices[0].message.content;
+            sndHoney();
+            to.history.push({type:'honey',text:entry.honey.slice(0,100),seq:flightSeq});
+            if(typeof HiveLogger!=='undefined'){HiveLogger.logLLM(userPrompt,entry.honey,model,{from:entry.fromName,to:entry.toName,seq:entry.seq});if(HiveLogger.ttsEnabled)HiveLogger.speak(entry.honey);}
+            renderFlightLog();
+            updateStats();
+            if(selectedNode===to||selectedNode===from) renderInspector(selectedNode);
+        }
+    }catch(e){}
+}
+
+// ═══════════════════
+// DISPATCH COMMAND
+// ═══════════════════
+function dispatch(){
+    const input=el('dispatchInput'),text=input.value.trim();
+    if(!text||!selectedNode)return;
+    input.value='';
+
+    // Parse: "query [target] [code]" or just free text
+    const t=text.toLowerCase();
+    let target=null, code=text;
+
+    // Try to find a target node mentioned
+    for(const n of nodes){
+        const name=n.world.name.replace(/([A-Z])/g,' $1').trim().toLowerCase();
+        if(t.includes(name.slice(0,8).toLowerCase())&&n!==selectedNode){target=n;code=text;break;}
+    }
+
+    if(!target){
+        // Find best route from selected
+        const rts=routes.filter(r=>r.from===selectedNode.world.uid||r.to===selectedNode.world.uid).sort((a,b)=>b.weight-a.weight);
+        if(rts.length){
+            const rt=rts[0];
+            const tid=rt.from===selectedNode.world.uid?rt.to:rt.from;
+            target=nodes.find(n=>n.world.uid===tid);
+        }
+        if(!target) target=nodes[(selectedNode.idx+1)%nodes.length];
+    }
+
+    dispatchPulse(selectedNode, target, code);
+}
+
+// ═══════════════════
+// AUTO-DISPATCH
+// ═══════════════════
+function toggleAuto(){
+    autoDispatch=!autoDispatch;
+    el('btnAuto').textContent=`AUTO-DISPATCH: ${autoDispatch?'ON':'OFF'}`;
+    el('btnAuto').classList.toggle('active',autoDispatch);
+    if(autoDispatch){
+        autoTimer=setInterval(()=>{
+            const alive=nodes.filter(n=>n.alive);
+            if(alive.length<2)return;
+            const from=alive[Math.floor(Math.random()*alive.length)];
+            let to=alive[Math.floor(Math.random()*alive.length)];
+            while(to===from) to=alive[Math.floor(Math.random()*alive.length)];
+            const codes=['query(entities)','compare(genre)','trace(causal_chain)','map(relations)','synthesize(events)','grep(description)','diff(assembly_index)'];
+            dispatchPulse(from,to,codes[Math.floor(Math.random()*codes.length)],true);
+        },2500);
+    } else if(autoTimer) clearInterval(autoTimer);
+}
+
+// ═══════════════════
+// RENDERING
+// ═══════════════════
+let drawT=0;
+function drawLoop(){drawT++;drawRadar();requestAnimationFrame(drawLoop);}
+
+function drawRadar(){
+    const W=canvas.width,H=canvas.height;
+    ctx.clearRect(0,0,W,H);
+    if(!nodes.length)return;
+
+    const totalW=Math.max(...nodes.map(c=>c.x))+HEX_R*2;
+    const totalH=Math.max(...nodes.map(c=>c.y))+HEX_R*2;
+    const scale=Math.min(W/totalW,H/totalH)*.88;
+    const offX=(W-totalW*scale)/2,offY=(H-totalH*scale)/2;
+    ctx.save();ctx.translate(offX,offY);ctx.scale(scale,scale);
+
+    // Draw routes (faint)
+    routes.slice(0,200).forEach(r=>{
+        const from=nodes.find(n=>n.world.uid===r.from);
+        const to=nodes.find(n=>n.world.uid===r.to);
+        if(!from||!to)return;
+        ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);
+        ctx.strokeStyle='rgba(34,211,238,.03)';ctx.lineWidth=.3;ctx.stroke();
+    });
+
+    // Draw nodes
+    nodes.forEach((node,i)=>{
+        const isSel=node===selectedNode;
+        const r=HEX_R;
+        ctx.beginPath();
+        for(let k=0;k<6;k++){const a=Math.PI/3*k+Math.PI/6;ctx.lineTo(node.x+r*Math.cos(a),node.y+r*Math.sin(a));}
+        ctx.closePath();
+
+        // Fill
+        if(isSel) ctx.fillStyle='rgba(34,211,238,.06)';
+        else if(node.pulseCount>0) ctx.fillStyle=`rgba(34,211,238,${Math.min(.08,node.pulseCount*.01)})`;
+        else ctx.fillStyle='transparent';
+        ctx.fill();
+
+        // Stroke
+        let sc=node.alive?'rgba(212,168,75,.1)':'rgba(58,62,72,.06)';
+        if(isSel){sc='#22d3ee';ctx.shadowBlur=10;ctx.shadowColor=sc;}
+        else if(node.pulseCount>2) sc='rgba(34,211,238,.3)';
+        ctx.strokeStyle=sc;ctx.lineWidth=isSel?2:node.pulseCount>0?.8:.3;
+        ctx.stroke();ctx.shadowBlur=0;
+
+        // Name
+        const name=node.world.name.replace(/([A-Z])/g,' $1').trim();
+        const short=name.length>10?name.slice(0,8)+'…':name;
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.font=isSel?'bold 7px IBM Plex Mono':'500 5px IBM Plex Mono';
+        ctx.fillStyle=isSel?'#22d3ee':node.alive?'rgba(212,168,75,.3)':'rgba(58,62,72,.15)';
+        ctx.fillText(short,node.x,node.y-5);
+
+        // Pulse count
+        if(node.pulseCount>0){
+            ctx.font='bold 6px IBM Plex Mono';ctx.fillStyle='rgba(34,211,238,.4)';
+            ctx.fillText('×'+node.pulseCount,node.x+r*.35,node.y-r*.3);
+        }
+
+        // AI
+        if(node.alive){ctx.font='bold 6px IBM Plex Mono';ctx.fillStyle='rgba(212,168,75,.15)';ctx.fillText(node.ai,node.x,node.y+6);}
+
+        node._sx=node.x*scale+offX;node._sy=node.y*scale+offY;
+    });
+
+    // Draw code pulses — animated particles
+    const nextPulses=[];
+    codePulses.forEach(p=>{
+        p.progress+=p.speed;
+        if(p.progress>=1)return;
+
+        const cx=p.ox+(p.tx-p.ox)*p.progress;
+        const cy=p.oy+(p.ty-p.oy)*p.progress;
+
+        // Convert screen coords back to world coords for drawing inside ctx transform
+        const wx=(cx-offX)/scale, wy=(cy-offY)/scale;
+
+        // Trail
+        const wox=(p.ox-offX)/scale, woy=(p.oy-offY)/scale;
+        ctx.beginPath();ctx.moveTo(wox,woy);ctx.lineTo(wx,wy);
+        ctx.strokeStyle=p.color+'33';ctx.lineWidth=1.5;ctx.stroke();
+
+        // Particle
+        ctx.beginPath();ctx.arc(wx,wy,3,0,Math.PI*2);
+        ctx.fillStyle=p.color;ctx.shadowBlur=8;ctx.shadowColor=p.color;ctx.fill();ctx.shadowBlur=0;
+
+        // Code label
+        ctx.font='5px IBM Plex Mono';ctx.fillStyle=p.color+'88';ctx.textAlign='center';
+        ctx.fillText(p.code,wx,wy-8);
+
+        nextPulses.push(p);
+    });
+    codePulses=nextPulses;
+
+    ctx.restore();
+
+    // Radar sweep
+    const angle=(drawT*.005)%(Math.PI*2);
+    const rcx=W/2,rcy=H/2,rr=Math.min(W,H)*.45;
+    ctx.beginPath();ctx.moveTo(rcx,rcy);ctx.arc(rcx,rcy,rr,angle,angle+.15);ctx.closePath();
+    const grad=ctx.createRadialGradient(rcx,rcy,0,rcx,rcy,rr);
+    grad.addColorStop(0,'rgba(34,211,238,.02)');grad.addColorStop(1,'transparent');
+    ctx.fillStyle=grad;ctx.fill();
+
+    el('sActive').textContent=codePulses.length;
+}
+
+function resize(){
+    const vp=el('radarWrap');const w=vp.clientWidth,h=vp.clientHeight;
+    canvas.width=w*dpr;canvas.height=h*dpr;
+    canvas.style.width=w+'px';canvas.style.height=h+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+// ═══════════════════
+// CLICK → SELECT NODE
+// ═══════════════════
+function onRadarClick(e){
+    const rect=canvas.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*dpr,my=(e.clientY-rect.top)*dpr;
+    let closest=null,dMin=Infinity;
+    nodes.forEach(n=>{const d=Math.hypot(n._sx*dpr-mx,n._sy*dpr-my);if(d<HEX_R*2.5&&d<dMin){dMin=d;closest=n;}});
+    if(closest){selectedNode=closest;sndSelect();renderInspector(closest);}
+}
+
+// ═══════════════════
+// NODE INSPECTOR
+// ═══════════════════
+function renderInspector(node){
+    const w=node.world;
+    const name=w.name.replace(/([A-Z])/g,' $1').trim();
+    let html=`<div class="node-card"><div class="nc-name">${esc(name)}</div><div class="nc-uid">POML.${w.uid} // Node #${node.idx}</div><div class="nc-genre">${w.genre}</div><div class="nc-desc">${esc(w.description.slice(0,200))}</div></div>`;
+
+    html+=`<div class="ai-row"><span class="nc-ai">${node.ai}</span><div><div class="ai-label">${node.alive?'◆ ALIVE NODE':'○ ABIOTIC NODE'}</div><div class="ai-label">Pulses: ${node.pulseCount} | History: ${node.history.length}</div></div></div>`;
+
+    if(w.entities.length) html+=`<div class="sec-hd">Entities</div>${w.entities.slice(0,6).map(e=>`<div class="ent-row"><b>◆ ${esc(e.name)}</b> ${e.type}</div>`).join('')}`;
+
+    // Decision trace
+    if(node.history.length){
+        html+=`<div class="trace-section"><div class="trace-hd">Decision Trace (${node.history.length})</div>`;
+        node.history.slice(-8).reverse().forEach(h=>{
+            if(h.type==='sent') html+=`<div class="trace-entry${h.cleared?'':' blocked'}">▸ SENT → ${esc(h.to)}: <span class="te-code">${esc(h.code.slice(0,40))}</span> ${h.cleared?'✓':'✗ BLOCKED'}</div>`;
+            else if(h.type==='received') html+=`<div class="trace-entry${h.cleared?'':' blocked'}">◂ RECV ← ${esc(h.from)}: <span class="te-code">${esc(h.code.slice(0,40))}</span> ${h.cleared?'✓':'✗'}</div>`;
+            else if(h.type==='honey') html+=`<div class="trace-entry" style="border-color:var(--gold2)">🍯 ${esc(h.text)}</div>`;
+        });
+        html+=`</div>`;
+    }
+
+    // Honey from flight entries — show ALL
+    const nodeHoney=flightEntries.filter(f=>f.toIdx===node.idx&&f.honey);
+    if(nodeHoney.length){
+        nodeHoney.forEach(h=>{
+            html+=`<div class="honey-section"><div class="honey-hd"><span>🍯 Flight #${h.seq} from ${esc(h.fromName)}</span><button class="honey-copy" onclick="navigator.clipboard.writeText(this.closest('.honey-section').querySelector('.honey-text').textContent);this.textContent='\u2713';setTimeout(()=>this.textContent='COPY',1200);">COPY</button></div><div class="honey-text">${esc(h.honey)}</div></div>`;
+        });
+    }
+
+    el('insBody').innerHTML=html;
+}
+
+// ═══════════════════
+// FLIGHT LOG
+// ═══════════════════
+function renderFlightLog(){
+    el('flightLog').innerHTML=flightEntries.slice(0,30).map(f=>`
+        <div class="flight-entry" onclick="selectedNode=nodes[${f.toIdx>=0?f.toIdx:f.fromIdx}];renderInspector(selectedNode)">
+            <div class="fe-route">
+                <span class="fe-from">${esc(f.fromName.slice(0,12))}</span>
+                <span class="fe-arrow">${f.cleared?'→':'⊘'}</span>
+                <span class="fe-to">${esc(f.toName.slice(0,12))}</span>
+                <span class="fe-status ${f.cleared?(f.honey?'clear':'active'):'blocked'}">${f.cleared?(f.honey?'HONEY':'CLEAR'):'BLOCKED'}</span>
+            </div>
+            <div class="fe-code">${esc(f.code.slice(0,35))}</div>
+            ${f.honey?`<div style="font-size:8px;color:var(--gold);font-style:italic;margin-top:2px;line-height:1.4;max-height:40px;overflow:hidden">🍯 ${esc(f.honey.slice(0,120))}</div>`:''}
+            <div class="fe-meta"><span>Score:${f.score}</span><span>${f.genreMatch?'Genre✓':''}</span><span>${f.entityOverlap?f.entityOverlap+'E✓':''}</span><span>#${f.seq}</span></div>
+        </div>
+    `).join('');
+    el('fpCount').textContent=flightEntries.length+' flights';
+}
+
+// ═══════════════════
+// UTIL
+// ═══════════════════
+function el(id){return document.getElementById(id)}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+function updateStats(){el('sNodes').textContent=nodes.length;el('sFlights').textContent=flightEntries.length;el('sBlocked').textContent=blockedCount;el('sHoney').textContent=flightEntries.filter(f=>f.honey).length;}
+function saveCfg(){['opKey','opModel','opBase'].forEach(id=>localStorage.setItem('hiveatc_'+id,el(id).value));}
+function loadCfg(){['opKey','opModel','opBase'].forEach(id=>{const v=localStorage.getItem('hiveatc_'+id);if(v)el(id).value=v;});}
+
+// ═══════════════════
+// INIT
+// ═══════════════════
+function init(){
+    canvas=el('radar');ctx=canvas.getContext('2d');dpr=devicePixelRatio;
+    worlds=RouteEngine.parseAll(WORLDS_DATA);
+    routes=RouteEngine.computeRoutes(worlds);
+    worlds.forEach(w=>{worldByUid[w.uid]=w;});
+    buildNodes();loadCfg();
+    window.addEventListener('resize',resize);
+    canvas.addEventListener('click',onRadarClick);
+    resize();updateStats();
+    requestAnimationFrame(drawLoop);
+}
+init();
+if(typeof HiveLogger!=='undefined')HiveLogger.init('hive-control-tower');
+</script>
+</body>
+</html>

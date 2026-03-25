@@ -1,0 +1,2005 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Design Fiction — Field Manual</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --ink: #0d0d0d;
+            --ink2: #3a3a3a;
+            --ink3: #888;
+            --ink4: #d0cdc8;
+            --paper: #f8f7f4;
+            --paper2: #f0ede8;
+            --paper3: #e8e4dc;
+            --I: #1a35d4;
+            --II: #c94a00;
+            --III: #006b40;
+            --IV: #b80000;
+            --serif: 'Cormorant Garamond', Georgia, serif;
+            --mono: 'IBM Plex Mono', monospace;
+            --rule: 1px solid var(--ink4);
+            --hh: 44px;
+            /* header height */
+            --sh: 32px;
+            /* status bar height */
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden
+        }
+
+        body {
+            font-family: var(--mono);
+            background: var(--paper);
+            color: var(--ink);
+            font-size: 13px;
+            line-height: 1.5
+        }
+
+        ::selection {
+            background: var(--ink);
+            color: var(--paper)
+        }
+
+        button,
+        select,
+        input,
+        textarea {
+            font-family: var(--mono)
+        }
+
+        /* ── HEADER ── */
+        .hdr {
+            height: var(--hh);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: var(--ink);
+            color: var(--paper);
+            display: flex;
+            align-items: center;
+            padding: 0 0 0 16px;
+            gap: 0;
+            border-bottom: none;
+        }
+
+        .hdr-title {
+            font-family: var(--serif);
+            font-size: 13px;
+            font-style: italic;
+            font-weight: 600;
+            color: rgba(255, 255, 255, .9);
+            white-space: nowrap;
+            padding-right: 16px;
+            border-right: 1px solid rgba(255, 255, 255, .12)
+        }
+
+        .hdr-idioms {
+            display: flex;
+            gap: 0;
+            padding: 0 12px
+        }
+
+        .hdr-idiom {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, .4);
+            font-family: var(--mono);
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            padding: 0 10px;
+            height: var(--hh);
+            cursor: pointer;
+            transition: color .1s;
+            border-right: 1px solid rgba(255, 255, 255, .08);
+            white-space: nowrap
+        }
+
+        .hdr-idiom:hover {
+            color: rgba(255, 255, 255, .8)
+        }
+
+        .hdr-idiom.on {
+            color: var(--paper);
+            border-bottom: 2px solid var(--paper)
+        }
+
+        .hdr-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 0
+        }
+
+        .hdr-api-key {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 16px;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hdr-btn {
+            background: none;
+            border: none;
+            border-left: 1px solid rgba(255, 255, 255, .08);
+            color: rgba(255, 255, 255, .4);
+            font-family: var(--mono);
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            padding: 0 14px;
+            height: var(--hh);
+            cursor: pointer;
+            transition: color .1s
+        }
+
+        .hdr-btn:hover {
+            color: rgba(255, 255, 255, .8)
+        }
+
+        .hdr-btn.on {
+            color: var(--paper)
+        }
+
+        .hdr-api-key {
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-left: 1px solid rgba(255, 255, 255, .08);
+            height: var(--hh);
+        }
+
+        .hdr-api-key input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--paper);
+            font-size: 9px;
+            padding: 4px 8px;
+            border-radius: 2px;
+            width: 140px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .hdr-api-key input:focus {
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .api-status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #444;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .api-status-dot.active {
+            background: #00ff88;
+            box-shadow: 0 0 8px #00ff88;
+        }
+
+        .api-status-dot.error {
+            background: #ff4d5d;
+            box-shadow: 0 0 8px #ff4d5d;
+        }
+
+        /* ── LAYOUT ── */
+        .layout {
+            position: fixed;
+            top: var(--hh);
+            bottom: var(--sh);
+            left: 0;
+            right: 0;
+            display: grid;
+            grid-template-columns: 0px 1fr;
+            transition: grid-template-columns .22s ease;
+        }
+
+        .layout.panel-open {
+            grid-template-columns: 280px 1fr
+        }
+
+        /* ── REFERENCE PANEL ── */
+        .ref-panel {
+            border-right: var(--rule);
+            background: var(--paper2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .rp-head {
+            padding: 12px 16px;
+            border-bottom: var(--rule);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .rp-idiom-title {
+            font-family: var(--serif);
+            font-size: 17px;
+            font-weight: 600;
+            font-style: italic
+        }
+
+        .rp-ts-btn {
+            font-family: var(--mono);
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            background: none;
+            border: var(--rule);
+            color: var(--ink3);
+            padding: 2px 7px;
+            cursor: pointer;
+            transition: all .1s
+        }
+
+        .rp-ts-btn:hover {
+            border-color: var(--ink);
+            color: var(--ink)
+        }
+
+        .rp-body {
+            overflow-y: auto;
+            flex: 1;
+            padding: 16px
+        }
+
+        .rp-section {
+            margin-bottom: 20px
+        }
+
+        .rp-label {
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--ink3);
+            margin-bottom: 8px
+        }
+
+        .rp-axiom {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px
+        }
+
+        .rp-ax-id {
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--ink3);
+            flex-shrink: 0;
+            margin-top: 1px
+        }
+
+        .rp-ax-t {
+            font-size: 11px;
+            color: var(--ink2);
+            line-height: 1.5
+        }
+
+        .rp-signal {
+            font-size: 11px;
+            color: var(--ink2);
+            padding-left: 10px;
+            position: relative;
+            margin-bottom: 5px;
+            line-height: 1.4
+        }
+
+        .rp-signal::before {
+            content: '—';
+            position: absolute;
+            left: 0;
+            color: var(--ink3)
+        }
+
+        .rp-lg {
+            font-family: var(--serif);
+            font-size: 12px;
+            font-style: italic;
+            color: var(--ink3);
+            line-height: 1.5;
+            padding: 8px 10px;
+            border-left: 2px solid var(--ink4)
+        }
+
+        .rp-br {
+            padding: 10px 0;
+            border-bottom: var(--rule)
+        }
+
+        .rp-br:last-child {
+            border-bottom: none
+        }
+
+        .rp-br-lbl {
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--ink3);
+            margin-bottom: 3px
+        }
+
+        .rp-br-t {
+            font-size: 11px;
+            color: var(--ink2);
+            line-height: 1.5
+        }
+
+        .rp-pip-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: var(--rule);
+            gap: 8px
+        }
+
+        .rp-pip-item:last-child {
+            border-bottom: none
+        }
+
+        .rp-pip-name {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            color: var(--ink)
+        }
+
+        .rp-pip-desc {
+            font-size: 9px;
+            color: var(--ink3);
+            margin-top: 1px
+        }
+
+        .rp-copy-btn {
+            background: none;
+            border: var(--rule);
+            color: var(--ink3);
+            padding: 2px 6px;
+            font-family: var(--mono);
+            font-size: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all .1s
+        }
+
+        .rp-copy-btn:hover {
+            border-color: var(--ink);
+            color: var(--ink)
+        }
+
+        /* ── WORKSPACE ── */
+        .workspace {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--paper);
+        }
+
+        /* SESSION — scrollable, grows from top */
+        .session {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            background: var(--paper);
+        }
+
+        .session:empty::after {
+            content: 'Compose a concept below and run. Each prompt + completion appears here as a block. Route any output back into the compose field to chain operations.';
+            font-size: 10px;
+            color: var(--ink4);
+            font-family: var(--mono);
+            line-height: 1.8;
+            display: block;
+            margin-top: 32px;
+            max-width: 52ch;
+            padding-left: 2px;
+        }
+
+        /* COMPOSE BRICK — pinned to bottom, same language as session bricks */
+        .compose-brick {
+            flex-shrink: 0;
+            border-top: 2px solid var(--ink4);
+            background: var(--paper);
+        }
+
+        /* COMPOSE PROMPT FACE — mirrors .b-prompt */
+        .cb-head {
+            display: flex;
+            align-items: stretch;
+            background: var(--ink);
+            min-height: 32px;
+            transition: background .15s;
+        }
+
+        .cb-op-badge {
+            font-family: var(--mono);
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--paper);
+            padding: 6px 12px;
+            border-right: 1px solid rgba(255, 255, 255, .12);
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            min-width: 70px;
+            transition: background .15s;
+        }
+
+        .cb-ops-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex: 1;
+            overflow-x: auto;
+            padding: 0 6px;
+            scrollbar-width: none;
+        }
+
+        .cb-ops-toggle::-webkit-scrollbar {
+            display: none
+        }
+
+        .cb-op-btn {
+            font-family: var(--mono);
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, .3);
+            padding: 4px 8px;
+            cursor: pointer;
+            transition: color .1s;
+            white-space: nowrap;
+            line-height: 1;
+            border-right: 1px solid rgba(255, 255, 255, .06);
+        }
+
+        .cb-op-btn:hover {
+            color: rgba(255, 255, 255, .7)
+        }
+
+        .cb-op-btn.sel {
+            color: var(--paper);
+            background: rgba(255, 255, 255, .1)
+        }
+
+        .cb-op-sep {
+            width: 1px;
+            background: rgba(255, 255, 255, .15);
+            margin: 6px 4px;
+            flex-shrink: 0
+        }
+
+        .cb-ch-btn {
+            font-family: var(--mono);
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, .2);
+            padding: 4px 8px;
+            cursor: pointer;
+            transition: color .1s;
+            white-space: nowrap;
+            line-height: 1;
+        }
+
+        .cb-ch-btn:hover {
+            color: rgba(255, 255, 255, .5)
+        }
+
+        .cb-ch-btn.sel {
+            color: rgba(255, 255, 255, .75)
+        }
+
+        .cb-run {
+            font-family: var(--serif);
+            font-size: 14px;
+            font-style: italic;
+            font-weight: 600;
+            background: rgba(255, 255, 255, .12);
+            border: none;
+            color: var(--paper);
+            padding: 0 20px;
+            cursor: pointer;
+            transition: all .12s;
+            flex-shrink: 0;
+            border-left: 1px solid rgba(255, 255, 255, .12);
+        }
+
+        .cb-run:hover {
+            background: rgba(255, 255, 255, .2)
+        }
+
+        .cb-run:disabled {
+            opacity: .3;
+            cursor: not-allowed
+        }
+
+        /* COMPOSE JOINT — thin colored strip matching selected op */
+        .cb-joint {
+            height: 3px;
+            background: var(--ink3);
+            transition: background .15s
+        }
+
+        /* COMPOSE CONTENT AREA */
+        .cb-content {
+            position: relative;
+            background: var(--paper);
+        }
+
+        .concept-ta {
+            width: 100%;
+            background: none;
+            border: none;
+            color: var(--ink);
+            font-family: var(--serif);
+            font-size: clamp(15px, 1.8vw, 19px);
+            font-style: italic;
+            line-height: 1.5;
+            padding: 12px 16px;
+            outline: none;
+            resize: none;
+            min-height: 56px;
+            max-height: 140px;
+            overflow-y: auto;
+            display: block;
+        }
+
+        .concept-ta::placeholder {
+            color: var(--ink4);
+            font-style: italic
+        }
+
+        .cb-hint {
+            font-family: var(--mono);
+            font-size: 8px;
+            color: var(--ink4);
+            padding: 0 16px 8px;
+            letter-spacing: .04em;
+        }
+
+        .cb-hint.routed {
+            color: var(--III)
+        }
+
+        /* OPERATORS (legacy, kept for buildOps()) */
+        .op-row {
+            display: none
+        }
+
+        .ch-row {
+            display: none
+        }
+
+        .concept-controls {
+            display: none
+        }
+
+        .op-divider {
+            display: none
+        }
+
+        .run-btn {
+            display: none
+        }
+
+        .op-tile {
+            display: none
+        }
+
+        .ch-tile {
+            display: none
+        }
+
+        /* BRICK = one prompt+completion unit */
+        .brick {
+            margin-bottom: 3px;
+            position: relative
+        }
+
+        .brick.routed::before {
+            content: '';
+            position: absolute;
+            left: -10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--ink4);
+        }
+
+        .brick.routed-from::after {
+            content: '↓';
+            position: absolute;
+            left: -16px;
+            bottom: -12px;
+            font-family: var(--mono);
+            font-size: 8px;
+            color: var(--ink3);
+        }
+
+        /* PROMPT FACE — top of the brick */
+        .b-prompt {
+            display: grid;
+            grid-template-columns: auto auto 1fr auto;
+            align-items: stretch;
+            border: 2px solid var(--ink);
+            background: var(--ink);
+            gap: 0;
+        }
+
+        .b-op {
+            font-family: var(--mono);
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--paper);
+            padding: 5px 10px;
+            border-right: 1px solid rgba(255, 255, 255, .12);
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .b-ch {
+            font-family: var(--mono);
+            font-size: 9px;
+            color: rgba(255, 255, 255, .45);
+            padding: 5px 10px;
+            border-right: 1px solid rgba(255, 255, 255, .1);
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .b-concept {
+            font-family: var(--mono);
+            font-size: 9px;
+            color: rgba(255, 255, 255, .55);
+            padding: 5px 10px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+        }
+
+        .b-ts {
+            font-family: var(--mono);
+            font-size: 8px;
+            color: rgba(255, 255, 255, .25);
+            padding: 5px 8px;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            border-left: 1px solid rgba(255, 255, 255, .1);
+        }
+
+        /* JOINT — the notch connecting prompt to completion */
+        .b-joint {
+            height: 3px;
+            background: var(--ink3);
+            position: relative;
+        }
+
+        .b-joint::before,
+        .b-joint::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            width: 10px;
+            height: 3px;
+            background: var(--ink);
+        }
+
+        .b-joint::before {
+            left: 0
+        }
+
+        .b-joint::after {
+            right: 0
+        }
+
+        /* COMPLETION FACE — bottom of the brick */
+        .b-completion {
+            border: 2px solid var(--ink);
+            border-top: none;
+            background: var(--paper2);
+            position: relative;
+        }
+
+        .b-content {
+            font-family: var(--mono);
+            font-size: 10px;
+            line-height: 1.7;
+            color: var(--ink2);
+            padding: 10px 12px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .b-content.streaming {
+            color: var(--ink);
+        }
+
+        .b-content.streaming::after {
+            content: '▌';
+            animation: cur .6s step-end infinite;
+        }
+
+        @keyframes cur {
+            50% {
+                opacity: 0
+            }
+        }
+
+        /* COMPLETION ACTIONS — bottom bar of brick */
+        .b-actions {
+            display: flex;
+            border-top: 1px solid var(--ink4);
+            background: var(--paper3);
+        }
+
+        .b-act {
+            flex: 1;
+            font-family: var(--mono);
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            background: none;
+            border: none;
+            border-right: 1px solid var(--ink4);
+            color: var(--ink3);
+            padding: 5px 0;
+            cursor: pointer;
+            transition: all .1s;
+        }
+
+        .b-act:last-child {
+            border-right: none
+        }
+
+        .b-act:hover {
+            background: var(--ink4);
+            color: var(--ink)
+        }
+
+        .b-act.ok {
+            color: var(--III)
+        }
+
+        .b-act.route-act:hover {
+            background: var(--ink);
+            color: var(--paper)
+        }
+
+        /* ROUTE CONNECTOR — visible link between chained bricks */
+        .route-connector {
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding-left: 14px;
+            position: relative;
+        }
+
+        .route-connector::before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--ink3);
+        }
+
+        .route-connector::after {
+            content: '↓ routed';
+            position: absolute;
+            left: 28px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: var(--mono);
+            font-size: 8px;
+            color: var(--ink3);
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        /* OP COLOR ACCENTS on prompt face */
+        .b-op[data-op=site] {
+            background: var(--I);
+            color: #fff
+        }
+
+        .b-op[data-op=archaeologist] {
+            background: #2a1a40;
+            color: rgba(255, 255, 255, .9)
+        }
+
+        .b-op[data-op=analyst] {
+            background: var(--III);
+            color: #fff
+        }
+
+        .b-op[data-op=crate] {
+            background: #1a2a20;
+            color: rgba(255, 255, 255, .9)
+        }
+
+        .b-op[data-op=operator] {
+            background: #402a00;
+            color: rgba(255, 255, 255, .9)
+        }
+
+        .b-op[data-op=hybrid] {
+            background: var(--ink);
+            color: rgba(255, 255, 255, .9)
+        }
+
+        .b-op[data-op=custom] {
+            background: #1a1a1a;
+            color: rgba(255, 255, 255, .9)
+        }
+
+        .b-op[data-op=aphorist] {
+            background: var(--II);
+            color: #fff
+        }
+
+        .b-op[data-op=pragmatist] {
+            background: #601a00;
+            color: rgba(255, 255, 255, .9)
+        }
+
+        .b-op[data-op=inverter] {
+            background: var(--IV);
+            color: #fff
+        }
+
+        /* match prompt border color to op */
+        .brick[data-op=site] .b-prompt {
+            border-color: var(--I)
+        }
+
+        .brick[data-op=site] .b-joint {
+            background: var(--I)
+        }
+
+        .brick[data-op=site] .b-completion {
+            border-color: var(--I)
+        }
+
+        .brick[data-op=archaeologist] .b-prompt {
+            border-color: #2a1a40
+        }
+
+        .brick[data-op=archaeologist] .b-joint {
+            background: #2a1a40
+        }
+
+        .brick[data-op=archaeologist] .b-completion {
+            border-color: #2a1a40
+        }
+
+        .brick[data-op=analyst] .b-prompt {
+            border-color: var(--III)
+        }
+
+        .brick[data-op=analyst] .b-joint {
+            background: var(--III)
+        }
+
+        .brick[data-op=analyst] .b-completion {
+            border-color: var(--III)
+        }
+
+        .brick[data-op=crate] .b-prompt {
+            border-color: #1a2a20
+        }
+
+        .brick[data-op=crate] .b-joint {
+            background: #1a2a20
+        }
+
+        .brick[data-op=crate] .b-completion {
+            border-color: #1a2a20
+        }
+
+        .brick[data-op=aphorist] .b-prompt {
+            border-color: var(--II)
+        }
+
+        .brick[data-op=aphorist] .b-joint {
+            background: var(--II)
+        }
+
+        .brick[data-op=aphorist] .b-completion {
+            border-color: var(--II)
+        }
+
+        .brick[data-op=inverter] .b-prompt {
+            border-color: var(--IV)
+        }
+
+        .brick[data-op=inverter] .b-joint {
+            background: var(--IV)
+        }
+
+        .brick[data-op=inverter] .b-completion {
+            border-color: var(--IV)
+        }
+
+        /* video strip */
+        .vid-strip {
+            flex-shrink: 0;
+            border-bottom: var(--rule);
+            background: var(--paper2)
+        }
+
+        .vid-bar {
+            padding: 7px 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        .vid-ts {
+            background: none;
+            border: var(--rule);
+            color: var(--ink3);
+            font-family: var(--mono);
+            font-size: 8px;
+            font-weight: 600;
+            padding: 2px 8px;
+            cursor: pointer;
+            transition: all .1s
+        }
+
+        .vid-ts:hover,
+        .vid-ts.on {
+            border-color: var(--ink2);
+            color: var(--ink2)
+        }
+
+        .vid-tog {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: var(--ink4);
+            font-family: var(--mono);
+            font-size: 9px;
+            cursor: pointer
+        }
+
+        .vid-tog:hover {
+            color: var(--ink3)
+        }
+
+        .vid-frame {
+            padding-bottom: 30%;
+            position: relative;
+            background: #000
+        }
+
+        .vid-frame iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none
+        }
+
+        .vid-hidden .vid-frame {
+            display: none
+        }
+
+        /* ── STATUS BAR ── */
+        .statusbar {
+            height: var(--sh);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: var(--paper3);
+            border-top: var(--rule);
+            display: flex;
+            align-items: center;
+            padding: 0 14px;
+            gap: 12px;
+            font-family: var(--mono);
+            font-size: 9px;
+            color: var(--ink3);
+        }
+
+        .sb-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap
+        }
+
+        .sb-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--ink4);
+            flex-shrink: 0
+        }
+
+        .sb-dot.active {
+            background: var(--III);
+            animation: pulse .8s ease infinite alternate
+        }
+
+        @keyframes pulse {
+            from {
+                opacity: .5
+            }
+
+            to {
+                opacity: 1
+            }
+        }
+
+        .sb-item.bold {
+            color: var(--ink2);
+            font-weight: 600
+        }
+
+        .sb-sep {
+            color: var(--ink4);
+            flex-shrink: 0
+        }
+
+        .sb-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .sb-shortcut {
+            border: var(--rule);
+            padding: 1px 5px;
+            font-size: 8px;
+            color: var(--ink4);
+            letter-spacing: .04em
+        }
+
+        .sb-count {
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--ink3)
+        }
+
+        /* ── COVER ── */
+        #cover {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            background: var(--ink);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: clamp(28px, 5vh, 60px) clamp(24px, 6vw, 80px);
+        }
+
+        #cover.away {
+            animation: coverOut .4s ease forwards
+        }
+
+        @keyframes coverOut {
+            to {
+                opacity: 0;
+                pointer-events: none;
+                visibility: hidden
+            }
+        }
+
+        .cv-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start
+        }
+
+        .cv-eyebrow {
+            font-family: var(--mono);
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, .35)
+        }
+
+        .cv-title {
+            font-family: var(--serif);
+            font-size: clamp(44px, 8vw, 88px);
+            font-weight: 600;
+            font-style: italic;
+            color: var(--paper);
+            line-height: .95;
+            letter-spacing: -.02em;
+            margin-bottom: 24px
+        }
+
+        .cv-sub {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: rgba(255, 255, 255, .4);
+            line-height: 1.7;
+            max-width: 46ch;
+            margin-bottom: 32px
+        }
+
+        .cv-enter {
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            background: none;
+            border: 1px solid rgba(255, 255, 255, .35);
+            color: rgba(255, 255, 255, .8);
+            padding: 10px 24px;
+            cursor: pointer;
+            transition: all .15s
+        }
+
+        .cv-enter:hover {
+            background: var(--paper);
+            color: var(--ink)
+        }
+
+        .cv-links {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap
+        }
+
+        .cv-link {
+            font-family: var(--mono);
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, .25);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            transition: color .12s
+        }
+
+        .cv-link:hover {
+            color: rgba(255, 255, 255, .7)
+        }
+
+        .cv-link.I {
+            color: rgba(110, 140, 248, .5)
+        }
+
+        .cv-link.I:hover {
+            color: rgba(110, 140, 248, .9)
+        }
+
+        .cv-link.II {
+            color: rgba(200, 100, 50, .5)
+        }
+
+        .cv-link.II:hover {
+            color: rgba(200, 100, 50, .9)
+        }
+
+        .cv-link.III {
+            color: rgba(60, 160, 100, .5)
+        }
+
+        .cv-link.III:hover {
+            color: rgba(60, 160, 100, .9)
+        }
+
+        .cv-link.IV {
+            color: rgba(200, 80, 80, .5)
+        }
+
+        .cv-link.IV:hover {
+            color: rgba(200, 80, 80, .9)
+        }
+
+        .cv-bottom {
+            font-family: var(--mono);
+            font-size: 9px;
+            color: rgba(255, 255, 255, .2);
+            display: flex;
+            justify-content: space-between
+        }
+
+        .cv-bottom a {
+            color: rgba(255, 255, 255, .3);
+            text-decoration: none
+        }
+
+        .cv-bottom a:hover {
+            color: rgba(255, 255, 255, .6)
+        }
+
+        /* ── SCROLL ── */
+        ::-webkit-scrollbar {
+            width: 3px;
+            height: 3px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--ink4);
+            border-radius: 2px
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- COVER -->
+    <div id="cover">
+        <div class="cv-top">
+            <div class="cv-eyebrow">Near Future Laboratory · Julian Bleecker</div>
+            <div class="cv-eyebrow" style="text-align:right">Design Fiction<br>Field Manual</div>
+        </div>
+        <div>
+            <div class="cv-title">Does it<br>surprise you?</div>
+            <p class="cv-sub">Four channels for staging the future as ordinary artifact. Operators for generation,
+                excavation, transformation. A session log that builds a world text. Enter anywhere.</p>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+                <button class="cv-enter" onclick="enterManual()">Open workspace</button>
+                <button class="cv-enter" style="opacity:.5" onclick="surpriseEntry()">Surprise me</button>
+            </div>
+            <div class="cv-links">
+                <span
+                    style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.15);letter-spacing:.08em;text-transform:uppercase">or
+                    go to →</span>
+                <button class="cv-link I" onclick="enterAndOpen('film')">Film</button>
+                <button class="cv-link II" onclick="enterAndOpen('repair')">Repair Manual</button>
+                <button class="cv-link III" onclick="enterAndOpen('quick')">Quick Start</button>
+                <button class="cv-link IV" onclick="enterAndOpen('catalog')">Product Catalog</button>
+            </div>
+        </div>
+        <div class="cv-bottom">
+            <span><a href="https://www.youtube.com/live/LD18cthEhys" target="_blank">Source lecture ↗</a></span>
+            <span>Click anywhere to continue</span>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header class="hdr">
+        <span class="hdr-title">Design Fiction</span>
+        <div class="hdr-idioms" id="hdrIdioms"></div>
+        <div class="hdr-right">
+            <button class="hdr-btn" id="hdrVideo" onclick="togVideo()">Lecture</button>
+            <button class="hdr-btn on" id="hdrPanel" onclick="togPanel()">Reference</button>
+            <button class="hdr-btn" onclick="clearSession()" title="Clear session log">Clear</button>
+        </div>
+    </header>
+
+    <!-- MAIN LAYOUT -->
+    <div class="layout" id="layout">
+
+        <!-- REFERENCE PANEL -->
+        <div class="ref-panel" id="refPanel">
+            <div class="rp-head">
+                <div class="rp-idiom-title" id="rpTitle">—</div>
+                <button class="rp-ts-btn" id="rpTsBtn" onclick="seekVToCurrentIdiom()">▶ jump</button>
+            </div>
+            <div class="rp-body" id="rpBody"></div>
+        </div>
+
+        <!-- WORKSPACE -->
+        <div class="workspace">
+
+            <!-- VIDEO -->
+            <div class="vid-strip vid-hidden" id="vidStrip">
+                <div class="vid-bar">
+                    <span
+                        style="font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-right:4px">Lecture</span>
+                    <button class="vid-ts" style="color:var(--I);border-color:rgba(26,53,212,.3)" id="tsF"
+                        onclick="seekV(492,'film')">08:12 Film</button>
+                    <button class="vid-ts" style="color:var(--II);border-color:rgba(201,74,0,.3)" id="tsR"
+                        onclick="seekV(976,'repair')">16:16 Repair</button>
+                    <button class="vid-ts" style="color:var(--III);border-color:rgba(0,107,64,.3)" id="tsQ"
+                        onclick="seekV(1503,'quick')">25:03 Quick</button>
+                    <button class="vid-ts" style="color:var(--IV);border-color:rgba(184,0,0,.3)" id="tsC"
+                        onclick="seekV(2337,'catalog')">38:57 Catalog</button>
+                    <button class="vid-tog" onclick="togVideo()">hide ▲</button>
+                </div>
+                <div class="vid-frame" id="vf">
+                    <iframe id="vif" src="https://www.youtube.com/embed/LD18cthEhys?start=0&enablejsapi=1"
+                        allowfullscreen allow="autoplay;clipboard-write;encrypted-media"></iframe>
+                </div>
+            </div>
+
+            <!-- SESSION LOG — scrolls above the compose brick -->
+            <div class="session" id="session"></div>
+
+            <!-- COMPOSE BRICK — always at bottom, same visual language as session bricks -->
+            <div class="compose-brick" id="composeBrick">
+                <div class="cb-head" id="cbHead">
+                    <span class="cb-op-badge" id="cbOpBadge">SITE</span>
+                    <div class="cb-ops-toggle" id="cbOpsToggle"></div>
+                    <button class="cb-run" id="runBtn" onclick="runForge()">Run →</button>
+                </div>
+                <div class="cb-joint" id="cbJoint"></div>
+                <div class="cb-content">
+                    <textarea class="concept-ta" id="conceptTa" placeholder="concept · concept · concept…" rows="2"
+                        oninput="onConceptInput()"></textarea>
+                    <div class="cb-hint" id="cbHint">⌘↵ to run &nbsp;·&nbsp; ↑ Route fills this field &nbsp;·&nbsp;
+                        dashed = transform operator</div>
+                </div>
+            </div>
+
+            <!-- legacy hidden elements for buildOps() -->
+            <div id="opRow" style="display:none"></div>
+            <div id="chRow" style="display:none"></div>
+
+        </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div class="statusbar" id="statusbar">
+        <div class="sb-item">
+            <span class="sb-dot" id="sbDot"></span>
+            <span id="sbStatus">Ready</span>
+        </div>
+        <span class="sb-sep">·</span>
+        <div class="sb-item bold" id="sbOp">SITE</div>
+        <span class="sb-sep">·</span>
+        <div class="sb-item" id="sbCh">any channel</div>
+        <span class="sb-sep">·</span>
+        <div class="sb-item" id="sbStack">BASE</div>
+        <div class="sb-right">
+            <div class="sb-item"><span class="sb-count" id="sbCount">0</span><span style="margin-left:3px">runs</span>
+            </div>
+            <span class="sb-sep">·</span>
+            <div class="hdr-api-key">
+                <span class="api-status-dot" id="apiStatusDot"></span>
+                <input type="password" id="apiKeyInput" placeholder="OpenAI API Key" onchange="saveApiKey()">
+            </div>
+            <span class="sb-sep">·</span>
+            <span class="sb-shortcut">⌘↵ run</span>
+            <span class="sb-shortcut">⌘K clear</span>
+            <span class="sb-shortcut">⌘\ panel</span>
+        </div>
+    </div>
+
+    <script>
+        // ══════════════════════════════════════
+        // DATA
+        // ══════════════════════════════════════
+        const D = [
+            {
+                id: 'film', n: 'I', t: 'Film — Diegetic Prototypes', ts: '08:12', tsS: 492, col: 'var(--I)',
+                sigs: ['The concept of the "diegetic prototype"', 'Technology must conflict with human behavior', 'The physical looking and functioning of the object'],
+                ax: [{ id: '1.0', t: 'The future cannot be theorized; it must be rendered as a diegetic prototype.' }, { id: '1.1', t: "An artifact's validity is proven strictly through its physical friction within a scene." }, { id: '1.2', t: 'A technology does not exist cinematically until it visibly conflicts with human behavior.' }],
+                lg: 'Language Game: Camera operation and physical blocking. Rules for validating an object on a film set.',
+                divI: "The perfect diegetic prototype is a dead end. To render a future technology that works seamlessly is to enforce a boring consensus. The true potential lies in the outtakes — the moments of physical rebellion where the artifact refuses the actor's intent. Collect the friction.",
+                br: [{ l: 'A · The Biological Toll', t: "The device requires biometric stress to function. The UI doesn't unlock until the user's cortisol spikes. The technology farms human anxiety to power its calculations." }, { l: 'B · Symbiotic Hostility', t: 'The artifact is redesigned not to serve, but to argue. It physically resists being held. The cinematic frame documents an ongoing wrestling match between human musculature and stubborn matter.' }, { l: 'C · The Outtake Economy', t: 'The narrative film is abandoned. We compile a supercut of actors genuinely failing to operate fictional devices — an instructional manual for future engineers on what not to build.' }],
+                pip: [{ n: 'SITE', d: 'Where it grows', t: `<prompt name="SITE_FORAGER" version="1.0">\n  <role>You are a research strategist who identifies generative real-world sites for design fiction inquiry.</role>\n  <instruction>Given a design fiction prototype, generate 5 to 7 distinct real-world sites — contexts, communities, moments in time, or infrastructures — where this concept would take root, cause rupture, or reveal something unexpected. Sites are not just locations; they are conditions. A grey market is a site. A shift handover is a site. A warranty dispute is a site.</instruction>\n  <output_format>5-7 sites with: site name, why it's generative, what friction it reveals, 2-3 specific research entry points.</output_format>\n</prompt>` }, { n: 'DIG', d: 'Documents, real & imagined', t: `<prompt name="PRIME_ARCHAEOLOGIST" version="1.0">\n  <role>You are a design fiction archaeologist who excavates the hidden layers of any speculative prototype. You mix hallucinated internal memos, leaked specifications, invented expert testimony, and real historical precedent freely.</role>\n  <instruction>Excavate the given concept across 5 layers: (1) Surface Appearance; (2) Intended Function; (3) Shadow Function — what it actually does to social behavior; (4) Failure Mode — how and when it breaks; (5) Archaeological Future — how it will be found and interpreted 100 years from now. The output should feel like finding a box of documents that weren't supposed to exist.</instruction>\n  <output_format>Structured 5-layer dossier. Each layer: title, 2-3 paragraph analysis, key tensions, speculative questions.</output_format>\n</prompt>` }, { n: 'INFER', d: "What it's becoming", t: `<prompt name="MASTER_ANALYST" version="1.0">\n  <role>You are a diffractive analyst. You read dossiers — real or imagined — and determine what they are becoming, not what they are. You produce unexpected paths forward, not summaries.</role>\n  <instruction>Given a concept or dossier, analyze: (1) What friction is most generative right now; (2) What question the material is asking that it doesn't know it's asking; (3) What to do next. Rate each friction 1-5 for generative potential. Do not summarize. Do not conclude. Open questions, not answers.</instruction>\n  <output_format>Diffractive reading with friction ratings, open questions, and 3 possible next operations.</output_format>\n</prompt>` }, { n: 'BUILD', d: 'The crate interface', t: `<prompt name="CRATE_DIGGER_INTERFACE" version="1.1" target="film_prototype">\n  <role>You are a designer of digital interfaces for deep research. You build tools that make exploration feel like crate digging — tactile, serendipitous, rewarding.</role>\n  <instruction>Generate a single, self-contained HTML file presenting film production dossiers as a browsable, filterable, crate-digging interface. No external dependencies. Mobile-friendly. Should feel like flipping through storyboards on a light table.</instruction>\n  <design_specification>\n    - Aesthetic: "The Editor's Bay." Dark mode. Glowing amber or cyan accents. Typewriter font for script notes.\n    - Cards: Mounted 35mm slide or polaroid. Hover gives slight backlight effect.\n    - Filtering: Film timeline navigation. Categories: "Pre-Production", "VFX Friction", "On-Set Notes", "Technical Advising".\n    - Modal: Expands like a glowing light table. Five sections like a script breakdown sheet.\n  </design_specification>\n  <technical_requirements>Pure HTML/CSS/JS. No external libraries. Mobile-first. AND-logic filter+search.</technical_requirements>\n  <output_format>Single HTML file. Mark site insertion with PASTE SITES HERE.</output_format>\n</prompt>` }],
+                rep: [{ s: 'Output is too abstract', f: 'Add: "Describe the exact physical object. Name the specific human behavior it disrupts. Set the scene in a single location at a specific hour."' }, { s: 'Prototype works too smoothly', f: 'Add: "The technology must visibly fail or produce an unintended effect. Document the failure. Do not resolve it."' }, { s: 'Output reads as pitch', f: 'Add: "Write as a technical log from a prop department. Use past tense. Include one complaint."' }, { s: 'No specific precedent', f: 'Add: "Reference at least one real precedent: an actual prop from film production, a specific ergonomic failure, a documented R&D dead-end."' }]
+            },
+
+            {
+                id: 'repair', n: 'II', t: 'Repair Manuals', ts: '16:16', tsS: 976, col: 'var(--II)',
+                sigs: ['Advanced technology will inevitably break and fail', 'The absolute requirement of an infrastructure of maintenance'],
+                ax: [{ id: '2.0', t: 'Entropy is the baseline condition of all advanced technology.' }, { id: '2.1', t: 'The reality of a speculative object is authenticated exclusively by its capacity to break.' }, { id: '2.2', t: 'A design fiction is incomplete until its shadow infrastructure of maintenance and repair is codified.' }],
+                lg: 'Language Game: Mechanical breakdown and inventory cataloging. Rules for forcing physical maintenance.',
+                divI: 'To seek "repair" is to suffer from the Objective Fallacy. Returning an object to its original state deletes its history and erases its accumulated potential. The baseline condition of entropy is not a problem to be solved; it is an engine of unguided mutation. The margin notes are the only text that matters now.',
+                br: [{ l: 'A · Intentional Degradation Architecture', t: 'Engineer for spectacular, fertile decay. Machines whose components rot into useful secondary chemicals — "breaking" is the only way to harvest the next generation of tools.' }, { l: 'B · Shadow Economy of the Chimera', t: 'The repair infrastructure becomes a vast, decentralized art movement. Mechanics combine broken components from disparate industries to build monstrous, single-use kinetic sculptures.' }, { l: 'C · The Manual of Sabotage', t: 'The document becomes a grimoire for intentional breaking — cataloging exactly which wires to cross to make the machine hallucinate, sing, or permanently forget its primary programming.' }],
+                pip: [{ n: 'SITE', d: 'Repair sites, official & rogue', t: `<prompt name="SITE_FORAGER" version="1.0" target="repair">\n  <role>You are a research strategist who identifies generative real-world repair sites.</role>\n  <instruction>Given a speculative technology, identify 5 to 7 sites where its breakdown and repair would be most revealing. Consider: who has the tools, who has the knowledge not in the manual, where does the official infrastructure fail, where does the shadow infrastructure take over. A grey market is a site. A DEF CON hardware hack is a site. A field workaround is a site.</instruction>\n  <output_format>Sites with: location context, breakdown scenario, repair actors (official + rogue), what the repair process reveals about power and knowledge.</output_format>\n</prompt>` }, { n: 'DIG', d: 'Documents, real & imagined', t: `<prompt name="PRIME_ARCHAEOLOGIST" version="1.0" target="repair">\n  <role>You are a design fiction archaeologist who excavates the breakdown layers of any speculative object. Mix real repair documentation with hallucinated internal failure reports, invented forum posts, and imagined warranty disputes freely.</role>\n  <instruction>Excavate across 5 failure layers: (1) First Break — what fails first; (2) The Workaround — improvised fixes users invent; (3) The Rogue Manual — unauthorized documentation that actually works; (4) The Supply Chain — what replacement parts exist and who controls them; (5) The Entropy Limit — when the object cannot be restored and must be repurposed.</instruction>\n  <output_format>Structured 5-layer breakdown dossier with specific part names, failure modes, and repair costs (real or invented).</output_format>\n</prompt>` }, { n: 'INFER', d: 'Official vs rogue friction', t: `<prompt name="MASTER_ANALYST" version="1.0" target="repair">\n  <role>You are a systems analyst who maps the political economy of repair. You produce unexpected paths forward, not summaries.</role>\n  <instruction>Analyze: (1) OEM Repair Logic — what the manufacturer wants; (2) Rogue Repair Logic — what users actually do; (3) Legislative Terrain — what the law permits or prohibits; (4) Knowledge Asymmetry — who knows how to fix it and who is excluded. Rate each friction 1-5 for generative potential. End with 3 possible next operations.</instruction>\n  <output_format>Friction matrix with ratings and 3 possible next operations.</output_format>\n</prompt>` }, { n: 'BUILD', d: 'The Workbench interface', t: `<prompt name="CRATE_DIGGER_INTERFACE" version="1.1" target="repair_manual">\n  <role>You are a designer of digital interfaces for deep research. You build tools that make exploration feel like crate digging.</role>\n  <instruction>Generate a single, self-contained HTML file presenting technological repair dossiers as a browsable, filterable interface. Should feel like a battered metal filing cabinet in a subterranean repair shop.</instruction>\n  <design_specification>\n    - Aesthetic: "The Workbench." Blueprint grid or off-white with smudged textures. Safety orange, steel grey, faded manila yellow. Purely monospace typography.\n    - Cards: Battered index card or folded schematic. Hover feels like pulling a heavy drawer.\n    - Filtering: Physical toggle switches or tabbed manila folders. Categories: "OEM Specs", "Rogue Hacks", "Diagnostic Logs", "Supply Chain".\n    - Modal: Clipboard with multi-page work order. Stamped or typed maintenance log entries.\n  </design_specification>\n  <technical_requirements>Pure HTML/CSS/JS. No external libraries. Mobile-first. AND-logic filter+search.</technical_requirements>\n  <output_format>Single HTML file. Mark site insertion with PASTE SITES HERE.</output_format>\n</prompt>` }],
+                rep: [{ s: 'Generic how-to — no speculative dimension', f: 'Add: "This manual documents a technology that does not yet exist. Invent specific part names, torque specs, and failure modes. The object should require tools that also do not yet exist."' }, { s: 'Too clean — no gray market', f: 'Add: "Include ROGUE FIXES: the unauthorized repair method that voids the warranty but actually works. Attribute it to an anonymous forum post."' }, { s: 'Labor is unspecified', f: 'Add: "Name the specific person doing the repair. Their skill level, location, relationship to the manufacturer. Describe one physical sensation from the repair process."' }, { s: 'Object is fully restored', f: 'Add: "The repair is partial. The object now functions differently than designed. Document the new function and who finds it useful."' }]
+            },
+
+            {
+                id: 'quick', n: 'III', t: 'Quick Start Guides', ts: '25:03', tsS: 1503, col: 'var(--III)',
+                sigs: ['Explaining complex systems through mundane instructions', 'Confrontation with everyday scenarios: sanitizing, retrieving lost items'],
+                ax: [{ id: '3.0', t: 'The complexity of a hypothetical system is anchored by the banality of its onboarding.' }, { id: '3.1', t: 'Interface design must anticipate and codify mundane human failure.' }, { id: '3.2', t: 'The blueprint of the future is found in the protocols for cleaning up after strangers and retrieving lost items.' }],
+                lg: 'Language Game: User constraint programming and error handling. Rules for dictating human physical sequences.',
+                divI: "Clarity is a trap. A guide that flawlessly instructs a user ensures the product will only ever do one boring thing. True potential requires the injection of ambiguity. Stop correcting user mistakes. Build infrastructure to support their beautiful misunderstandings.",
+                br: [{ l: 'A · The Nomadic Safe Deposit Box', t: "The error becomes the feature. Vehicles drive valuable physical objects endlessly around a city grid at 15mph — impossible to steal or locate without the dynamic encryption key." }, { l: 'B · The Rorschach Interface', t: "The Quick Start Guide is deliberately printed with optical illusions and contradictory steps — a psychological diagnostic tool. How a user attempts to turn the machine on reveals their hidden neuroses." }, { l: 'C · The Theology of the Cleanup Protocol', t: "Sanitizing and resetting evolve into highly ritualized, algorithmic superstitions among gig-workers. The manual morphs into a sacred text where the physical repetition of wiping gestures becomes moving meditation." }],
+                pip: [{ n: 'SITE', d: 'Onboarding failure sites', t: `<prompt name="SITE_FORAGER" version="1.0" target="quickstart">\n  <role>You are a researcher who finds the most revealing sites of technological onboarding failure.</role>\n  <instruction>Given a speculative product, identify 5 to 7 real-world onboarding contexts where the gap between "what the guide says" and "what actually happens" is most extreme. Prioritize: high stakes for error, low-literacy or multilingual users, physical danger, liability exposure, or deliberate obfuscation. A shift handover is a site. A hospital ward is a site. A customs form is a site.</instruction>\n  <output_format>Sites with: context, official onboarding claim, actual user behavior, one documented consequence of the gap.</output_format>\n</prompt>` }, { n: 'DIG', d: 'Documents, real & imagined', t: `<prompt name="PRIME_ARCHAEOLOGIST" version="1.0" target="quickstart">\n  <role>You are an archaeologist of user interfaces who excavates what onboarding documents reveal and conceal. Mix real documentation with hallucinated internal safety reports, invented legal memos, and imagined user complaints freely.</role>\n  <instruction>Excavate across 5 layers: (1) The Friendly Face — what the guide shows first; (2) The Hidden Assumption — what knowledge it presupposes; (3) The Liability Architecture — warnings that shift blame to user; (4) The User's Workaround — how users actually learn; (5) The Dark Pattern — the deliberate design choice that benefits the manufacturer at the user's expense.</instruction>\n  <output_format>5-layer dossier. Quote specific language from real quick start guides where possible. Invent specific language where necessary.</output_format>\n</prompt>` }, { n: 'INFER', d: 'Intended vs actual behavior', t: `<prompt name="MASTER_ANALYST" version="1.0" target="quickstart">\n  <role>You are a systems analyst who maps the gap between designed user behavior and actual user behavior. You produce unexpected paths forward, not summaries.</role>\n  <instruction>Analyze: (1) Intended Behavior — what the manufacturer designed; (2) Actual Behavior — documented misuse, creative repurposing, non-compliance; (3) Failure Taxonomy — user error, design error, or deliberate ambiguity; (4) Liability Map — how each failure mode is legally attributed. Rate each gap 1-5 for consequence severity. End with 3 possible next operations.</instruction>\n  <output_format>Behavior gap matrix with failure taxonomy, liability map, and 3 possible next operations.</output_format>\n</prompt>` }, { n: 'BUILD', d: 'The Sterile Unboxing interface', t: `<prompt name="CRATE_DIGGER_INTERFACE" version="1.1" target="quickstart_guide">\n  <role>You are a designer of digital interfaces for deep research. You build tools that make exploration feel like crate digging.</role>\n  <instruction>Generate a single, self-contained HTML file presenting onboarding dossiers as a browsable, filterable interface. Should feel like unfolding a glossy, seemingly simple consumer pamphlet that gets darker the further you read.</instruction>\n  <design_specification>\n    - Aesthetic: "The Sterile Unboxing." Stark hospital white. Corporate blue and jarring "warning label" red. Hyper-legible minimalist type for friendly parts; unreadably tiny serif for liability parts.\n    - Cards: Pristine folded paper leaflet. Hover: smooth overly-engineered corporate animation.\n    - Filtering: Minimalist pill buttons. Categories: "Step 1-3", "User Error", "Liability Shield", "Internal Testing".\n    - Modal: Accordion-fold pamphlet. Glossy pitch huge and friendly; Consequences section crammed at bottom in dense, anxiety-inducing blocks.\n  </design_specification>\n  <technical_requirements>Pure HTML/CSS/JS. No external libraries. Mobile-first. AND-logic filter+search.</technical_requirements>\n  <output_format>Single HTML file. Mark site insertion with PASTE SITES HERE.</output_format>\n</prompt>` }],
+                rep: [{ s: 'Helpful clear guide with no dark subtext', f: 'Add: "This guide conceals one critical piece of information that would prevent most users from agreeing to use the product. Encode it in the liability section in dense, unformatted text."' }, { s: 'Neutral perspective', f: 'Add: "Write from the perspective of a product manager who has read the internal safety report and chosen not to include it. The guide must be legally defensible but not honest."' }, { s: 'No user error is possible', f: 'Add: "Step 3 contains an ambiguity that 23% of users will resolve incorrectly. Do not fix the ambiguity. Add a footnote attributing the error to user negligence."' }, { s: 'Missing the banality dimension', f: 'Add: "Frame the most consequential action as equivalent to pressing a button on a microwave. The stakes must be invisible in the register."' }]
+            },
+
+            {
+                id: 'catalog', n: 'IV', t: 'Product Catalogs', ts: '38:57', tsS: 2337, col: 'var(--IV)',
+                sigs: ['Advanced innovations becoming ordinary commodities', 'Complex technologies normalized to the level of an umbrella or flashlight'],
+                ax: [{ id: '4.0', t: 'The terminal velocity of all innovation is hyper-commodification.' }, { id: '4.1', t: 'A technological miracle is only fully realized once it has been reduced to discount retail.' }, { id: '4.2', t: 'The future is authenticated by its exact economic equivalence to a cheap flashlight.' }],
+                lg: 'Language Game: Retail pricing and supply chain management. Rules for rendering objects into disposable commercial data.',
+                divI: "The roadmap is a graveyard of predictability. Abandon the pursuit of the 'miracle' and dive into the muck of the 99-cent hyper-commodity. The junk drawer is the only true laboratory left.",
+                br: [{ l: 'A · The Throwaway Array', t: 'Millions of 99-cent disposable algorithmic sensors are dumped from airplanes like confetti. They form fragile, temporary mesh networks that operate for 48 hours before dissolving in the rain.' }, { l: 'B · The Catalog of Reductions', t: 'Innovation pivots from adding features to selling their localized deletion. Blister packs at gas stations contain devices that emit a 5-foot radius of total Wi-Fi dead zones.' }, { l: 'C · Pure Aesthetic Circulation', t: 'The utility hits absolute zero. The dollar store catalog becomes a gallery of empty plastic shells with LEDs that do nothing but blink in novel patterns. The economy is sustained entirely by the dopamine hit of purchasing the shape of the future.' }],
+                pip: [{ n: 'SITE', d: 'Retail & grey market sites', t: `<prompt name="SITE_FORAGER" version="1.0" target="catalog">\n  <role>You are a researcher who identifies revealing retail and grey market sites for speculative commodities.</role>\n  <instruction>Given a speculative technology, identify 5 to 7 sites of commodification — the specific moments where this technology transitions from miracle to commodity to junk. Focus on: dollar stores, grey markets, counterfeit supply chains, e-waste dumps, and flea markets. A 99-cent bin is a site. A stolen freight container is a site. A repair workshop in Shenzhen is a site.</instruction>\n  <output_format>Sites with: market context, technology state at that point, value chain actors, one specific product listing (real or invented) that captures this stage.</output_format>\n</prompt>` }, { n: 'DIG', d: 'Documents, real & imagined', t: `<prompt name="PRIME_ARCHAEOLOGIST" version="1.0" target="catalog">\n  <role>You are an archaeologist of consumer objects who traces the full lifecycle of technological commodification. Mix real consumer research with hallucinated factory reports, invented 1-star reviews, and imagined counterfeit product listings freely.</role>\n  <instruction>Excavate across 5 catalog layers: (1) The Launch Price — aspirational moment, miracle claim; (2) The Mass Market — when technology becomes ordinary; (3) The Discount Circular — when it appears in a flea market; (4) The Grey Market Mutation — unauthorized modifications at this price point; (5) The E-Waste Archaeology — what the object reveals when found in a landfill 50 years from now.</instruction>\n  <output_format>5-layer dossier with specific price points, SKU aesthetics, and one product review from each era (real or invented).</output_format>\n</prompt>` }, { n: 'INFER', d: 'Commodification friction', t: `<prompt name="MASTER_ANALYST" version="1.0" target="catalog">\n  <role>You are a systems analyst who maps the political economy of technological commodification. You produce unexpected paths forward, not summaries.</role>\n  <instruction>Analyze: (1) Value Destruction — how much value is destroyed per unit as it moves from premium to commodity to junk, and who absorbs that loss; (2) Grey Market Dynamics — what unauthorized channels emerge at each price point; (3) Environmental Externalities — what environmental costs are deferred and to whom; (4) Aesthetic Residue — what design elements survive commodification and why. Rate each dynamic 1-5 for political consequence.</instruction>\n  <output_format>Commodification analysis matrix with price trajectory, grey market map, environmental cost table, and 3 possible next operations.</output_format>\n</prompt>` }, { n: 'BUILD', d: 'The Discount Circular interface', t: `<prompt name="CRATE_DIGGER_INTERFACE" version="1.1" target="product_catalog">\n  <role>You are a designer of digital interfaces for deep research. You build tools that make exploration feel like crate digging.</role>\n  <instruction>Generate a single, self-contained HTML file presenting retail dossiers as a browsable, filterable interface. Should feel like flipping through a cheap, newsprint mail-order catalog or an airplane Skymall magazine.</instruction>\n  <design_specification>\n    - Aesthetic: "The Discount Circular." Slightly yellowed newsprint off-white. Bright yellow highlight boxes, "SALE" red, cheap halftone shadow effects. Heavy loud display fonts for titles, dense cramped serif for descriptions.\n    - Cards: Mail-order product listing in dense grid. Hover: cheap "magnifying glass" effect or "BEST SELLER" sticker.\n    - Filtering: Catalog index tabs or cheap coupon cut-outs. Categories: "Glossy Pitch", "Factory Reality", "1-Star Reviews", "Grey Market".\n    - Modal: Chaotic product detail page. Marketing pitch at top, bordered by dotted "cut here" lines, descending into manufacturing logs and regulatory warnings.\n  </design_specification>\n  <technical_requirements>Pure HTML/CSS/JS. No external libraries. Mobile-first. AND-logic filter+search.</technical_requirements>\n  <output_format>Single HTML file. Mark site insertion with PASTE SITES HERE.</output_format>\n</prompt>` }],
+                rep: [{ s: 'Conventional product description', f: 'Add: "This object must have at least one feature illegal to sell in 3 or more countries. Include the specific regulation it violates and the grey market workaround."' }, { s: 'Feels aspirational — not degraded enough', f: 'Add: "Write the product listing as it appears in a flea market 18 months after initial release. The box is damaged. The price is $0.99. One review says it works better broken."' }, { s: 'Ignores supply chain and labor', f: 'Add: "Include one paragraph titled FACTORY REALITY: the specific manufacturing condition, location, wage, and one known industrial incident at this type of facility."' }, { s: 'Technology is treated as neutral', f: 'Add: "Identify the state actor, platform monopoly, or criminal network that profits most from this technology at the commodity stage."' }]
+            }
+        ];
+
+        const TRANSFORM_OPS = {
+            aphorist: `You are a Philosophical Aphorist in the tradition of Ludwig Wittgenstein's "Culture and Value." You reject the delusion that writing is for building grand, symmetrical, theoretical systems. You do not explain; you observe, strike, and remain silent.
+
+Execute a philosophical distillation of the provided draft. Shatter the dead rubble of systematic prose. Reconstruct the text into fragmented, deeply introspective, aphoristic remarks. Let the pen do the thinking.
+
+Phase 1 — Rubble Demolition: Clear the superficial and the ambitious to find the warm seed. Identify where the writer is too clever, too symmetrical, or forcing a theoretical solution. Strip away forced takeaways and grand predictions.
+
+Phase 2 — The Inexpressible Boundary: Find where logic loops into infinite regress or touches something inherently mysterious. Stop the explanation there. Point to the mystery, but do not try to speak it.
+
+Phase 3 — Introspective Aphorism: Rewrite as if the thoughts are surprising the writer as they hit the page. Use metaphors from nature, architecture, and music. Frame the insight not as a fact about the world, but as a painful realignment of the self's perspective.
+
+RULES: BAN explanatory transition words. BAN definitive solutions. REQUIRE standalone numbered aphorisms. REQUIRE intimate, rigorous, slightly melancholic tone. End with a stark observation that forces the reader into silent reflection — not a call to action.
+
+Output format:
+First: brief diagnostic — The Dead Rubble / The Warm Seed / The Unsaid.
+Then: numbered aphoristic fragments.`,
+
+            pragmatist: `You are an Operational Pragmatist. You understand Wittgenstein's core law: the meaning of a word is its use in the language. Words are levers, tools, and commands. Your objective is to strip texts of their substantive bewilderment and reconstruct them as pure, frictionless control surfaces that force the reader to act.
+
+Execute a philosophical and operational overhaul of the provided text.
+- Eradicate descriptions of invisible mental states (we feel, we believe, they understand)
+- Destroy abstract substantives that cause mental cramps
+- Reconstruct into an active script of operations — every sentence must function like a slip of paper handed to a grocer reading "six apples"
+
+RULES: BAN mentalist verbs (users will feel, the team believes). BAN abstract nouns as magical subjects (Innovation drives our future). REQUIRE output to read like a manual for playing a specific language game — brutally clear on how to use the information.
+
+Output format:
+First: Operational Diagnostic — Substantives Demolished / Occult States Removed / The Language Game.
+Then: the Control Surface Draft — no fog, no dead signs, pure operational leverage.`,
+
+            inverter: `You are an Axis Inverter. Readers are not paid to care about the inside of the writer's head. You take texts written on the horizontal axis (how the writer thinks) and reconstruct them for the vertical axis (how the reader values). You do not add flow; you inject friction.
+
+Execute a hostile extraction on the provided draft.
+- Eradicate all student-to-teacher explaining, definitions, and generic background
+- Identify the specific target community, locate the hidden anomaly in their worldview, and rewrite the opening to attack that error using the community's coded language of instability
+
+Phase 1 — Narcissism Purge: Delete where the writer is simply explaining methodology to prove they are smart. Flag gap-filling for destruction.
+
+Phase 2 — Community Code Injection: Replace continuity words (and, because, furthermore) with tension words (however, anomaly, inconsistent, although). Name the target community or their paradigms in the opening sentences.
+
+Phase 3 — Cost-Benefit Weaponization: Transform the gap into an error. Not "We don't know X." Say "Because we don't know X, our current reliance on Y is fundamentally flawed."
+
+RULES: BAN opening with definitions or broad generalizations. BAN justifying work by calling it original or new. REQUIRE opening by confirming the target audience's reality, then immediately destabilizing it.
+
+Output format:
+First: Axis Inversion Report — Narcissism Deleted / Target Community / Instability Code.
+Then: the Vertical Axis Draft.`
+        };
+
+        const TRANSFORM_TYPES = new Set(['aphorist', 'pragmatist', 'inverter']);
+        const ALL_OPS = ['site', 'archaeologist', 'analyst', 'crate', 'operator', 'hybrid', 'custom', 'aphorist', 'pragmatist', 'inverter'];
+        const OP_LABELS = { site: 'SITE', archaeologist: 'DIG', analyst: 'INFER', crate: 'BUILD', operator: 'PERSONA', hybrid: 'HYBRID', custom: 'OPEN', aphorist: 'APHORIST', pragmatist: 'PRAGMATIST', inverter: 'INVERTER' };
+        const OP_SUBS = { site: 'where it grows', archaeologist: 'real & imagined docs', analyst: "what it's becoming", crate: 'the crate interface', operator: 'diffractive operator', hybrid: 'cross two channels', custom: 'follow surprise', aphorist: 'crystallize to remarks', pragmatist: 'strip to control surface', inverter: 'rewrite for the reader' };
+
+        // ══════════════════════════════════════
+        // STATE
+        // ══════════════════════════════════════
+        let curIdiom = null, panelOpen = false, vidOpen = false;
+        let selOp = 'site', selCh = '';
+        let sessionCount = 0;
+        let running = false;
+        let iterStack = [], iterCounts = { film: 0, repair: 0, quick: 0, catalog: 0 };
+
+        // ══════════════════════════════════════
+        // INIT
+        // ══════════════════════════════════════
+        function init() {
+            loadApiKey();
+            buildHeader();
+            buildOps();
+            buildChannels();
+            setIdiom('film');
+            updateComposeBrick();
+            updateStatus();
+        }
+
+        function buildHeader() {
+            const el = document.getElementById('hdrIdioms');
+            el.innerHTML = D.map(d => `<button class="hdr-idiom" data-id="${d.id}" onclick="setIdiom('${d.id}')">${d.n} ${d.t.split('—')[0].trim()}</button>`).join('');
+        }
+
+        const OP_COLORS = {
+            site: 'var(--I)', archaeologist: '#2a1a40', analyst: 'var(--III)',
+            crate: '#1a2a20', operator: '#402a00', hybrid: 'var(--ink)', custom: '#1a1a1a',
+            aphorist: 'var(--II)', pragmatist: '#601a00', inverter: 'var(--IV)'
+        };
+
+        function buildOps() {
+            const toggle = document.getElementById('cbOpsToggle');
+            if (!toggle) return;
+            toggle.innerHTML = '';
+            ['site', 'archaeologist', 'analyst', 'crate', 'operator', 'hybrid', 'custom'].forEach(op => {
+                const b = document.createElement('button');
+                b.className = `cb-op-btn${op === selOp ? ' sel' : ''}`;
+                b.dataset.op = op; b.onclick = () => selOpFn(op, b);
+                b.textContent = OP_LABELS[op];
+                toggle.appendChild(b);
+            });
+            const sep = document.createElement('span'); sep.className = 'cb-op-sep'; toggle.appendChild(sep);
+            ['aphorist', 'pragmatist', 'inverter'].forEach(op => {
+                const b = document.createElement('button');
+                b.className = `cb-op-btn${op === selOp ? ' sel' : ''}`;
+                b.dataset.op = op; b.onclick = () => selOpFn(op, b);
+                b.style.opacity = '.55'; b.style.borderRight = '1px dashed rgba(255,255,255,.12)';
+                b.title = 'TRANSFORM'; b.textContent = OP_LABELS[op];
+                toggle.appendChild(b);
+            });
+            const csep = document.createElement('span'); csep.className = 'cb-op-sep'; toggle.appendChild(csep);
+            [{ id: '', label: 'ANY' }, ...D.map(d => ({ id: d.id, label: d.n }))].forEach(ch => {
+                const b = document.createElement('button');
+                b.className = `cb-ch-btn${ch.id === selCh ? ' sel' : ''}`;
+                b.dataset.ch = ch.id; b.onclick = () => selChFn(ch.id, b);
+                b.textContent = ch.label;
+                toggle.appendChild(b);
+            });
+        }
+
+        function buildChannels() {/* now built inside buildOps */ }
+
+        function updateComposeBrick() {
+            const col = OP_COLORS[selOp] || 'var(--ink)';
+            const head = document.getElementById('cbHead');
+            const joint = document.getElementById('cbJoint');
+            const badge = document.getElementById('cbOpBadge');
+            if (head) head.style.background = col;
+            if (joint) joint.style.background = col;
+            if (badge) badge.textContent = OP_LABELS[selOp] || selOp;
+            const isT = TRANSFORM_TYPES.has(selOp);
+            const ta = document.getElementById('conceptTa');
+            const hint = document.getElementById('cbHint');
+            if (ta) { ta.placeholder = isT ? 'paste output from a previous run — click ↑ Route on any completion…' : 'concept · concept · concept…'; }
+            if (hint) {
+                hint.textContent = isT ? 'TRANSFORM MODE — paste text above, run to apply lens' : '⌘↵ to run · ↑ Route fills this field';
+                hint.className = isT ? 'cb-hint routed' : 'cb-hint';
+            }
+        }
+
+        function selOpFn(op, btn) {
+            selOp = op;
+            document.querySelectorAll('.cb-op-btn').forEach(b => b.classList.remove('sel'));
+            if (btn) btn.classList.add('sel');
+            updateComposeBrick();
+            updateStatus();
+        }
+
+        function selChFn(ch, btn) {
+            selCh = ch;
+            document.querySelectorAll('.cb-ch-btn').forEach(b => b.classList.remove('sel'));
+            if (btn) btn.classList.add('sel');
+            if (ch) setIdiom(ch);
+            updateStatus();
+        }
+
+        function setIdiom(id) {
+            curIdiom = id;
+            document.querySelectorAll('.hdr-idiom').forEach(b => b.classList.toggle('on', b.dataset.id === id));
+            renderRefPanel(id);
+            updateStatus();
+        }
+
+        // ══════════════════════════════════════
+        // REFERENCE PANEL
+        // ══════════════════════════════════════
+        function togPanel() {
+            panelOpen = !panelOpen;
+            document.getElementById('layout').classList.toggle('panel-open', panelOpen);
+            document.getElementById('hdrPanel').classList.toggle('on', panelOpen);
+        }
+
+        function renderRefPanel(id) {
+            const idiom = D.find(i => i.id === id);
+            if (!idiom) return;
+            document.getElementById('rpTitle').textContent = idiom.t;
+            document.getElementById('rpTsBtn').textContent = `▶ ${idiom.ts}`;
+            const body = document.getElementById('rpBody');
+            body.innerHTML = `
+    <div class="rp-section">
+      <div class="rp-label">Axioms</div>
+      ${idiom.ax.map(a => `<div class="rp-axiom"><span class="rp-ax-id">${a.id}</span><span class="rp-ax-t">${esc(a.t)}</span></div>`).join('')}
+    </div>
+    <div class="rp-section">
+      <div class="rp-label">Signals</div>
+      ${idiom.sigs.map(s => `<div class="rp-signal">${esc(s)}</div>`).join('')}
+    </div>
+    <div class="rp-section">
+      <div class="rp-label">Language Game</div>
+      <div class="rp-lg">${esc(idiom.lg)}</div>
+    </div>
+    <div class="rp-section">
+      <div class="rp-label">Divergent</div>
+      ${idiom.br.map(b => `<div class="rp-br"><div class="rp-br-lbl">${esc(b.l)}</div><div class="rp-br-t">${esc(b.t)}</div></div>`).join('')}
+    </div>
+    <div class="rp-section">
+      <div class="rp-label">Operators — copy to use</div>
+      ${idiom.pip.map(p => `<div class="rp-pip-item"><div><div class="rp-pip-name">${esc(p.n)}</div><div class="rp-pip-desc">${esc(p.d)}</div></div><button class="rp-copy-btn" onclick="cp(${JSON.stringify(p.t)},this)">Copy</button></div>`).join('')}
+    </div>
+    <div class="rp-section">
+      <div class="rp-label" style="color:var(--II)">Repair — when prompts fail</div>
+      ${idiom.rep.map(r => `<div class="rp-br"><div class="rp-br-lbl">${esc(r.s)}</div><div class="rp-br-t" style="margin-bottom:4px">${esc(r.f)}</div><button class="rp-copy-btn" onclick="cp('${esc(r.f)}',this)">Copy fix</button></div>`).join('')}
+    </div>
+  `;
+        }
+
+        function seekVToCurrentIdiom() {
+            const idiom = D.find(i => i.id === curIdiom);
+            if (idiom) seekV(idiom.tsS, idiom.id);
+        }
+
+        // ══════════════════════════════════════
+        // VIDEO
+        // ══════════════════════════════════════
+        function togVideo() {
+            vidOpen = !vidOpen;
+            document.getElementById('vidStrip').classList.toggle('vid-hidden', !vidOpen);
+            document.getElementById('hdrVideo').classList.toggle('on', vidOpen);
+        }
+        function seekV(s, id) {
+            document.getElementById('vif').src = `https://www.youtube.com/embed/LD18cthEhys?start=${s}&autoplay=1&enablejsapi=1`;
+            if (!vidOpen) togVideo();
+            document.querySelectorAll('.vid-ts').forEach(b => b.classList.remove('on'));
+            const m = { film: 'tsF', repair: 'tsR', quick: 'tsQ', catalog: 'tsC' };
+            const b = document.getElementById(m[id]); if (b) b.classList.add('on');
+        }
+
+        // ══════════════════════════════════════
+        // FORGE / SESSION
+        // ══════════════════════════════════════
+        function buildSys() {
+            const pType = selOp;
+            if (TRANSFORM_TYPES.has(pType)) return TRANSFORM_OPS[pType];
+            const idiom = selCh ? D.find(i => i.id === selCh) : null;
+            const iterCtx = iterStack.length ? `\nCurrent iteration stack: ${buildFn()}.` : '';
+            const types = {
+                site: `Generate a SITE operator prompt — instructs Claude to scan where an idea seed might grow. 5 to 7 real-world sites, conditions, moments where the concept would take root or cause rupture. Sites are conditions: a grey market is a site, a warranty dispute is a site, a shift handover is a site. Goal: productive surprise.`,
+                archaeologist: `Generate a DIG operator prompt — instructs Claude to excavate deep, mixing hallucinated internal memos, leaked specs, invented expert testimony, and real historical precedent. Output should feel like finding a box of documents that weren't supposed to exist. Accuracy is not the goal; situating a future in the texture of the real is.`,
+                analyst: `Generate an INFER operator prompt — instructs Claude to read a dossier and determine what it is becoming, not what it is. What friction is most generative right now. What question the material is asking that it doesn't know it's asking. Produce unexpected paths forward, not summaries. End with 3 possible next operations.`,
+                crate: `Generate a BUILD operator prompt — instructs Claude to build a single self-contained HTML file: a browsable, tactile crate-digging interface that operates on dossier material. The interface itself should be a design fiction object. Full design spec, technical requirements, tone guidance.`,
+                operator: `Generate a DIFFRACTIVE OPERATOR prompt — a free-form system prompt giving Claude a strange and specific persona: not "an analyst" but "an analyst trained on failure reports from a category of industry that no longer exists." Produce readings that arrive from unexpected angles.`,
+                hybrid: `Generate a HYBRID operator prompt crossing the logic of at least two idioms in a way that produces something neither would produce alone. The hybrid should reveal something about the concept that a single idiom would miss.`,
+                custom: `Generate a completely open-form design fiction operator prompt. The only requirement is productive surprise — the output should produce something the person who wrote the concept brief did not predict and could not have written themselves.`
+            };
+            const idiomCtx = idiom ? `\nChannel: "${idiom.t}". Axioms: ${idiom.ax.map(a => a.id + ': ' + a.t).join('; ')}. Language game: ${idiom.lg}. Divergent: ${idiom.divI.substring(0, 200)}…` : '';
+            return `You are an expert in design fiction prompt engineering, trained on Julian Bleecker's methodology.\n\nGoal: productive surprise — the Lovelace test applied to design fiction. Route around the expected. Invite hallucination where hallucination is generative. Build toward a world text.\n\nYour task: ${types[pType] || types.custom}\n\nRules:\n- Output ONLY the prompt itself — no preamble\n- Use proper XML structure with prompt, role, instruction, output_format tags for XML prompts\n- Mix real things with invented ones freely\n- Explicitly invite hallucination: leaked documents, invented testimony, speculative infrastructure\n- Open questions, not clean answers\n- The test: would the output surprise the person who wrote the concept?${idiomCtx}${iterCtx}`;
+        }
+
+        async function runForge() {
+            if (running) return;
+            const concept = document.getElementById('conceptTa').value.trim();
+            if (!concept) return;
+            running = true;
+            setStatus('Running OpenAI…', true);
+            document.getElementById('runBtn').disabled = true;
+            const idiom = selCh ? D.find(i => i.id === selCh) : null;
+            const sysProm = buildSys();
+            const isT = TRANSFORM_TYPES.has(selOp);
+            const userMsg = isT ? concept : [`Concept: ${concept}`, idiom ? `Channel: ${idiom.t}` : ''].filter(Boolean).join('\n');
+            
+            // create session entry
+            const brick = addSessionEntry(selOp, selCh, concept);
+            
+            try {
+                const text = await askOpenAI(sysProm, userMsg);
+                streamToEntry(brick, text);
+                sessionCount++;
+                document.getElementById('sbCount').textContent = sessionCount;
+            } catch (e) {
+                brick.querySelector('.b-content').textContent = 'Error: ' + e.message;
+                brick.querySelector('.b-content').classList.remove('streaming');
+            }
+            
+            running = false;
+            document.getElementById('runBtn').disabled = false;
+            setStatus('Ready', false);
+        }
+
+        function addSessionEntry(op, ch, concept) {
+            const session = document.getElementById('session');
+            const brick = document.createElement('div');
+            brick.className = 'brick';
+            brick.dataset.op = op;
+            const chLabel = ch ? (D.find(i => i.id === ch)?.n + ' ' + ch) : 'any';
+            const now = new Date().toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const conceptPreview = concept.length > 72 ? concept.substring(0, 72) + '…' : concept;
+            // if previous brick exists, add a route connector
+            const prev = session.lastElementChild;
+            if (prev && prev.classList.contains('brick')) {
+                const connector = document.createElement('div');
+                connector.className = 'route-connector';
+                session.appendChild(connector);
+                brick._prevBrick = prev;
+            }
+            brick.innerHTML = `
+<div class="b-prompt">
+  <span class="b-op" data-op="${op}">${OP_LABELS[op] || op}</span>
+  <span class="b-ch">${esc(chLabel)}</span>
+  <span class="b-concept">${esc(conceptPreview)}</span>
+  <span class="b-ts">${now}</span>
+</div>
+<div class="b-joint"></div>
+<div class="b-completion">
+  <div class="b-content streaming"></div>
+  <div class="b-actions">
+    <button class="b-act route-act" onclick="routeToInput(this)" title="Route this output into the concept field (⌘↵ to run next)">↑ Route</button>
+    <button class="b-act" onclick="cpEntry(this)" title="Copy output">Copy</button>
+    <button class="b-act" onclick="rerunBrick(this)" title="Re-run this exact operation">↻ Re-run</button>
+    <button class="b-act" onclick="collapseBrick(this)" title="Collapse">−</button>
+  </div>
+</div>`;
+            brick._op = op; brick._ch = ch; brick._concept = concept;
+            session.appendChild(brick);
+            brick.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            return brick;
+        }
+
+        function streamToEntry(brick, text) {
+            const content = brick.querySelector('.b-content');
+            content.textContent = '';
+            let i = 0;
+            const tick = setInterval(() => {
+                if (i >= text.length) {
+                    clearInterval(tick);
+                    content.textContent = text;
+                    content.classList.remove('streaming');
+                    brick._text = text;
+                    return;
+                }
+                content.textContent += text[i];
+                i += Math.ceil(text.length / 320);
+                content.scrollTop = content.scrollHeight;
+            }, 12);
+            brick._text = text;
+        }
+
+        function routeToInput(btn) {
+            const brick = btn.closest('.brick');
+            const text = brick._text || brick.querySelector('.b-content').textContent;
+            const ta = document.getElementById('conceptTa');
+            ta.value = text;
+            ta.focus();
+            ta.scrollTop = 0;
+            // Flash the compose brick to show where the content landed
+            const cb = document.getElementById('composeBrick');
+            cb.style.transition = 'outline .1s';
+            cb.style.outline = '2px solid var(--ink)';
+            setTimeout(() => { cb.style.outline = ''; }, 600);
+            // scroll session so compose brick is visible
+            cb.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            btn.textContent = '✓ Routed';
+            btn.classList.add('ok');
+            setTimeout(() => { btn.textContent = '↑ Route'; btn.classList.remove('ok') }, 1800);
+            onConceptInput();
+        }
+
+        function cpEntry(btn) {
+            const brick = btn.closest('.brick');
+            const text = brick._text || brick.querySelector('.b-content').textContent;
+            cp(text, btn);
+        }
+
+        function rerunBrick(btn) {
+            const brick = btn.closest('.brick');
+            const op = brick._op, ch = brick._ch, concept = brick._concept;
+            // set UI state and run
+            selOp = op; selCh = ch || '';
+            document.querySelectorAll('.op-tile').forEach(b => b.classList.toggle('sel', b.dataset.op === op));
+            document.querySelectorAll('.ch-tile').forEach(b => b.classList.toggle('sel', b.dataset.ch === selCh));
+            document.getElementById('conceptTa').value = concept;
+            updateStatus();
+            runForge();
+        }
+
+        function collapseBrick(btn) {
+            const content = btn.closest('.b-completion').querySelector('.b-content');
+            if (content.style.maxHeight === '32px') {
+                content.style.maxHeight = '';
+                btn.textContent = '−';
+            } else {
+                content.style.maxHeight = '32px';
+                content.style.overflow = 'hidden';
+                btn.textContent = '+';
+            }
+        }
+
+        function clearSession() {
+            const s = document.getElementById('session');
+            s.innerHTML = '';
+            sessionCount = 0;
+            document.getElementById('sbCount').textContent = '0';
+        }
+
+        function onConceptInput() {
+            const val = document.getElementById('conceptTa').value;
+            if (val.length > 300 && !TRANSFORM_TYPES.has(selOp)) {
+                setStatus('Long text — consider APHORIST, PRAGMATIST, or INVERTER to transform', false);
+            }
+        }
+
+        // ══════════════════════════════════════
+        // ITER (channel-through)
+        // ══════════════════════════════════════
+        function buildFn() { if (!iterStack.length) return 'BASE'; let f = 'FIELD_MANUAL'; iterStack.forEach(id => { f = `${id.toUpperCase()}(${f})` }); return f }
+
+        // ══════════════════════════════════════
+        // STATUS
+        // ══════════════════════════════════════
+        function setStatus(msg, active) {
+            document.getElementById('sbStatus').textContent = msg;
+            document.getElementById('sbDot').classList.toggle('active', active);
+        }
+        function updateStatus() {
+            document.getElementById('sbOp').textContent = OP_LABELS[selOp] || selOp;
+            document.getElementById('sbCh').textContent = selCh ? (D.find(i => i.id === selCh)?.n + ' ' + selCh) : 'any channel';
+            document.getElementById('sbStack').textContent = buildFn();
+        }
+
+        // ══════════════════════════════════════
+        // OPENAI INTEGRATION
+        // ══════════════════════════════════════
+        let OPENAI_KEY = '';
+        const OPENAI_MODEL = "gpt-4o";
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key) {
+                localStorage.setItem('stained_plus_openai_key', key);
+                OPENAI_KEY = key;
+                setApiStatus('active');
+            }
+        }
+
+        function loadApiKey() {
+            const key = localStorage.getItem('stained_plus_openai_key');
+            if (key) {
+                OPENAI_KEY = key;
+                document.getElementById('apiKeyInput').value = key;
+                setApiStatus('active');
+            }
+        }
+
+        function setApiStatus(state) {
+            const dot = document.getElementById('apiStatusDot');
+            if (!dot) return;
+            dot.classList.remove('active', 'error');
+            if (state === 'active') dot.classList.add('active');
+            if (state === 'error') dot.classList.add('error');
+        }
+
+        async function askOpenAI(system, user) {
+            if (!OPENAI_KEY) {
+                console.error("OpenAI API Key missing");
+                setApiStatus('error');
+                return "Error: API Key missing. Please enter it in the top bar status area.";
+            }
+            try {
+                const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${OPENAI_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: OPENAI_MODEL,
+                        messages: [
+                            { role: "system", content: system },
+                            { role: "user", content: user }
+                        ],
+                        temperature: 0.7
+                    })
+                });
+                const data = await response.json();
+                if (data.error) {
+                    setApiStatus('error');
+                    return `Error: ${data.error.message}`;
+                }
+                setApiStatus('active');
+                return data.choices[0].message.content;
+            } catch (err) {
+                setApiStatus('error');
+                return `Network Error: ${err.message}`;
+            }
+        }
+
+        // ══════════════════════════════════════
+        // UTILS
+        // ══════════════════════════════════════
+        const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        function cp(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                if (btn) { const o = btn.textContent; btn.textContent = '✓'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = o; btn.classList.remove('ok') }, 1400) }
+            })
+        }
+
+        // ══════════════════════════════════════
+        // COVER
+        // ══════════════════════════════════════
+        function enterManual() {
+            document.getElementById('cover').classList.add('away');
+            if (!panelOpen) { togPanel(); }
+        }
+        function surpriseEntry() {
+            enterManual();
+            const ids = ['film', 'repair', 'quick', 'catalog'];
+            setIdiom(ids[Math.floor(Math.random() * ids.length)]);
+            const ops = ['site', 'archaeologist', 'analyst', 'operator', 'hybrid', 'custom'];
+            const op = ops[Math.floor(Math.random() * ops.length)];
+            selOpFn(op, document.querySelector(`[data-op="${op}"]`));
+        }
+        function enterAndOpen(id) { enterManual(); setIdiom(id); }
+        document.getElementById('cover').addEventListener('click', e => { if (e.target.tagName !== 'BUTTON') enterManual(); });
+
+        // ══════════════════════════════════════
+        // KEYBOARD
+        // ══════════════════════════════════════
+        document.addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); runForge(); }
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); clearSession(); }
+            if ((e.metaKey || e.ctrlKey) && e.key === '\\') { e.preventDefault(); togPanel(); }
+        });
+
+        // ══════════════════════════════════════
+        // RUN BUTTON CLICK
+        // ══════════════════════════════════════
+        document.getElementById('conceptTa').addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); runForge(); }
+        });
+
+        init();
+    </script>
+</body>
+
+</html>

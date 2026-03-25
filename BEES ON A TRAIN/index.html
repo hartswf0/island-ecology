@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bees on a Train - State Index</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background: #050508; color: #fff; font-family: 'Inter', sans-serif; overflow: hidden; }
+        
+        #grid {
+            display: grid; grid-template-columns: 320px 1fr; height: 100vh;
+        }
+
+        .axis {
+            border-right: 1px solid rgba(255, 200, 0, 0.2); background: #08080c;
+            padding: 40px; display: flex; flex-direction: column; justify-content: space-between; z-index: 50; position: relative;
+        }
+
+        h1 {
+            font-size: 24px; font-weight: 900; letter-spacing: -0.02em; text-transform: uppercase;
+            margin: 0 0 20px 0; color: #ffcc00;
+        }
+
+        .sub {
+            font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.6;
+            color: rgba(255, 255, 255, 0.7); border-left: 2px solid #ffcc00; padding-left: 12px; margin-bottom: 40px;
+        }
+
+        .warn-btn {
+            display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+            color: rgba(255,200,0,0.6); text-decoration: none; transition: all 0.2s; font-weight: 700;
+        }
+        .warn-btn:hover { color: #ffcc00; text-shadow: 0 0 10px rgba(255,200,0,0.5); }
+
+        #ecology-container { position: relative; width: 100%; height: 100%; overflow: hidden; }
+
+        /* ── RESPONSIVE ── */
+        @media(max-width:900px){
+            body,html{overflow-y:auto;overflow-x:hidden}
+            #grid{grid-template-columns:1fr;height:auto}
+            .axis{border-right:none;border-bottom:1px solid rgba(255,200,0,.2);padding:24px 20px 16px}
+            h1{font-size:20px;margin-bottom:12px}
+            .sub{font-size:10px;margin-bottom:20px}
+            #ecology-container{height:auto;overflow:visible}
+            .fallback-list{padding:24px 16px !important}
+            .fallback-list a{padding:14px 16px !important;font-size:13px !important}
+            #ecology-container{position:static !important;height:auto !important;overflow:visible !important}
+            #eco-vc,#eco-camera,#eco-hud{display:none !important}
+        }
+        @media(max-width:480px){
+            .axis{padding:16px 14px 12px}
+            h1{font-size:18px}
+            .fallback-list{padding:16px 10px !important;gap:6px !important}
+            .fallback-list a{padding:12px 12px !important;font-size:12px !important}
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="grid">
+        <div class="axis">
+            <div>
+                <h1>Bees on a Train Network</h1>
+                <div class="sub">Locomotive logic flows and analyzer nodes. The systems govern movement, contextual fields, and world states. Navigate the kinetic hive.</div>
+                <div style="font-family:'IBM Plex Mono', monospace; font-size:10px; color:#ffcc00; letter-spacing:0.1em; text-transform:uppercase; margin-top:20px;">Cost: Submersion in the swarm.</div>
+            </div>
+            <div>
+                <a href="../index_of_indexes.html" class="warn-btn">↑ Ascend to Federal Index</a>
+            </div>
+        </div>
+        
+        <div id="ecology-container" style="position:relative; width:100%; height:100%; overflow-y:auto; background:#050508;">
+            <!-- Progressive Enhancement Fallback -->
+            <div class="fallback-list" style="padding: 60px; color: #e2e8f0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; gap: 10px;">
+                <h2 style="font-weight:900; text-transform:uppercase; color:#9dd8e8; letter-spacing:-0.02em; margin:0 0 20px 0; font-size:18px;">Bees Counties [Fallback Mode]</h2>
+                <a href="skill-analyzer.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:15px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Skill Analyzer</a>
+                <a href="world-analyzer.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:15px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">World Analyzer</a>
+                <a href="context-field.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:15px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Context Field</a>
+                <a href="navigator.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:15px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Navigator</a>
+                <a href="hive-manifest.html" style="display:block; padding:20px; background:#08080c; border:1px solid #d4a84b33; color:#d4a84b; text-decoration:none; font-weight:600; font-size:15px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#d4a84b'" onmouseout="this.style.borderColor='#d4a84b33'">◆ Metahive Manifest<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#718096;margin-top:8px">[ APIARY ARCHIVE ]</div></a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts assume engine and d3 are in absolute root -->
+    <script src="../d3-delaunay.min.js"></script>
+    <script src="../ecology-engine.js"></script>
+    <script>
+        const nodesData = [
+            { id: 'b1', title: 'Skill Analyzer', url: 'skill-analyzer.html', group: 'BEES ON A TRAIN' },
+            { id: 'b2', title: 'World Analyzer', url: 'world-analyzer.html', group: 'BEES ON A TRAIN' },
+            { id: 'b3', title: 'Context Field', url: 'context-field.html', group: 'BEES ON A TRAIN' },
+            { id: 'b4', title: 'Navigator', url: 'navigator.html', group: 'BEES ON A TRAIN' },
+            { id: 'b5', title: '◆ Metahive Manifest', url: 'hive-manifest.html', group: 'BEES ON A TRAIN' }
+        ];
+
+        window.onload = () => {
+            if (window.innerWidth > 960) {
+                const engine = new EcologyEngine('ecology-container', nodesData);
+            }
+        };
+    </script>
+</body>
+</html>

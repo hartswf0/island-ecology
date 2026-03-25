@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+    <title>THE SEMIOTIC ORRERY — Latent Interface</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        html, body { width: 100%; height: 100%; overflow: hidden; }
+        body {
+            font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+            user-select: none; touch-action: none;
+            background: #07090f; color: #8ab0c4;
+        }
+        ::selection { background: rgba(212, 168, 75, .35); color: #c0d8e8; }
+
+        /* ── DESIGN TOKENS ── */
+        :root {
+            --bg: #07090f; --bg2: #0a0d16; --bg3: #0d1020;
+            --ink: #8ab0c4; --ink2: #c0d8e8;
+            --ink3: rgba(140, 180, 210, .32); --ink4: rgba(140, 180, 210, .1);
+            --gold: #d4a84b; --gold2: rgba(212, 168, 75, .35);
+            --rule: rgba(140, 180, 210, .09); --rule2: rgba(140, 180, 210, .05);
+            --halo: rgba(212, 168, 75, .08); --halo2: rgba(212, 168, 75, .15);
+            --terrain-line: rgba(140, 180, 210, .06);
+        }
+
+        /* ── LAYOUT ── */
+        #app { display: flex; flex-direction: column; height: 100vh; background: var(--bg); }
+
+        /* TOP BAR */
+        .topbar {
+            height: 34px; background: var(--bg2);
+            border-bottom: 1px solid var(--rule);
+            display: flex; align-items: center;
+            flex-shrink: 0; z-index: 50;
+        }
+        .logo {
+            font-size: 8px; font-weight: 600; letter-spacing: .22em;
+            color: var(--gold); text-transform: uppercase;
+            padding: 0 14px; border-right: 1px solid var(--rule);
+            white-space: nowrap;
+        }
+        .stat { padding: 0 10px; border-right: 1px solid var(--rule2); }
+        .stat-lbl { font-size: 5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); margin-bottom: 1px; }
+        .stat-val { font-size: 9px; font-weight: 600; color: var(--ink2); white-space: nowrap; }
+
+        /* GENRE FILTERS */
+        .filters {
+            display: flex; align-items: center; gap: 2px;
+            padding: 0 8px; margin-left: auto;
+        }
+        .fbtn {
+            background: none; border: 1px solid transparent;
+            color: var(--ink3); font-family: inherit; font-size: 7px;
+            font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+            padding: 3px 8px; cursor: pointer; border-radius: 2px;
+            transition: all .2s;
+        }
+        .fbtn:hover { color: var(--ink2); border-color: var(--rule); }
+        .fbtn.on { color: var(--gold); border-color: var(--gold2); background: var(--halo); }
+        .fbtn-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            display: inline-block; margin-right: 3px; vertical-align: middle;
+        }
+
+        /* MAIN */
+        .main { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+
+        /* VORONOI TERRAIN */
+        .terrain { position: relative; flex: 1; overflow: hidden; min-width: 0; }
+        #vc { display: block; position: absolute; inset: 0; }
+
+        /* DIVIDER */
+        .divider {
+            width: 3px; background: var(--rule2); cursor: col-resize;
+            flex-shrink: 0; transition: background .15s;
+        }
+        .divider:hover { background: var(--rule); }
+
+        /* THICK DESCRIPTION PANEL */
+        .tdp {
+            width: 380px; min-width: 220px;
+            display: flex; flex-direction: column;
+            background: var(--bg); border-left: 1px solid var(--rule);
+            z-index: 10;
+        }
+        .tdp-header {
+            height: 32px; border-bottom: 1px solid var(--rule);
+            display: flex; align-items: center; padding: 0 10px;
+            flex-shrink: 0; background: var(--bg2);
+        }
+        .tdp-title {
+            font-size: 7px; font-weight: 600; letter-spacing: .14em;
+            text-transform: uppercase; color: var(--ink3); flex: 1;
+        }
+
+        /* BREADCRUMB TRAIL */
+        .bc-trail {
+            display: flex; align-items: center; gap: 0;
+            padding: 5px 10px; overflow-x: auto;
+            border-bottom: 1px solid var(--rule2);
+            background: var(--bg2); min-height: 22px;
+            scrollbar-width: none; flex-shrink: 0;
+        }
+        .bc-trail::-webkit-scrollbar { display: none; }
+        .bc-crumb {
+            background: none; border: none;
+            font-family: 'IBM Plex Mono', monospace; font-size: 8px;
+            letter-spacing: .05em; color: var(--ink3);
+            cursor: pointer; padding: 2px 6px;
+            transition: color .2s, text-shadow .3s;
+            white-space: nowrap; flex-shrink: 0;
+        }
+        .bc-crumb:hover { color: var(--gold); text-shadow: 0 0 8px var(--halo); }
+        .bc-crumb.current { color: var(--gold); font-weight: 600; }
+        .bc-sep {
+            color: var(--ink4); font-size: 7px; padding: 0 2px;
+            flex-shrink: 0; font-family: 'IBM Plex Mono', monospace;
+        }
+
+        /* SCROLL BODY */
+        .tdp-body {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+        .tdp-body::-webkit-scrollbar { width: 2px; }
+        .tdp-body::-webkit-scrollbar-thumb { background: var(--rule); }
+
+        /* WORLD CARD */
+        .wcard {
+            padding: 20px 20px 14px;
+            border-bottom: 1px solid var(--rule2);
+        }
+        .wc-name {
+            font-size: 15px; font-weight: 600; color: var(--gold);
+            letter-spacing: .06em; margin-bottom: 5px;
+            text-shadow: 0 0 20px var(--halo);
+        }
+        .wc-uid {
+            font-size: 7px; color: var(--ink3); letter-spacing: .1em;
+            margin-bottom: 8px;
+        }
+        .wc-genre {
+            font-size: 7px; text-transform: uppercase; letter-spacing: .18em;
+            color: var(--ink3); padding: 3px 8px; background: var(--halo);
+            border-radius: 2px; display: inline-block; margin-bottom: 14px;
+        }
+        .wc-desc {
+            font-family: 'Cormorant Garamond', serif; font-size: 18px;
+            font-style: italic; color: var(--ink2); line-height: 1.72;
+            word-break: break-word;
+        }
+
+        /* SECTION HEADERS */
+        .sec-hd {
+            font-size: 7px; font-weight: 600; letter-spacing: .18em;
+            text-transform: uppercase; color: var(--ink3);
+            padding: 12px 20px 6px;
+            border-top: 1px solid var(--rule2);
+        }
+
+        /* ENTITY CARDS */
+        .ent-list { padding: 0 12px 8px; }
+        .ent {
+            display: flex; align-items: baseline; gap: 8px;
+            padding: 6px 8px; margin: 2px 0;
+            border-radius: 3px; transition: background .2s;
+        }
+        .ent:hover { background: var(--halo); }
+        .ent-icon { color: var(--gold); font-size: 8px; flex-shrink: 0; }
+        .ent-name { font-size: 10px; font-weight: 600; color: var(--ink2); }
+        .ent-type { font-size: 8px; color: var(--ink3); }
+        .ent-traits {
+            font-size: 7px; color: var(--ink3); font-style: italic;
+            margin-left: auto; flex-shrink: 0;
+        }
+
+        /* RELATION ARCS */
+        .rel-list { padding: 0 12px 8px; }
+        .rel {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 8px; margin: 2px 0;
+            font-size: 9px; color: var(--ink);
+            border-left: 2px solid var(--halo2);
+            transition: border-color .3s;
+        }
+        .rel:hover { border-color: var(--gold); }
+        .rel-from { color: var(--ink2); font-weight: 600; }
+        .rel-verb { color: var(--gold); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 13px; }
+        .rel-to { color: var(--ink2); font-weight: 600; }
+        .rel-arrow { color: var(--ink4); font-size: 8px; }
+
+        /* STATE READOUT */
+        .state-list { padding: 0 12px 8px; }
+        .state-row {
+            display: flex; justify-content: space-between; align-items: baseline;
+            padding: 4px 8px; margin: 1px 0;
+            font-size: 9px; border-bottom: 1px solid var(--rule2);
+        }
+        .state-key { color: var(--ink); }
+        .state-val { color: var(--gold); font-weight: 600; font-size: 8px; }
+
+        /* EVENT STRIP */
+        .event-list { padding: 0 12px 8px; }
+        .evt {
+            padding: 8px; margin: 3px 0;
+            border: 1px solid var(--rule2); border-radius: 3px;
+            transition: border-color .3s, box-shadow .3s;
+        }
+        .evt:hover { border-color: var(--halo2); box-shadow: 0 0 10px var(--halo); }
+        .evt-name { font-size: 10px; font-weight: 600; color: var(--gold); margin-bottom: 4px; }
+        .evt-detail { font-size: 8px; color: var(--ink3); line-height: 1.5; }
+
+        /* ORRERY STRIP */
+        .orrery-strip {
+            display: flex; align-items: center; gap: 4px;
+            padding: 10px 20px; overflow-x: auto;
+            border-top: 1px solid var(--rule2);
+        }
+        .orr-node {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--ink3); flex-shrink: 0;
+            transition: all .3s; cursor: pointer;
+            box-shadow: 0 0 6px var(--halo);
+        }
+        .orr-node.cur { background: var(--gold); box-shadow: 0 0 14px var(--halo2); width: 12px; height: 12px; }
+        .orr-node:hover { background: var(--gold); transform: scale(1.4); }
+        .orr-edge { width: 12px; height: 1px; flex-shrink: 0; }
+
+        /* TWINE LINKS */
+        .tw-links { padding: 4px 0 12px; }
+        .tw-hd {
+            font-size: 7px; letter-spacing: .18em; text-transform: uppercase;
+            color: var(--ink3); margin-bottom: 6px; padding: 0 20px;
+        }
+        .tw-link {
+            background: none; border: none;
+            border-top: 1px solid var(--terrain-line);
+            color: var(--ink2); font-family: 'Cormorant Garamond', serif;
+            font-size: 17px; font-style: italic; width: 100%;
+            padding: 10px 20px; text-align: left; cursor: pointer;
+            transition: all .25s ease; display: flex;
+            justify-content: space-between; align-items: center; gap: 10px;
+        }
+        .tw-link::before {
+            content: '[['; color: var(--ink4);
+            font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+            flex-shrink: 0; margin-right: 3px; transition: color .25s;
+        }
+        .tw-link::after {
+            content: '→]]'; color: var(--ink4);
+            font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+            flex-shrink: 0; transition: color .25s, transform .25s;
+        }
+        .tw-link:hover {
+            color: var(--gold); background: var(--halo);
+            box-shadow: inset 0 0 20px var(--halo); padding-left: 24px;
+        }
+        .tw-link:hover::before, .tw-link:hover::after { color: var(--gold); }
+        .tw-link:hover::after { transform: translateX(3px); }
+        .tw-type {
+            font-family: 'IBM Plex Mono', monospace; font-size: 7px;
+            opacity: .35; text-transform: uppercase; letter-spacing: .1em;
+            flex-shrink: 0;
+        }
+
+        /* EMPTY STATE */
+        .empty-state {
+            padding: 40px 24px;
+            font-family: 'Cormorant Garamond', serif; font-size: 18px;
+            font-style: italic; color: var(--ink3); line-height: 1.8;
+        }
+        .empty-state strong { color: var(--ink2); font-weight: 600; font-style: normal; }
+
+        /* ANIMATIONS */
+        @keyframes breathe {
+            from { box-shadow: 0 0 16px var(--halo), 0 0 32px var(--halo); }
+            to   { box-shadow: 0 0 24px var(--halo2), 0 0 48px var(--halo); }
+        }
+
+        /* FILM SEQUENCE BAR */
+        .filmbar {
+            height: 44px; background: var(--bg2);
+            border-top: 1px solid var(--rule);
+            display: flex; align-items: center;
+            flex-shrink: 0; z-index: 50;
+            padding: 0 6px; gap: 2px;
+        }
+        .fb-btn {
+            background: none; border: 1px solid var(--rule2);
+            color: var(--ink); font-family: inherit; font-size: 9px;
+            font-weight: 600; padding: 5px 12px; cursor: pointer;
+            border-radius: 2px; transition: all .2s;
+            white-space: nowrap; flex-shrink: 0;
+        }
+        .fb-btn:hover { color: var(--gold); border-color: var(--gold2); background: var(--halo); }
+        .fb-btn:disabled { opacity: .25; cursor: default; }
+        .fb-chapters {
+            display: flex; align-items: center; gap: 1px;
+            overflow-x: auto; flex: 1; padding: 0 6px;
+            scrollbar-width: none;
+        }
+        .fb-chapters::-webkit-scrollbar { display: none; }
+        .fb-ch {
+            background: none; border: none;
+            font-family: inherit; font-size: 7px; font-weight: 600;
+            letter-spacing: .06em; text-transform: uppercase;
+            color: var(--ink3); padding: 4px 7px; cursor: pointer;
+            border-radius: 2px; transition: all .2s;
+            white-space: nowrap; flex-shrink: 0;
+        }
+        .fb-ch:hover { color: var(--ink2); background: var(--rule2); }
+        .fb-ch.on { color: var(--gold); background: var(--halo); }
+        .fb-pos {
+            font-size: 9px; font-weight: 600; color: var(--ink2);
+            padding: 0 8px; white-space: nowrap; flex-shrink: 0;
+            min-width: 70px; text-align: center;
+        }
+        .fb-title {
+            font-family: 'Cormorant Garamond', serif; font-size: 13px;
+            font-style: italic; color: var(--ink); padding: 0 8px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            max-width: 260px; flex-shrink: 1;
+        }
+    </style>
+    <script src="data.js"></script>
+    <script src="route-engine.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="topbar">
+            <span class="logo">The Semiotic Orrery</span>
+            <div class="stat">
+                <div class="stat-lbl">Worlds</div>
+                <div class="stat-val" id="sWorlds">—</div>
+            </div>
+            <div class="stat">
+                <div class="stat-lbl">Routes</div>
+                <div class="stat-val" id="sRoutes">—</div>
+            </div>
+            <div class="stat">
+                <div class="stat-lbl">Scene</div>
+                <div class="stat-val" id="sScene">—</div>
+            </div>
+            <div class="stat">
+                <div class="stat-lbl">Active</div>
+                <div class="stat-val" id="sActive">—</div>
+            </div>
+            <div class="filters" id="genreFilters"></div>
+        </div>
+        <div class="main">
+            <div class="terrain"><canvas id="vc"></canvas></div>
+            <div class="divider" id="divider"></div>
+            <div class="tdp" id="tdp">
+                <div class="tdp-header">
+                    <span class="tdp-title">Thick Description</span>
+                </div>
+                <div class="bc-trail" id="bcTrail"></div>
+                <div class="tdp-body" id="tdpBody">
+                    <div class="empty-state">
+                        <strong>The Semiotic Orrery</strong><br><br>
+                        Click any cell in the Voronoi terrain to begin reading.<br><br>
+                        Each world is a node in a web of significance — entities, relations, states, events — parsed from POML and connected by 6 route types.<br><br>
+                        Navigate through the [[Twine links →]] to follow the threads.
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="filmbar" id="filmbar">
+            <button class="fb-btn" id="fbFirst" onclick="filmGo(0)">⏮</button>
+            <button class="fb-btn" id="fbPrev" onclick="filmStep(-1)">◀ Prev</button>
+            <div class="fb-pos" id="fbPos">— / 228</div>
+            <button class="fb-btn" id="fbNext" onclick="filmStep(1)">Next ▶</button>
+            <button class="fb-btn" id="fbLast" onclick="filmGo(parsedWorlds.length-1)">⏭</button>
+            <span class="fb-title" id="fbTitle">—</span>
+            <div class="fb-chapters" id="fbChapters"></div>
+        </div>
+    </div>
+
+    <script>
+    // ══════════════════════════════
+    // GLOBALS
+    // ══════════════════════════════
+    let parsedWorlds = [];
+    let routes = [];
+    let worldByUid = {};
+    let nodeByUid = {};
+    let nodes = [];
+    let VW, VH, canvas, ctx;
+    let camX = 0, camY = 0, camZ = 0.15;
+    let selectedNode = null;
+    let activeFilter = null;
+    const flightPath = [];
+    let filmIndex = -1;  // current position in the film sequence
+
+    // Chapter names for the source files
+    const CHAPTER_NAMES = {
+        '00.md': '00 · Breach',
+        '01.md': '01 · Beekeeper',
+        '02.md': '02 · Surveillance',
+        '03.md': '03 · Bullet Train',
+        '04.md': '04 · Snowpiercer',
+        '05.md': '05 · Honeyland',
+        '06.md': '06 · Wings I',
+        '07.md': '07 · Wings II',
+        '08.md': '08 · Heist 1855',
+        '09.md': '09 · Steam',
+        '10.md': '10 · Lumière',
+        '11.md': '11 · Bee Movie'
+    };
+
+    // Genre actor colors
+    const ACTOR_COLORS = {
+        catastrophe: { h: 0,   s: 65, l: 50 },
+        espionage:   { h: 45,  s: 70, l: 55 },
+        thriller:    { h: 280, s: 55, l: 55 },
+        cinematic:   { h: 210, s: 60, l: 55 },
+        cultural:    { h: 140, s: 50, l: 48 },
+        geopolitical:{ h: 180, s: 55, l: 48 }
+    };
+
+    function actorHSL(actor, a = 1) {
+        const c = ACTOR_COLORS[actor] || { h: 0, s: 0, l: 50 };
+        return `hsla(${c.h}, ${c.s}%, ${c.l}%, ${a})`;
+    }
+
+    // ══════════════════════════════
+    // INIT
+    // ══════════════════════════════
+    function init() {
+        canvas = document.getElementById('vc');
+        ctx = canvas.getContext('2d');
+
+        // Parse worlds
+        parsedWorlds = RouteEngine.parseAll(WORLDS_DATA);
+        routes = RouteEngine.computeRoutes(parsedWorlds);
+
+        // Build lookup
+        parsedWorlds.forEach(w => { worldByUid[w.uid] = w; });
+
+        // Stats
+        document.getElementById('sWorlds').textContent = parsedWorlds.length;
+        document.getElementById('sRoutes').textContent = routes.length;
+
+        // Generate node positions via source clustering
+        generateNodes();
+
+        // Build genre filters
+        buildFilters();
+
+        // Build film strip chapters
+        buildFilmStrip();
+
+        // Canvas events
+        canvas.addEventListener('click', onCanvasClick);
+        canvas.addEventListener('wheel', onWheel, { passive: false });
+        canvas.addEventListener('mousedown', onMouseDown);
+
+        // Resize
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Divider drag
+        setupDivider();
+    }
+
+    // ══════════════════════════════
+    // NODE POSITION GENERATION
+    // ══════════════════════════════
+    function generateNodes() {
+        // Cluster by source file, then spread within cluster
+        const sources = {};
+        parsedWorlds.forEach(w => {
+            if (!sources[w.source]) sources[w.source] = [];
+            sources[w.source].push(w);
+        });
+
+        const srcKeys = Object.keys(sources);
+        const cols = Math.ceil(Math.sqrt(srcKeys.length));
+
+        nodes = [];
+        const SPREAD = 600;
+        const CLUSTER_PAD = 200;
+
+        srcKeys.forEach((src, si) => {
+            const cx = (si % cols) * (SPREAD + CLUSTER_PAD) + SPREAD / 2 + 200;
+            const cy = Math.floor(si / cols) * (SPREAD + CLUSTER_PAD) + SPREAD / 2 + 200;
+            const cluster = sources[src];
+            const cCols = Math.ceil(Math.sqrt(cluster.length));
+
+            cluster.forEach((w, wi) => {
+                const lx = (wi % cCols) * 110 - (cCols * 110) / 2;
+                const ly = Math.floor(wi / cCols) * 110 - (Math.ceil(cluster.length / cCols) * 110) / 2;
+                // Add jitter
+                const jx = (Math.sin(w.uid.charCodeAt(4) * 7.3) * 22);
+                const jy = (Math.cos(w.uid.charCodeAt(3) * 5.1) * 22);
+                const node = {
+                    x: cx + lx + jx,
+                    y: cy + ly + jy,
+                    uid: w.uid,
+                    name: w.name,
+                    genre: w.genre,
+                    actor: RouteEngine.getActorType(w.genre),
+                    source: w.source
+                };
+                nodes.push(node);
+                nodeByUid[w.uid] = node;
+            });
+        });
+    }
+
+    // ══════════════════════════════
+    // VORONOI RENDERING
+    // ══════════════════════════════
+    let delaunay, voronoi;
+
+    function computeVoronoi() {
+        const pts = nodes.map(n => [n.x, n.y]);
+        const maxX = Math.max(...nodes.map(n => n.x)) + 200;
+        const maxY = Math.max(...nodes.map(n => n.y)) + 200;
+        delaunay = d3.Delaunay.from(pts);
+        voronoi = delaunay.voronoi([0, 0, maxX, maxY]);
+    }
+
+    function drawTerrain() {
+        if (!ctx || !voronoi) return;
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.save();
+        ctx.translate(camX, camY);
+        ctx.scale(camZ, camZ);
+
+        // Determine if zoomed in enough for labels
+        const showLabels = camZ > 0.25;
+        const showAllLabels = camZ > 0.45;
+
+        // Draw cells
+        nodes.forEach((n, i) => {
+            const cell = voronoi.cellPolygon(i);
+            if (!cell) return;
+
+            const isSelected = selectedNode === n;
+            const isConnected = selectedNode && isNodeConnected(n.uid);
+            const isFiltered = activeFilter && n.actor !== activeFilter;
+            const dimmed = (selectedNode && !isSelected && !isConnected) || isFiltered;
+
+            ctx.beginPath();
+            ctx.moveTo(cell[0][0], cell[0][1]);
+            for (let j = 1; j < cell.length; j++) ctx.lineTo(cell[j][0], cell[j][1]);
+            ctx.closePath();
+
+            // Fill
+            const alpha = dimmed ? 0.04 : (isSelected ? 0.28 : 0.12);
+            ctx.fillStyle = actorHSL(n.actor, alpha);
+            ctx.fill();
+
+            // Stroke
+            ctx.strokeStyle = dimmed ? 'rgba(140,180,210,0.03)' : 'rgba(140,180,210,0.08)';
+            ctx.lineWidth = isSelected ? 2.5 : 0.5;
+            if (isSelected) ctx.strokeStyle = actorHSL(n.actor, 0.6);
+            ctx.stroke();
+
+            // Center dot always visible
+            if (!dimmed || isSelected) {
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, isSelected ? 6 : 3, 0, Math.PI * 2);
+                ctx.fillStyle = actorHSL(n.actor, isSelected ? 0.9 : (dimmed ? 0.15 : 0.4));
+                ctx.fill();
+            }
+
+            // Label: only when zoomed in, or for selected/connected
+            const wantLabel = isSelected || (isConnected && showLabels) || (showAllLabels && !dimmed);
+            if (wantLabel) {
+                const fontSize = Math.max(8, Math.min(13, 10 / camZ));
+                ctx.font = `600 ${fontSize}px 'IBM Plex Mono', monospace`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                const label = n.name.replace(/([A-Z])/g, ' $1').trim();
+                const shortLabel = label.length > 20 ? label.slice(0, 18) + '…' : label;
+                ctx.fillStyle = isSelected ? actorHSL(n.actor, 1) : `rgba(192,216,232,${isConnected ? 0.7 : 0.45})`;
+                ctx.fillText(shortLabel, n.x, n.y + (isSelected ? 10 : 6));
+            }
+
+            // Halo for selected
+            if (isSelected) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, 40, 0, Math.PI * 2);
+                const grad = ctx.createRadialGradient(n.x, n.y, 5, n.x, n.y, 40);
+                grad.addColorStop(0, actorHSL(n.actor, 0.25));
+                grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.restore();
+            }
+        });
+
+        // Draw route lines for selected node
+        if (selectedNode) {
+            const selRoutes = routes.filter(r => r.from === selectedNode.uid || r.to === selectedNode.uid);
+            selRoutes.forEach(r => {
+                const fromN = nodeByUid[r.from];
+                const toN = nodeByUid[r.to];
+                if (!fromN || !toN) return;
+                ctx.beginPath();
+                ctx.moveTo(fromN.x, fromN.y);
+                ctx.lineTo(toN.x, toN.y);
+                ctx.strokeStyle = RouteEngine.routeColor(r.type, 0.15);
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+        }
+
+        ctx.restore();
+    }
+
+    function isNodeConnected(uid) {
+        if (!selectedNode) return false;
+        return routes.some(r =>
+            (r.from === selectedNode.uid && r.to === uid) ||
+            (r.to === selectedNode.uid && r.from === uid)
+        );
+    }
+
+    function resize() {
+        const vp = canvas.parentElement;
+        VW = vp.clientWidth;
+        VH = vp.clientHeight;
+        canvas.width = VW * devicePixelRatio;
+        canvas.height = VH * devicePixelRatio;
+        canvas.style.width = VW + 'px';
+        canvas.style.height = VH + 'px';
+        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        computeVoronoi();
+        drawTerrain();
+    }
+
+    // ══════════════════════════════
+    // INTERACTION
+    // ══════════════════════════════
+    function onCanvasClick(e) {
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left - camX) / camZ;
+        const my = (e.clientY - rect.top - camY) / camZ;
+        const idx = delaunay.find(mx, my);
+        if (idx >= 0 && idx < nodes.length) {
+            selectWorld(nodes[idx]);
+        }
+    }
+
+    function onWheel(e) {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const dz = e.deltaY > 0 ? 0.9 : 1.1;
+        const newZ = Math.max(0.08, Math.min(3, camZ * dz));
+        camX = mx - (mx - camX) * (newZ / camZ);
+        camY = my - (my - camY) * (newZ / camZ);
+        camZ = newZ;
+        drawTerrain();
+    }
+
+    let dragging = false, dragX, dragY;
+    function onMouseDown(e) {
+        dragging = true; dragX = e.clientX; dragY = e.clientY;
+        const onMove = (ev) => {
+            camX += ev.clientX - dragX;
+            camY += ev.clientY - dragY;
+            dragX = ev.clientX; dragY = ev.clientY;
+            drawTerrain();
+        };
+        const onUp = () => {
+            dragging = false;
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+
+    // ══════════════════════════════
+    // SELECT WORLD
+    // ══════════════════════════════
+    function selectWorld(node) {
+        selectedNode = node;
+        const w = worldByUid[node.uid];
+        if (!w) return;
+
+        document.getElementById('sActive').textContent = w.name.replace(/([A-Z])/g, ' $1').trim();
+
+        // Update film index
+        filmIndex = parsedWorlds.findIndex(pw => pw.uid === node.uid);
+        updateFilmBar();
+
+        // Update panel
+        renderThickDescription(w);
+
+        // Update breadcrumb
+        addToFlightPath(node.uid, w.name, node);
+
+        // Redraw terrain
+        drawTerrain();
+    }
+
+    function navigateTo(uid) {
+        const node = nodeByUid[uid];
+        if (!node) return;
+
+        // Animate camera
+        const endX = VW / 2 - node.x * camZ;
+        const endY = VH / 2 - node.y * camZ;
+        const startX = camX, startY = camY;
+        const dur = 600;
+        const t0 = performance.now();
+
+        function animate(now) {
+            const t = Math.min(1, (now - t0) / dur);
+            const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            camX = startX + (endX - startX) * ease;
+            camY = startY + (endY - startY) * ease;
+            drawTerrain();
+            if (t < 1) requestAnimationFrame(animate);
+            else selectWorld(node);
+        }
+        requestAnimationFrame(animate);
+    }
+
+    // ══════════════════════════════
+    // THICK DESCRIPTION RENDERER
+    // ══════════════════════════════
+    function renderThickDescription(w) {
+        const body = document.getElementById('tdpBody');
+        let html = '';
+
+        // World Card
+        const displayName = w.name.replace(/([A-Z])/g, ' $1').trim();
+        html += `<div class="wcard">
+            <div class="wc-name">${esc(displayName)}</div>
+            <div class="wc-uid">${w.uid} · ${w.source}</div>
+            <div class="wc-genre">${esc(w.genre)}</div>
+            <p class="wc-desc">${esc(w.description)}</p>
+        </div>`;
+
+        // Entities
+        if (w.entities.length) {
+            html += `<div class="sec-hd">Entities</div><div class="ent-list">`;
+            w.entities.forEach(e => {
+                html += `<div class="ent">
+                    <span class="ent-icon">▸</span>
+                    <span class="ent-name">${esc(e.name)}</span>
+                    <span class="ent-type">${esc(e.type)}</span>
+                    ${e.traits.length ? `<span class="ent-traits">${esc(e.traits.join(', '))}</span>` : ''}
+                </div>`;
+            });
+            html += `</div>`;
+        }
+
+        // Relations
+        if (w.relations.length) {
+            html += `<div class="sec-hd">Relations</div><div class="rel-list">`;
+            w.relations.forEach(r => {
+                html += `<div class="rel">
+                    <span class="rel-from">${esc(r.from)}</span>
+                    <span class="rel-arrow">──→</span>
+                    <span class="rel-verb">${esc(r.verb)}</span>
+                    <span class="rel-arrow">──→</span>
+                    <span class="rel-to">${esc(r.to)}</span>
+                </div>`;
+            });
+            html += `</div>`;
+        }
+
+        // States
+        if (w.states.length) {
+            html += `<div class="sec-hd">State</div><div class="state-list">`;
+            w.states.forEach(s => {
+                html += `<div class="state-row">
+                    <span class="state-key">${esc(s.target)}.${esc(s.key)}</span>
+                    <span class="state-val">${esc(s.value)}</span>
+                </div>`;
+            });
+            html += `</div>`;
+        }
+
+        // Events
+        if (w.events.length) {
+            html += `<div class="sec-hd">Events</div><div class="event-list">`;
+            w.events.forEach(ev => {
+                html += `<div class="evt">
+                    <div class="evt-name">⚡ ${esc(ev.name)}</div>
+                    <div class="evt-detail">
+                        ${ev.actors.length ? `actors: ${ev.actors.map(esc).join(', ')}<br>` : ''}
+                        ${ev.effects.length ? `effects: ${ev.effects.map(esc).join(', ')}` : ''}
+                    </div>
+                </div>`;
+            });
+            html += `</div>`;
+        }
+
+        // Orrery Strip
+        const connectedRoutes = routes.filter(r => r.from === w.uid || r.to === w.uid);
+        if (connectedRoutes.length) {
+            const seen = new Set();
+            const connected = [];
+            connectedRoutes.sort((a, b) => b.weight - a.weight).forEach(r => {
+                const tid = r.from === w.uid ? r.to : r.from;
+                if (!seen.has(tid) && connected.length < 8) {
+                    seen.add(tid);
+                    connected.push({ uid: tid, type: r.type });
+                }
+            });
+
+            html += `<div class="orrery-strip">`;
+            html += `<div class="orr-node cur" title="${esc(displayName)}"></div>`;
+            connected.forEach(c => {
+                const cw = worldByUid[c.uid];
+                const cName = cw ? cw.name.replace(/([A-Z])/g, ' $1').trim() : c.uid;
+                html += `<div class="orr-edge" style="background:${RouteEngine.routeColor(c.type, 0.3)}"></div>`;
+                html += `<div class="orr-node" title="${esc(cName)}" data-uid="${c.uid}" onclick="navigateTo('${c.uid}')"></div>`;
+            });
+            html += `</div>`;
+
+            // Twine links
+            html += `<div class="tw-links"><div class="tw-hd">Navigate</div>`;
+            connected.forEach(c => {
+                const cw = worldByUid[c.uid];
+                const cName = cw ? cw.name.replace(/([A-Z])/g, ' $1').trim() : c.uid;
+                const typeLabel = c.type.replace(/_/g, ' ');
+                html += `<button class="tw-link" onclick="navigateTo('${c.uid}')">
+                    <span>${esc(cName)}</span>
+                    <span class="tw-type">${esc(typeLabel)}</span>
+                </button>`;
+            });
+            html += `</div>`;
+        }
+
+        body.innerHTML = html;
+        body.scrollTop = 0;
+    }
+
+    function esc(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ══════════════════════════════
+    // BREADCRUMB TRAIL
+    // ══════════════════════════════
+    function addToFlightPath(uid, name, node) {
+        if (flightPath.length && flightPath[flightPath.length - 1].uid === uid) return;
+        const existIdx = flightPath.findIndex(p => p.uid === uid);
+        if (existIdx >= 0) {
+            flightPath.length = existIdx + 1;
+        } else {
+            flightPath.push({ uid, name, node });
+            if (flightPath.length > 12) flightPath.shift();
+        }
+        renderBreadcrumbs();
+    }
+
+    function renderBreadcrumbs() {
+        const trail = document.getElementById('bcTrail');
+        trail.innerHTML = '';
+        flightPath.forEach((p, i) => {
+            if (i > 0) {
+                const sep = document.createElement('span');
+                sep.className = 'bc-sep';
+                sep.textContent = '→';
+                trail.appendChild(sep);
+            }
+            const btn = document.createElement('button');
+            btn.className = 'bc-crumb' + (i === flightPath.length - 1 ? ' current' : '');
+            const shortName = p.name.replace(/([A-Z])/g, ' $1').trim();
+            btn.textContent = shortName.length > 14 ? shortName.slice(0, 12) + '…' : shortName;
+            btn.title = shortName;
+            btn.onclick = () => navigateTo(p.uid);
+            trail.appendChild(btn);
+        });
+        trail.scrollLeft = trail.scrollWidth;
+    }
+
+    // ══════════════════════════════
+    // GENRE FILTERS (LIGHTHOUSE)
+    // ══════════════════════════════
+    function buildFilters() {
+        const container = document.getElementById('genreFilters');
+        // All button
+        const allBtn = document.createElement('button');
+        allBtn.className = 'fbtn on';
+        allBtn.textContent = 'All';
+        allBtn.onclick = () => setFilter(null, allBtn);
+        container.appendChild(allBtn);
+
+        Object.keys(ACTOR_COLORS).forEach(actor => {
+            const btn = document.createElement('button');
+            btn.className = 'fbtn';
+            const dot = document.createElement('span');
+            dot.className = 'fbtn-dot';
+            dot.style.background = actorHSL(actor, 0.8);
+            btn.appendChild(dot);
+            btn.appendChild(document.createTextNode(actor));
+            btn.onclick = () => setFilter(actor, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    function setFilter(actor, btn) {
+        activeFilter = actor;
+        document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+        drawTerrain();
+    }
+
+    // ══════════════════════════════
+    // DIVIDER DRAG
+    // ══════════════════════════════
+    function setupDivider() {
+        const div = document.getElementById('divider');
+        const tdp = document.getElementById('tdp');
+        div.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const startW = tdp.offsetWidth;
+            const onMove = (ev) => {
+                const newW = Math.max(220, Math.min(700, startW - (ev.clientX - startX)));
+                tdp.style.width = newW + 'px';
+                resize();
+            };
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    }
+
+    // ══════════════════════════════
+    // FILM SEQUENCE NAVIGATION
+    // ══════════════════════════════
+    function buildFilmStrip() {
+        const container = document.getElementById('fbChapters');
+        const sources = {};
+        parsedWorlds.forEach((w, i) => {
+            if (!sources[w.source]) sources[w.source] = { start: i, count: 0 };
+            sources[w.source].count++;
+        });
+        Object.keys(sources).forEach(src => {
+            const btn = document.createElement('button');
+            btn.className = 'fb-ch';
+            btn.textContent = CHAPTER_NAMES[src] || src;
+            btn.title = `${sources[src].count} worlds`;
+            btn.dataset.source = src;
+            btn.onclick = () => filmGo(sources[src].start);
+            container.appendChild(btn);
+        });
+    }
+
+    function filmStep(dir) {
+        const next = filmIndex + dir;
+        if (next < 0 || next >= parsedWorlds.length) return;
+        filmGo(next);
+    }
+
+    function filmGo(idx) {
+        if (idx < 0 || idx >= parsedWorlds.length) return;
+        filmIndex = idx;
+        const w = parsedWorlds[idx];
+        const node = nodeByUid[w.uid];
+        if (node) navigateTo(w.uid);
+    }
+
+    function updateFilmBar() {
+        if (filmIndex < 0) return;
+        const w = parsedWorlds[filmIndex];
+        document.getElementById('fbPos').textContent = `${filmIndex + 1} / ${parsedWorlds.length}`;
+        document.getElementById('fbTitle').textContent = w.name.replace(/([A-Z])/g, ' $1').trim();
+        document.getElementById('sScene').textContent = `${filmIndex + 1}/${parsedWorlds.length}`;
+        document.getElementById('fbPrev').disabled = filmIndex <= 0;
+        document.getElementById('fbNext').disabled = filmIndex >= parsedWorlds.length - 1;
+        // Highlight current chapter
+        document.querySelectorAll('.fb-ch').forEach(ch => {
+            ch.classList.toggle('on', ch.dataset.source === w.source);
+        });
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); filmStep(1); }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); filmStep(-1); }
+    });
+
+    // ══════════════════════════════
+    // BOOT
+    // ══════════════════════════════
+    init();
+    </script>
+</body>
+</html>

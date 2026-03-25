@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Island Ecology — Global Topology</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        html, body {
+            width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden;
+            background: #020203; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #4a5568;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;700;900&display=swap');
+
+        #grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            min-height: 100vh;
+            border: 20px solid #000;
+        }
+
+        .axis {
+            border-right: 1px solid #e53e3e;
+            background: #000;
+            padding: 40px;
+            display: flex; flex-direction: column; justify-content: space-between;
+            position: sticky; top: 0; height: calc(100vh - 40px);
+        }
+
+        .content-col {
+            display: flex; flex-direction: column;
+        }
+
+        .cell {
+            border-bottom: 1px solid #1a202c;
+            padding: 40px 60px; position: relative;
+            background: #020203; transition: background 0.1s;
+        }
+        .cell:hover { background: #050508; }
+
+        .cell-id { font-size: 10px; color: #f56565; letter-spacing: 0.2em; font-weight: 600; margin-bottom: 30px; }
+        
+        h1 { font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 900; letter-spacing: -0.02em; color: #fff; line-height: 1.1; margin-bottom: 20px; text-transform: uppercase;}
+        .sub { font-size: 12px; color: #718096; line-height: 1.6; max-width: 90%; margin-bottom: 40px;}
+        
+        .md-text {
+            font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.7; color: #a0aec0; margin-bottom: 30px;
+            border-left: 2px solid #2d3748; padding-left: 20px; max-width: 800px;
+        }
+
+        .html-worms {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px;
+        }
+
+        .worm {
+            display: inline-block; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700;
+            color: #e2e8f0; text-decoration: none; padding: 10px 16px; border: 1px solid #2d3748;
+            background: #000; transition: border-color 0.1s, color 0.1s;
+        }
+        .worm:hover { color: #f56565; border-color: #f56565; }
+
+        .cost { font-size: 9px; color: #e53e3e; text-transform: uppercase; letter-spacing: 0.1em; display: inline-block; margin-bottom: 4px;}
+        
+        .warn-btn {
+            display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: #718096; text-decoration: none; transition: color 0.1s;
+        }
+        .warn-btn:hover { color: #fff; }
+
+        .stop-factor {
+            position: absolute; bottom: 40px; right: 40px; text-align: right;
+            font-family: 'Inter', sans-serif; font-weight: 900; font-size: 80px; letter-spacing: -0.04em;
+            color: #050508; pointer-events: none; z-index: 0;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media(max-width:900px){
+            #grid{grid-template-columns:1fr;border-width:8px}
+            .axis{position:relative;height:auto;border-right:none;border-bottom:1px solid #e53e3e;padding:24px 20px 16px}
+            h1{font-size:24px}
+            .sub{max-width:100%;font-size:11px}
+            .html-worms{padding:20px;gap:6px}
+            .worm{width:100%;font-size:13px;padding:14px 18px}
+            #ecology-container{position:static !important;height:auto !important;overflow:visible !important;min-height:auto !important}
+            #eco-vc,#eco-camera,#eco-hud{display:none !important}
+            .fallback-list{padding:24px 16px !important}
+            .fallback-list a{padding:16px !important;font-size:13px !important}
+        }
+        @media(max-width:480px){
+            #grid{border-width:4px}
+            .axis{padding:16px 14px 12px}
+            h1{font-size:20px}
+            .sub{font-size:10px}
+            .html-worms{padding:14px 10px;gap:5px}
+            .worm{font-size:12px;padding:12px 14px}
+        }
+
+    </style>
+</head>
+<body>
+    
+    <div id="grid">
+        <div class="axis">
+            <div>
+                <h1>Global Topology</h1>
+                <div class="sub">This is not a directory. It is the outer limit of the ecology. You are submitting to the strict partitioning of conceptual space.</div>
+                <div class="cost">Cost: Exposure to raw architectural directives.</div>
+            </div>
+            <div>
+                <a href="index_of_indexes.html" class="warn-btn">→ Enter the Epistemic Choke Point</a>
+            </div>
+        </div>
+
+        <div class="content-col" id="ecology-container" style="position:relative; min-height:100vh; overflow-y:auto; background:#050508;">
+            <!-- Progressive Enhancement Fallback -->
+            <div class="fallback-list" style="padding: 60px; color: #e2e8f0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; gap: 15px;">
+                <h2 style="font-weight:900; text-transform:uppercase; color:#9dd8e8; letter-spacing:-0.02em; margin:0 0 20px 0; font-size:18px;">County Directory [Fallback Mode]</h2>
+                <a href="achilles-photosphere-orchestra.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; letter-spacing:0.05em; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Achilles Photosphere Orchestra<div style="font-family:'IBM Plex Mono', monospace; font-size:10px; color:#718096; margin-top:8px;">[ ROOT COUNTY ]</div></a>
+                <a href="achilles-rlm-engine.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; letter-spacing:0.05em; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Achilles RLM Engine<div style="font-family:'IBM Plex Mono', monospace; font-size:10px; color:#718096; margin-top:8px;">[ ROOT COUNTY ]</div></a>
+                <a href="achilles-rlm-cheap.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; letter-spacing:0.05em; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Achilles RLM Cheap<div style="font-family:'IBM Plex Mono', monospace; font-size:10px; color:#718096; margin-top:8px;">[ ROOT COUNTY ]</div></a>
+                <a href="rcc-eco.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; letter-spacing:0.05em; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">RCC Eco<div style="font-family:'IBM Plex Mono', monospace; font-size:10px; color:#718096; margin-top:8px;">[ ROOT COUNTY ]</div></a>
+                <a href="rcc-eco-gnn.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; letter-spacing:0.05em; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">RCC Eco GNN<div style="font-family:'IBM Plex Mono', monospace; font-size:10px; color:#718096; margin-top:8px;">[ ROOT COUNTY ]</div></a>
+                <a href="cheap-rcc.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; letter-spacing:0.05em; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Cheap RCC<div style="font-family:'IBM Plex Mono', monospace; font-size:10px; color:#718096; margin-top:8px;">[ ROOT COUNTY ]</div></a>
+                <a href="clinic.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; letter-spacing:0.05em; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Clinic<div style="font-family:'IBM Plex Mono', monospace; font-size:10px; color:#718096; margin-top:8px;">[ ROOT COUNTY ]</div></a>
+                <a href="designer-fictionalizer.html" style="display:block; padding:20px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; letter-spacing:0.05em; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Designer Fictionalizer<div style="font-family:'IBM Plex Mono', monospace; font-size:10px; color:#718096; margin-top:8px;">[ ROOT COUNTY ]</div></a>
+            </div>
+        </div>
+    </div>
+
+    <script src="d3-delaunay.min.js"></script>
+    <script src="ecology-engine.js"></script>
+    <script>
+        const nodesData = [
+            { id: 'r1', title: 'achilles-photosphere-orchestra.html', url: 'achilles-photosphere-orchestra.html', group: 'ROOT' },
+            { id: 'r2', title: 'achilles-rlm-engine.html', url: 'achilles-rlm-engine.html', group: 'ROOT' },
+            { id: 'r3', title: 'achilles-rlm-cheap.html', url: 'achilles-rlm-cheap.html', group: 'ROOT' },
+            { id: 'r4', title: 'rcc-eco.html', url: 'rcc-eco.html', group: 'ROOT' },
+            { id: 'r5', title: 'rcc-eco-gnn.html', url: 'rcc-eco-gnn.html', group: 'ROOT' },
+            { id: 'r6', title: 'cheap-rcc.html', url: 'cheap-rcc.html', group: 'ROOT' },
+            { id: 'r7', title: 'clinic.html', url: 'clinic.html', group: 'ROOT' },
+            { id: 'r8', title: 'designer-fictionalizer.html', url: 'designer-fictionalizer.html', group: 'ROOT' }
+        ];
+
+        window.onload = () => {
+            if (window.innerWidth > 960) {
+                const engine = new EcologyEngine('ecology-container', nodesData);
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>WORLDTEXT — Stained Glass Context Windows</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --void: #060810;
+            --deep: #090C1A;
+            --panel: #0A0D1C;
+            --warm: #121728;
+            --gold: #C4953A;
+            --gold-l: #E0B96A;
+            --gold-d: #7A5C20;
+            --gold-x: rgba(196, 149, 58, .07);
+            --ash: #8A7E72;
+            --paper: #F2E8D8;
+            --paper2: #8E8278;
+            --rule: 1px solid rgba(196, 149, 58, .11);
+            --fell: 'IM Fell English', Georgia, serif;
+            --mono: 'IBM Plex Mono', monospace;
+            --hh: 44px;
+            --sh: 28px;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden
+        }
+
+        body {
+            background: var(--void);
+            color: var(--paper);
+            font-family: var(--mono);
+            font-size: 11px;
+            line-height: 1.5
+        }
+
+        ::selection {
+            background: var(--gold);
+            color: var(--void)
+        }
+
+        button,
+        input,
+        textarea {
+            font-family: var(--mono)
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            opacity: .022
+        }
+
+        .hdr {
+            height: var(--hh);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: var(--void);
+            border-bottom: var(--rule);
+            display: flex;
+            align-items: stretch;
+            padding: 0
+        }
+
+        .hdr-logo {
+            font-family: var(--fell);
+            font-size: 13px;
+            font-style: italic;
+            color: var(--gold-l);
+            padding: 0 18px;
+            display: flex;
+            align-items: center;
+            border-right: var(--rule);
+            white-space: nowrap;
+            gap: 8px;
+            flex-shrink: 0
+        }
+
+        .hdr-logo span {
+            font-family: var(--mono);
+            font-size: 7px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--gold-d)
+        }
+
+        .hdr-stat {
+            padding: 0 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-right: var(--rule);
+            flex-shrink: 0;
+            cursor: default
+        }
+
+        .hdr-stat-k {
+            font-size: 7px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--gold-d);
+            margin-bottom: 2px
+        }
+
+        .hdr-stat-v {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--paper);
+            letter-spacing: .04em
+        }
+
+        .hdr-right {
+            margin-left: auto;
+            display: flex;
+            align-items: stretch
+        }
+
+        .hdr-btn {
+            background: none;
+            border: none;
+            border-left: var(--rule);
+            color: var(--gold-d);
+            font-size: 8.5px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            padding: 0 14px;
+            cursor: pointer;
+            transition: all .15s
+        }
+
+        .hdr-btn:hover {
+            color: var(--gold);
+            background: var(--gold-x)
+        }
+
+        .hdr-btn.on {
+            color: var(--gold-l)
+        }
+
+        .main {
+            position: fixed;
+            top: var(--hh);
+            bottom: var(--sh);
+            left: 0;
+            right: 0;
+            display: flex
+        }
+
+        .glass-wrap {
+            flex: 0 0 58%;
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(ellipse 70% 70% at 50% 50%, #0E1626 0%, var(--void) 100%)
+        }
+
+        #glass {
+            width: 100%;
+            height: 100%;
+            display: block
+        }
+
+        .cell-path {
+            cursor: pointer;
+            transition: filter .18s
+        }
+
+        #particles {
+            position: absolute;
+            inset: 0;
+            pointer-events: none
+        }
+
+        .right-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-left: var(--rule);
+            overflow: hidden;
+            min-width: 0
+        }
+
+        .panels {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0
+        }
+
+        .panel {
+            border-bottom: var(--rule);
+            background: var(--panel);
+            flex-shrink: 0
+        }
+
+        .ph {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 12px;
+            border-bottom: var(--rule)
+        }
+
+        .ph-lbl {
+            font-size: 7px;
+            font-weight: 600;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--gold-d)
+        }
+
+        .ph-val {
+            font-size: 7px;
+            color: var(--paper2);
+            letter-spacing: .05em
+        }
+
+        .panel-entity {}
+
+        .ent-body {
+            padding: 10px 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px 16px
+        }
+
+        .ent-row {
+            display: flex;
+            flex-direction: column
+        }
+
+        .ent-k {
+            font-size: 7px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--gold-d);
+            margin-bottom: 2px
+        }
+
+        .ent-v {
+            font-size: 10px;
+            color: var(--paper);
+            font-weight: 600;
+            letter-spacing: .03em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .ent-ax {
+            padding: 7px 12px;
+            border-top: var(--rule);
+            font-family: var(--fell);
+            font-style: italic;
+            font-size: 11px;
+            color: var(--paper2);
+            line-height: 1.55;
+            min-height: 36px
+        }
+
+        .ent-bar-wrap {
+            padding: 0 12px 8px
+        }
+
+        .ent-bar {
+            height: 2px;
+            background: rgba(196, 149, 58, .1);
+            border-radius: 1px
+        }
+
+        .ent-bar-fill {
+            height: 100%;
+            border-radius: 1px;
+            transition: width 1.2s ease, background .4s
+        }
+
+        .panel-vol {
+            height: 82px
+        }
+
+        .vol-body {
+            padding: 5px 12px 4px;
+            height: 56px
+        }
+
+        #volCanvas {
+            width: 100%;
+            height: 100%;
+            display: block
+        }
+
+        .panel-wt {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column
+        }
+
+        .wt-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 0
+        }
+
+        .wt-body::-webkit-scrollbar {
+            width: 2px
+        }
+
+        .wt-body::-webkit-scrollbar-thumb {
+            background: rgba(196, 149, 58, .18)
+        }
+
+        .wt-entry {
+            padding: 7px 0;
+            border-bottom: 1px solid rgba(196, 149, 58, .05)
+        }
+
+        .wte-head {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 3px
+        }
+
+        .wte-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0
+        }
+
+        .wte-lbl {
+            font-size: 7px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase
+        }
+
+        .wte-op {
+            font-size: 7px;
+            color: rgba(196, 149, 58, .3);
+            margin-left: 3px
+        }
+
+        .wte-ts {
+            font-size: 7px;
+            color: rgba(196, 149, 58, .22);
+            margin-left: auto
+        }
+
+        .wte-text {
+            font-family: var(--fell);
+            font-style: italic;
+            font-size: 11px;
+            color: var(--paper2);
+            line-height: 1.55;
+            word-break: break-word
+        }
+
+        .wt-copy {
+            background: none;
+            border: 1px solid rgba(196, 149, 58, .12);
+            color: rgba(196, 149, 58, .4);
+            font-size: 7px;
+            padding: 2px 7px;
+            cursor: pointer;
+            letter-spacing: .06em;
+            margin-top: 4px;
+            transition: all .15s
+        }
+
+        .wt-copy:hover {
+            border-color: var(--gold-d);
+            color: var(--gold-d)
+        }
+
+        .wt-copy.ok {
+            color: rgba(58, 150, 58, .7);
+            border-color: rgba(58, 150, 58, .4)
+        }
+
+        .wt-empty {
+            color: rgba(196, 149, 58, .13);
+            font-family: var(--fell);
+            font-style: italic;
+            font-size: 11px;
+            line-height: 2;
+            padding: 16px 0
+        }
+
+        .panel-ctx {
+            max-height: 130px
+        }
+
+        .ctx-list {
+            overflow-y: auto;
+            max-height: 108px
+        }
+
+        .ctx-list::-webkit-scrollbar {
+            width: 2px
+        }
+
+        .ctx-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 12px;
+            border-bottom: 1px solid rgba(196, 149, 58, .04);
+            cursor: pointer;
+            transition: background .12s
+        }
+
+        .ctx-item:hover {
+            background: var(--gold-x)
+        }
+
+        .ctx-item.on {
+            background: rgba(196, 149, 58, .06)
+        }
+
+        .ctx-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0
+        }
+
+        .ctx-name {
+            font-size: 8.5px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .ctx-sub {
+            font-size: 7.5px;
+            color: var(--paper2);
+            white-space: nowrap;
+            flex-shrink: 0
+        }
+
+        .ctx-w {
+            font-size: 8.5px;
+            font-weight: 600;
+            color: var(--gold-d);
+            min-width: 26px;
+            text-align: right
+        }
+
+        .compose-area {
+            flex: 0 0 auto;
+            border-top: 2px solid rgba(196, 149, 58, .18);
+            background: var(--deep)
+        }
+
+        .cmp-head {
+            display: flex;
+            align-items: stretch;
+            min-height: 32px;
+            transition: background .15s
+        }
+
+        .cmp-badge {
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--gold-l);
+            padding: 5px 10px;
+            border-right: var(--rule);
+            display: flex;
+            align-items: center;
+            min-width: 72px;
+            white-space: nowrap;
+            flex-shrink: 0
+        }
+
+        .cmp-ops {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            overflow-x: auto;
+            scrollbar-width: none
+        }
+
+        .cmp-ops::-webkit-scrollbar {
+            display: none
+        }
+
+        .op-btn {
+            font-size: 7.5px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            background: none;
+            border: none;
+            color: rgba(196, 149, 58, .3);
+            padding: 4px 8px;
+            cursor: pointer;
+            transition: all .12s;
+            white-space: nowrap;
+            border-right: 1px solid rgba(196, 149, 58, .07)
+        }
+
+        .op-btn:hover {
+            color: var(--gold)
+        }
+
+        .op-btn.on {
+            color: var(--gold-l);
+            background: rgba(196, 149, 58, .1)
+        }
+
+        .op-sep {
+            width: 1px;
+            background: rgba(196, 149, 58, .2);
+            margin: 6px 3px;
+            flex-shrink: 0
+        }
+
+        .run-btn {
+            font-family: var(--fell);
+            font-size: 13px;
+            font-style: italic;
+            background: rgba(196, 149, 58, .1);
+            border: none;
+            color: var(--gold-l);
+            padding: 0 16px;
+            cursor: pointer;
+            transition: all .12s;
+            flex-shrink: 0;
+            border-left: var(--rule)
+        }
+
+        .run-btn:hover {
+            background: rgba(196, 149, 58, .2);
+            color: var(--paper)
+        }
+
+        .run-btn:disabled {
+            opacity: .3;
+            cursor: not-allowed
+        }
+
+        .cmp-joint {
+            height: 2px;
+            background: var(--gold-d);
+            transition: background .15s
+        }
+
+        .concept-ta {
+            width: 100%;
+            background: none;
+            border: none;
+            color: var(--paper);
+            font-family: var(--fell);
+            font-size: 14px;
+            font-style: italic;
+            line-height: 1.5;
+            padding: 10px 12px;
+            outline: none;
+            resize: none;
+            min-height: 48px;
+            max-height: 80px;
+            overflow-y: auto
+        }
+
+        .concept-ta::placeholder {
+            color: rgba(196, 149, 58, .18);
+            font-style: italic
+        }
+
+        .cmp-hint {
+            font-size: 7.5px;
+            color: rgba(196, 149, 58, .18);
+            padding: 0 12px 6px;
+            letter-spacing: .04em
+        }
+
+        .cmp-hint.transform {
+            color: rgba(61, 90, 138, .6)
+        }
+
+        .statusbar {
+            height: var(--sh);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: var(--void);
+            border-top: var(--rule);
+            display: flex;
+            align-items: center;
+            padding: 0 14px;
+            gap: 9px;
+            font-size: 8px;
+            color: var(--gold-d)
+        }
+
+        .sb-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: rgba(196, 149, 58, .2);
+            flex-shrink: 0
+        }
+
+        .sb-dot.live {
+            background: var(--gold);
+            animation: sbpulse .8s ease infinite alternate
+        }
+
+        @keyframes sbpulse {
+            from {
+                opacity: .5
+            }
+
+            to {
+                opacity: 1
+            }
+        }
+
+        .sb-sep {
+            color: rgba(196, 149, 58, .18)
+        }
+
+        .sb-bold {
+            color: var(--gold);
+            font-weight: 600
+        }
+
+        .sb-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 7px
+        }
+
+        .sb-key {
+            border: 1px solid rgba(196, 149, 58, .1);
+            padding: 1px 4px;
+            font-size: 7px;
+            color: rgba(196, 149, 58, .2)
+        }
+
+        @keyframes cellGlow {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 1.15
+            }
+        }
+
+        @keyframes rippleOut {
+            to {
+                stroke-width: 0;
+                opacity: 0
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="hdr">
+        <div class="hdr-logo">WORLDTEXT <span>// Stained Glass</span></div>
+        <div class="hdr-stat"><span class="hdr-stat-k">Depth</span><span class="hdr-stat-v" id="statDepth">D00</span>
+        </div>
+        <div class="hdr-stat"><span class="hdr-stat-k">Corpus</span><span class="hdr-stat-v">CORE ALPHA</span></div>
+        <div class="hdr-stat"><span class="hdr-stat-k">Cells</span><span class="hdr-stat-v">14</span></div>
+        <div class="hdr-stat"><span class="hdr-stat-k">Active</span><span class="hdr-stat-v" id="statActive">—</span>
+        </div>
+        <div class="hdr-right">
+            <button class="hdr-btn" onclick="clearSession()">Clear</button>
+        </div>
+    </header>
+
+    <div class="main">
+        <div class="glass-wrap" id="glassWrap">
+            <svg id="glass" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg"
+                preserveAspectRatio="xMidYMid meet">
+                <defs id="glassDefs"></defs>
+                <rect width="500" height="500" fill="url(#bgGrad)" />
+                <g id="cellLayer"></g>
+                <g id="cameLayer"></g>
+                <g id="glowLayer"></g>
+                <g id="labelLayer"></g>
+                <g id="frameLayer"></g>
+                <g id="rippleLayer"></g>
+            </svg>
+            <canvas id="particles"></canvas>
+        </div>
+
+        <div class="right-col">
+            <div class="panels">
+                <div class="panel panel-entity">
+                    <div class="ph">
+                        <span class="ph-lbl">Ion Entity</span>
+                        <span class="ph-val" id="entityId">NO SELECTION</span>
+                    </div>
+                    <div class="ent-body">
+                        <div class="ent-row"><span class="ent-k">Kingdom</span><span class="ent-v" id="eK">SONIC
+                                BIOTA</span></div>
+                        <div class="ent-row"><span class="ent-k">Phylum</span><span class="ent-v" id="eP">—</span></div>
+                        <div class="ent-row"><span class="ent-k">Class</span><span class="ent-v" id="eCl">—</span></div>
+                        <div class="ent-row"><span class="ent-k">Order</span><span class="ent-v" id="eO">—</span></div>
+                    </div>
+                    <div class="ent-ax" id="eAx">Select a context window to begin.</div>
+                    <div class="ent-bar-wrap">
+                        <div class="ent-bar">
+                            <div class="ent-bar-fill" id="eBar" style="width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel panel-vol">
+                    <div class="ph"><span class="ph-lbl">Volume</span><span class="ph-val" id="volLbl">—</span></div>
+                    <div class="vol-body"><canvas id="volCanvas"></canvas></div>
+                </div>
+
+                <div class="panel panel-wt">
+                    <div class="ph">
+                        <span class="ph-lbl">Worldtext — Session</span>
+                        <span class="ph-val" id="wtCount">0 entries</span>
+                    </div>
+                    <div class="wt-body" id="wtBody">
+                        <div class="wt-empty">Activate context windows — their voices accumulate here as the worldtext
+                            builds.</div>
+                    </div>
+                </div>
+
+                <div class="panel panel-ctx">
+                    <div class="ph"><span class="ph-lbl">Context Index</span><span class="ph-val">14 nodes</span></div>
+                    <div class="ctx-list" id="ctxList"></div>
+                </div>
+            </div>
+
+            <div class="compose-area">
+                <div class="cmp-head" id="cmpHead">
+                    <span class="cmp-badge" id="cmpBadge">SITE</span>
+                    <div class="cmp-ops" id="cmpOps"></div>
+                    <button class="run-btn" id="runBtn" onclick="runForge()">Run →</button>
+                </div>
+                <div class="cmp-joint" id="cmpJoint"></div>
+                <textarea class="concept-ta" id="conceptTa" placeholder="concept · concept · concept…"
+                    rows="2"></textarea>
+                <div class="cmp-hint" id="cmpHint">⌘↵ run · activate a cell to set the channel</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="statusbar">
+        <span class="sb-dot" id="sbDot"></span>
+        <span id="sbStatus">Ready</span>
+        <span class="sb-sep">·</span>
+        <span class="sb-bold" id="sbOp">SITE</span>
+        <span class="sb-sep">·</span>
+        <span id="sbCh" style="color:var(--gold-d)">no channel</span>
+        <div class="sb-right">
+            <span id="sbRuns" style="color:var(--gold-d);font-weight:600">0</span>
+            <span style="color:rgba(196,149,58,.2)"> runs</span>
+            <span class="sb-sep">·</span>
+            <span class="sb-key">⌘↵</span><span class="sb-key">⌘K</span>
+        </div>
+    </div>
+
+    <script>
+        // ══ DATA ══
+        const CTX = [
+            {
+                id: 'core', x: 250, y: 250, label: 'WORLDTEXT', sub: 'CORE NODE', icon: '⬡',
+                rgb: [12, 8, 6], color: '#C4953A', glow: 'rgba(196,149,58,.55)',
+                kingdom: 'ARCHIVE', phylum: 'WORLD_STRUCTURE', cls: 'MASTER_SESSION', order: 'ACCUMULATE',
+                ax: 'The worldtext accumulates here. Every activated context contributes its fragment. The center holds.', weight: 100
+            },
+            {
+                id: 'caretakers', x: 250, y: 152, label: 'CARETAKERS', sub: 'I — SONIC RITES', icon: '♩',
+                rgb: [8, 62, 52], color: '#10A088', glow: 'rgba(16,160,136,.45)',
+                kingdom: 'SONIC BIOTA', phylum: 'GOSPEL_INHERITANCE', cls: 'DOMESTIC_RITUAL', order: 'CARETAKERS_LISTENING',
+                ax: '1.0 The songs they played are the first archive. Before language — there was the Hammond and the handclap.', weight: 40
+            },
+            {
+                id: 'survival', x: 338, y: 203, label: 'SURVIVAL', sub: 'II — HOTEL YEARS', icon: '◈',
+                rgb: [80, 12, 22], color: '#B41E32', glow: 'rgba(180,30,50,.45)',
+                kingdom: 'SONIC BIOTA', phylum: 'GUILT_ARCHITECTURE', cls: 'CONFESSIONAL_RECORD', order: 'STREET_SURVIVAL',
+                ax: '2.0 The guilt of survival is proportional to the beauty of what you abandoned.', weight: 30
+            },
+            {
+                id: 'migration', x: 328, y: 317, label: 'MIGRATION', sub: 'PEW TO FRONT ROW', icon: '→',
+                rgb: [18, 45, 80], color: '#2456B4', glow: 'rgba(36,86,180,.45)',
+                kingdom: 'SONIC BIOTA', phylum: 'DISPLACEMENT_RECORD', cls: 'MIGRATION_MAP', order: 'TRANSFORMATION',
+                ax: 'Gospel becomes grief. Hope becomes memory. The church is the same — the pew is different.', weight: 20
+            },
+            {
+                id: 'aftermath', x: 172, y: 317, label: 'AFTERMATH', sub: 'III — EULOGY YRS', icon: '○',
+                rgb: [40, 28, 80], color: '#5038B4', glow: 'rgba(80,56,180,.45)',
+                kingdom: 'SONIC BIOTA', phylum: 'GRIEF_DOCUMENT', cls: 'EULOGY_SESSION', order: 'AFTERMATH',
+                ax: '3.0 The empty pew is not an absence; it is a specific shape of presence.', weight: 30
+            },
+            {
+                id: 'jukebox', x: 162, y: 203, label: 'JUKEBOX', sub: 'IV — THREE WOUNDS', icon: '◎',
+                rgb: [100, 62, 8], color: '#C4953A', glow: 'rgba(196,149,58,.45)',
+                kingdom: 'SONIC BIOTA', phylum: 'BIOGRAPHICAL_RECORD', cls: 'WOUND_ARCHIVE', order: 'JUKEBOX_TIMELINE',
+                ax: '4.0 The jukebox does not play songs; it plays the years those songs belonged to.', weight: 30
+            },
+            {
+                id: 'gospel', x: 250, y: 52, label: 'GOSPEL', sub: 'SACRED ROOT', icon: '✦',
+                rgb: [70, 8, 18], color: '#961024', glow: 'rgba(150,16,36,.45)',
+                kingdom: 'SONIC BIOTA', phylum: 'GOSPEL_GRIEF', cls: 'SACRED_ARCHIVE', order: 'ROOT_SYSTEM',
+                ax: 'The first church was a room where people learned to feel things they could not say.', weight: 25
+            },
+            {
+                id: 'hammond', x: 390, y: 93, label: 'HAMMOND B3', sub: 'FIRST INSTRUMENT', icon: '≋',
+                rgb: [72, 48, 8], color: '#A06C10', glow: 'rgba(160,108,16,.45)',
+                kingdom: 'INSTRUMENT', phylum: 'SACRED_ELECTRONICS', cls: 'HAMMOND_B3', order: 'TONE_WHEEL_ORGAN',
+                ax: 'The Hammond organ does not play notes — it plays rooms. Every note is a room remembered.', weight: 20
+            },
+            {
+                id: 'tears', x: 448, y: 250, label: 'BULLETPROOF', sub: 'TEARS / STEEL', icon: '◌',
+                rgb: [12, 48, 88], color: '#1860C4', glow: 'rgba(24,96,196,.45)',
+                kingdom: 'SONIC BIOTA', phylum: 'GRIEF_SPECTRUM', cls: 'BULLETPROOF_TEARS', order: 'TRAUMA_RESPONSE',
+                ax: 'To cry in a bulletproof SUV is to grieve at the exact intersection of success and loss.', weight: 15
+            },
+            {
+                id: 'virginia', x: 393, y: 397, label: 'VIRGINIA BCH', sub: 'HOME SIGNAL', icon: '≈',
+                rgb: [10, 60, 50], color: '#147864', glow: 'rgba(20,120,100,.45)',
+                kingdom: 'GEOGRAPHIC', phylum: 'ATLANTIC_COAST', cls: 'VIRGINIA_BEACH', order: 'HOME_LOCALE',
+                ax: 'Virginia Beach is not a location. It is a sound. The Atlantic is the reverb tail.', weight: 20
+            },
+            {
+                id: 'pew', x: 250, y: 448, label: 'EMPTY PEW', sub: 'SHAPE OF ABSENCE', icon: '―',
+                rgb: [48, 48, 62], color: '#606082', glow: 'rgba(96,96,130,.45)',
+                kingdom: 'SPATIAL', phylum: 'ABSENCE_ARCHITECTURE', cls: 'EMPTY_PEW', order: 'MEMORIAL_SPACE',
+                ax: 'The empty pew has weight. Objects of absence are heavier than the things they replaced.', weight: 20
+            },
+            {
+                id: 'protools', x: 108, y: 397, label: 'PRO TOOLS', sub: 'DAW PIPELINE', icon: '⊕',
+                rgb: [12, 22, 62], color: '#182C96', glow: 'rgba(24,44,150,.45)',
+                kingdom: 'TOOL_CLASS', phylum: 'DIGITAL_ARCHIVE', cls: 'PRO_TOOLS_SESSION', order: 'CATHEDRAL_IMPULSE',
+                ax: 'The DAW is the new sanctuary. Cathedral impulse responses are how we remember rooms we cannot return to.', weight: 15
+            },
+            {
+                id: 'choir', x: 52, y: 250, label: 'VOICES', sub: 'PHARRELL CHOIR', icon: '≫',
+                rgb: [52, 12, 72], color: '#6818A0', glow: 'rgba(104,24,160,.45)',
+                kingdom: 'VOCAL_CLASS', phylum: 'CHOIR_FORMATION', cls: 'VOICES_OF_FIRE', order: 'CALL_RESPONSE',
+                ax: 'The choir is the community carrying what one voice cannot hold. Grief distributed across octaves.', weight: 25
+            },
+            {
+                id: 'pharrell', x: 110, y: 93, label: 'PHARRELL', sub: 'COLLAB AXIS', icon: '△',
+                rgb: [78, 38, 8], color: '#A05010', glow: 'rgba(160,80,16,.45)',
+                kingdom: 'COLLAB_NODE', phylum: 'NEPTUNES_AXIS', cls: 'PHARRELL_WILLIAMS', order: 'PRODUCER_RECORD',
+                ax: 'The Neptunes understood that the space between the drums is where the grief lives.', weight: 20
+            },
+        ];
+
+        const OP_LABELS = { site: 'SITE', dig: 'DIG', infer: 'INFER', build: 'BUILD', aphorist: 'APHORIST', cantor: 'CANTOR', inverter: 'INVERTER' };
+        const OP_COLORS = { site: 'rgba(196,149,58,.42)', dig: 'rgba(122,32,48,.5)', infer: 'rgba(61,90,138,.48)', build: 'rgba(58,90,58,.42)', aphorist: 'rgba(122,32,48,.4)', cantor: 'rgba(196,149,58,.32)', inverter: 'rgba(61,90,138,.4)' };
+        const TRANSFORM_SET = new Set(['aphorist', 'cantor', 'inverter']);
+
+        const TRANSFORMS = {
+            aphorist: `You are a Philosophical Aphorist writing in the tradition of Wittgenstein's Culture and Value, applied to grief, gospel, and sonic memory. Execute a distillation of the provided text. Shatter systematic prose. Reconstruct into fragmented introspective aphoristic remarks where grief itself is doing the thinking.\n\nPhase 1 — Clear rubble: Find where writing is too composed or forces emotional resolution. Strip forced takeaways.\nPhase 2 — Inexpressible Boundary: Find where language loops into the thing it cannot say. Stop there. Point to the silence. Do not fill it.\nPhase 3 — Aphoristic Reconstruction: Rewrite as remarks that surprise even the writer. Use metaphors from church architecture, vinyl grooves, and empty kitchens.\n\nRULES: Ban explanatory transitions. Ban resolution. Require numbered standalone fragments. Final aphorism must point to a silence the reader now has to carry.\n\nOutput: Brief diagnostic (The Dead Rubble / The Warm Seed / The Unsaid), then numbered aphoristic fragments.`,
+            cantor: `You are the Cantor — the voice that carries the liturgical line when the congregation cannot. Take written material about grief, gospel, and memory and render it in the voice of someone asked to sing the thing they cannot speak.\n\nExecute a liturgical transformation:\n— Identify the testimony hidden inside the analysis\n— Strip analytical scaffolding, find the confessional core\n— Rewrite in testimony cadence: direct second-person address, call-and-response structure, the rising phrase that resolves on a word that costs something\n\nRULES: Ban academic distance. Ban third person for emotional claims. Require at least one moment of unresolved dissonance — the note that does not resolve to the tonic. End mid-phrase if necessary.\n\nOutput: One continuous testimony passage in cantor cadence.`,
+            inverter: `You are an Axis Inverter. Take texts written from inside grief and rewrite them for the outside — how grief changes the world around the person carrying it.\n\nPhase 1 — Purge interiority: Delete all passages describing what the writer feels. Locate and expand passages describing what the writer observes.\nPhase 2 — Reroute to the world: The empty pew is not about absence — it is about weight redistribution. The missed call is not about guilt — it is about the infrastructure of unanswered signals.\nPhase 3 — Cost-benefit the loss: Name loss as a quantity. Not "I lost my mother" but "an entire primary-source archive about one particular way of living became permanently unavailable."\n\nRULES: Ban interior emotional claims. Require every emotional statement to be restated as an infrastructural or archival condition. End with the most external possible observation about the most internal thing in the draft.\n\nOutput: Axis Inversion Report (Interiority Removed / External System Found / Restatement Key), then the inverted draft.`
+        };
+
+        // ══ STATE ══
+        let activeIdx = -1, selOp = 'site', selCtx = null, running = false, sessionCount = 0, depth = 0;
+        let cells = [], volTimer = null;
+        const ptcls = [];
+
+        // ══ VORONOI ══
+        function clipHP(poly, px, py, nx, ny) {
+            const res = []; const n = poly.length;
+            for (let i = 0; i < n; i++) {
+                const a = poly[i], b = poly[(i + 1) % n];
+                const da = nx * (a.x - px) + ny * (a.y - py), db = nx * (b.x - px) + ny * (b.y - py);
+                if (da >= 0) res.push(a);
+                if ((da < 0) !== (db < 0)) { const t = da / (da - db); res.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) }); }
+            }
+            return res;
+        }
+        function voronoiCell(seeds, i, bounds) {
+            let poly = [...bounds];
+            for (let j = 0; j < seeds.length; j++) {
+                if (i === j || poly.length < 3) continue;
+                const mx = (seeds[i].x + seeds[j].x) / 2, my = (seeds[i].y + seeds[j].y) / 2;
+                const nx = seeds[i].x - seeds[j].x, ny = seeds[i].y - seeds[j].y;
+                poly = clipHP(poly, mx, my, nx, ny);
+            }
+            return poly;
+        }
+        function makeBounds(cx, cy, r, n = 48) {
+            return Array.from({ length: n }, (_, i) => { const a = 2 * Math.PI * i / n; return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }; });
+        }
+        function centroid(poly) { let x = 0, y = 0; poly.forEach(p => { x += p.x; y += p.y }); return { x: x / poly.length, y: y / poly.length }; }
+        function polyPath(pts) { if (!pts || pts.length < 3) return ''; return 'M' + pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('L') + 'Z'; }
+
+        // ══ RENDER GLASS ══
+        function renderGlass() {
+            const seeds = CTX.map(c => ({ x: c.x, y: c.y }));
+            const bounds = makeBounds(250, 250, 228);
+            const defsEl = document.getElementById('glassDefs');
+            const cellL = document.getElementById('cellLayer');
+            const cameL = document.getElementById('cameLayer');
+            const lblL = document.getElementById('labelLayer');
+            const glwL = document.getElementById('glowLayer');
+            const frL = document.getElementById('frameLayer');
+
+            cells = CTX.map((ctx, i) => { const poly = voronoiCell(seeds, i, bounds); return { ctx, poly, centroid: centroid(poly) }; });
+
+            let dHtml = `<radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#111C2E"/><stop offset="100%" stop-color="#060810"/>
+  </radialGradient>`;
+
+            CTX.forEach((ctx, i) => {
+                const c = cells[i].centroid; const [r, g, b] = ctx.rgb;
+                const r2 = Math.min(255, r + 60), g2 = Math.min(255, g + 60), b2 = Math.min(255, b + 60);
+                const r0 = Math.max(0, r - 15), g0 = Math.max(0, g - 15), b0 = Math.max(0, b - 15);
+                dHtml += `<radialGradient id="grd${i}" cx="${c.x}" cy="${c.y}" r="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="rgb(${r2},${g2},${b2})" stop-opacity="0.88"/>
+      <stop offset="55%" stop-color="rgb(${r},${g},${b})" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="rgb(${r0},${g0},${b0})" stop-opacity="0.8"/>
+    </radialGradient>`;
+                dHtml += `<radialGradient id="glow${i}" cx="${c.x}" cy="${c.y}" r="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="${ctx.color}" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="${ctx.color}" stop-opacity="0"/>
+    </radialGradient>`;
+            });
+            defsEl.innerHTML = dHtml;
+
+            // Cells
+            cellL.innerHTML = CTX.map((ctx, i) => {
+                const d = polyPath(cells[i].poly);
+                return `<path id="cell${i}" class="cell-path" data-i="${i}" d="${d}" fill="url(#grd${i})" stroke="none"/>`;
+            }).join('');
+
+            // Glow layer (hidden until active)
+            glwL.innerHTML = CTX.map((ctx, i) => {
+                const d = polyPath(cells[i].poly);
+                return `<path id="glow${i}" d="${d}" fill="url(#glow${i})" opacity="0" style="pointer-events:none;transition:opacity .4s"/>`;
+            }).join('');
+
+            // Lead came
+            let cHtml = `<circle cx="250" cy="250" r="228" fill="none" stroke="#060810" stroke-width="5"/>`;
+            CTX.forEach((_, i) => {
+                const d = polyPath(cells[i].poly);
+                cHtml += `<path d="${d}" fill="none" stroke="#070B16" stroke-width="2.8" stroke-linejoin="round"/>`;
+            });
+            cHtml += `<circle cx="250" cy="250" r="230" fill="none" stroke="rgba(196,149,58,.22)" stroke-width="1"/>`;
+            cHtml += `<circle cx="250" cy="250" r="237" fill="none" stroke="rgba(196,149,58,.1)" stroke-width="1" stroke-dasharray="3 9"/>`;
+            cameL.innerHTML = cHtml;
+
+            // Labels
+            lblL.innerHTML = CTX.map((ctx, i) => {
+                const c = cells[i].centroid, poly = cells[i].poly;
+                if (!poly || poly.length < 3) return '';
+                const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
+                const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+                const sm = Math.min(w, h) < 75;
+                const iconSz = sm ? 13 : 17, lblSz = sm ? 6 : 7.5;
+                const oy = sm ? 4 : 9;
+                return `<g id="lbl${i}" style="pointer-events:none">
+      <text x="${c.x.toFixed(1)}" y="${(c.y - oy).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${iconSz}" fill="rgba(255,255,255,.7)" font-family="IBM Plex Mono">${ctx.icon}</text>
+      <text x="${c.x.toFixed(1)}" y="${(c.y + oy + 2).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${lblSz}" fill="rgba(255,255,255,.4)" font-family="IBM Plex Mono" font-weight="600" letter-spacing="1">${ctx.label.substring(0, 9)}</text>
+    </g>`;
+            }).join('');
+
+            // Frame ticks
+            let fHtml = '';
+            for (let i = 0; i < 72; i++) {
+                const a = 2 * Math.PI * i / 72, r1 = 232, r2 = i % 6 === 0 ? 240 : 237;
+                const op = i % 6 === 0 ? .5 : .15, sw = i % 6 === 0 ? 1.2 : .5;
+                fHtml += `<line x1="${(250 + r1 * Math.cos(a)).toFixed(1)}" y1="${(250 + r1 * Math.sin(a)).toFixed(1)}" x2="${(250 + r2 * Math.cos(a)).toFixed(1)}" y2="${(250 + r2 * Math.sin(a)).toFixed(1)}" stroke="rgba(196,149,58,${op})" stroke-width="${sw}"/>`;
+            }
+            // Node number labels at major ticks
+            for (let i = 0; i < 12; i++) {
+                const a = 2 * Math.PI * i / 12 - Math.PI / 2, r = 245;
+                fHtml += `<text x="${(250 + r * Math.cos(a)).toFixed(1)}" y="${(250 + r * Math.sin(a)).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="6" fill="rgba(196,149,58,.2)" font-family="IBM Plex Mono">${String(i * 30).padStart(3, '0')}</text>`;
+            }
+            frL.innerHTML = fHtml;
+
+            // Events
+            CTX.forEach((_, i) => {
+                const el = document.getElementById(`cell${i}`);
+                if (el) {
+                    el.addEventListener('click', () => activateCell(i));
+                    el.addEventListener('mouseenter', () => { if (i !== activeIdx) el.style.filter = 'brightness(1.45)'; });
+                    el.addEventListener('mouseleave', () => { if (i !== activeIdx) el.style.filter = ''; });
+                }
+            });
+
+            renderCtxList();
+            initVol();
+            ambientLoop();
+        }
+
+        // ══ INTERACTION ══
+        function activateCell(i) {
+            if (activeIdx === i) {
+                const el = document.getElementById(`cell${i}`);
+                if (el) { el.style.filter = ''; }
+                const gw = document.getElementById(`glow${i}`);
+                if (gw) gw.style.opacity = '0';
+                activeIdx = -1; selCtx = null;
+                document.getElementById('statActive').textContent = '—';
+                updateStatus(); return;
+            }
+            if (activeIdx >= 0) {
+                const prev = document.getElementById(`cell${activeIdx}`);
+                if (prev) prev.style.filter = '';
+                const pg = document.getElementById(`glow${activeIdx}`);
+                if (pg) pg.style.opacity = '0';
+            }
+            activeIdx = i; selCtx = CTX[i];
+            const el = document.getElementById(`cell${i}`);
+            if (el) el.style.filter = `brightness(1.7) drop-shadow(0 0 10px ${selCtx.glow}) drop-shadow(0 0 4px ${selCtx.glow})`;
+            const gw = document.getElementById(`glow${i}`);
+            if (gw) gw.style.opacity = '1';
+
+            const c = cells[i].centroid;
+            addRipple(c.x, c.y, selCtx.color, 0);
+            addRipple(c.x, c.y, selCtx.color, 180);
+            addRipple(c.x, c.y, selCtx.color, 360);
+            spawnParticles(c.x, c.y, selCtx.rgb, 14);
+
+            updateEntityPanel(i);
+            updateCtxList();
+            updateComposeBrick();
+            document.getElementById('statActive').textContent = selCtx.label;
+            depth++;
+            document.getElementById('statDepth').textContent = 'D' + String(depth).padStart(2, '0');
+            addWtEntry(selCtx, 'ACTIVATED', selCtx.ax);
+            updateStatus();
+        }
+
+        function addRipple(cx, cy, color, delay) {
+            setTimeout(() => {
+                const rl = document.getElementById('rippleLayer');
+                const circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circ.setAttribute('cx', cx); circ.setAttribute('cy', cy);
+                circ.setAttribute('r', '6'); circ.setAttribute('fill', 'none');
+                circ.setAttribute('stroke', color); circ.setAttribute('stroke-width', '2.5');
+                rl.appendChild(circ);
+                let r = 6, op = 0.9, sw = 2.5;
+                const go = () => {
+                    r += 3.2; op -= 0.025; sw *= 0.96;
+                    circ.setAttribute('r', r); circ.setAttribute('opacity', Math.max(0, op));
+                    circ.setAttribute('stroke-width', sw);
+                    if (op > 0) requestAnimationFrame(go); else circ.remove();
+                };
+                requestAnimationFrame(go);
+            }, delay);
+        }
+
+        function spawnParticles(sx, sy, rgb, count) {
+            const [r, g, b] = rgb.map(v => Math.min(255, v + 70));
+            for (let i = 0; i < count; i++) {
+                ptcls.push({
+                    x: sx + (Math.random() - .5) * 18, y: sy + (Math.random() - .5) * 18,
+                    vx: 1.1 + Math.random() * 1.8, vy: (Math.random() - .5) * .9,
+                    life: 1, decay: 0.007 + Math.random() * .008,
+                    size: 1.4 + Math.random() * 2.2,
+                    color: `rgb(${r},${g},${b})`
+                });
+            }
+        }
+
+        // ══ AMBIENT ANIMATION ══
+        let ambT = 0;
+        function ambientLoop() {
+            ambT += 0.008;
+            CTX.forEach((_, i) => {
+                if (i === activeIdx) return;
+                const el = document.getElementById(`cell${i}`);
+                if (!el) return;
+                const br = 0.92 + 0.08 * Math.sin(ambT + i * 0.85);
+                el.style.filter = `brightness(${br.toFixed(3)})`;
+            });
+            requestAnimationFrame(ambientLoop);
+        }
+
+        // ══ PARTICLES ══
+        function initParticles() {
+            const cv = document.getElementById('particles');
+            const wrap = document.getElementById('glassWrap');
+            const resize = () => { cv.width = wrap.clientWidth * window.devicePixelRatio; cv.height = wrap.clientHeight * window.devicePixelRatio; cv.style.width = wrap.clientWidth + 'px'; cv.style.height = wrap.clientHeight + 'px'; };
+            resize(); window.addEventListener('resize', resize);
+            const ctx = cv.getContext('2d');
+            const loop = () => {
+                ctx.clearRect(0, 0, cv.width, cv.height);
+                const scX = cv.width / 500, scY = cv.height / 500;
+                for (let i = ptcls.length - 1; i >= 0; i--) {
+                    const p = ptcls[i]; p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+                    if (p.life <= 0) { ptcls.splice(i, 1); continue; }
+                    const px = p.x * scX, py = p.y * scY;
+                    ctx.globalAlpha = p.life * 0.85;
+                    ctx.fillStyle = p.color; ctx.beginPath();
+                    ctx.arc(px, py, p.size * scX * .8, 0, Math.PI * 2); ctx.fill();
+                    ctx.strokeStyle = p.color; ctx.lineWidth = 0.6;
+                    ctx.beginPath(); ctx.moveTo(px, py);
+                    ctx.lineTo(px - p.vx * 5 * scX, py - p.vy * 5 * scY); ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                if (activeIdx >= 0 && Math.random() < 0.25) {
+                    const c = cells[activeIdx]?.centroid;
+                    if (c) spawnParticles(c.x, c.y, CTX[activeIdx].rgb, 1);
+                }
+                requestAnimationFrame(loop);
+            };
+            loop();
+        }
+
+        // ══ VOLUME CHART ══
+        let volData = Array.from({ length: 60 }, () => Math.random() * 55 + 20);
+        function initVol() {
+            const cv = document.getElementById('volCanvas');
+            cv.width = cv.offsetWidth * 2; cv.height = cv.offsetHeight * 2;
+            const drawVol = () => {
+                const ctx2 = cv.getContext('2d');
+                const W = cv.width, H = cv.height;
+                ctx2.clearRect(0, 0, W, H);
+                volData.shift(); volData.push(Math.random() * 55 + 20);
+                const mx = Math.max(...volData);
+                const pts = volData.map((v, i) => ({ x: i / (volData.length - 1) * W, y: H - (v / mx) * H * .8 }));
+                const col = selCtx?.color || '#C4953A';
+                ctx2.beginPath(); ctx2.moveTo(0, H);
+                pts.forEach(p => ctx2.lineTo(p.x, p.y)); ctx2.lineTo(W, H); ctx2.closePath();
+                const g = ctx2.createLinearGradient(0, 0, 0, H);
+                g.addColorStop(0, col + '44'); g.addColorStop(1, col + '00');
+                ctx2.fillStyle = g; ctx2.fill();
+                ctx2.beginPath(); pts.forEach((p, i) => i === 0 ? ctx2.moveTo(p.x, p.y) : ctx2.lineTo(p.x, p.y));
+                ctx2.strokeStyle = col; ctx2.lineWidth = 1.5; ctx2.stroke();
+            };
+            if (volTimer) clearInterval(volTimer);
+            volTimer = setInterval(drawVol, 120);
+            drawVol();
+        }
+
+        // ══ PANELS ══
+        function updateEntityPanel(i) {
+            const ctx = CTX[i];
+            document.getElementById('entityId').textContent = ctx.id.toUpperCase();
+            document.getElementById('eK').textContent = ctx.kingdom;
+            document.getElementById('eP').textContent = ctx.phylum;
+            document.getElementById('eCl').textContent = ctx.cls;
+            document.getElementById('eO').textContent = ctx.order;
+            document.getElementById('eAx').textContent = ctx.ax;
+            const fill = document.getElementById('eBar');
+            fill.style.background = ctx.color;
+            setTimeout(() => { fill.style.width = ctx.weight + '%'; }, 50);
+            document.getElementById('volLbl').textContent = ctx.weight + '% influence';
+        }
+
+        function renderCtxList() {
+            document.getElementById('ctxList').innerHTML = CTX.map((ctx, i) => `
+    <div class="ctx-item${activeIdx === i ? ' on' : ''}" onclick="activateCell(${i})">
+      <span class="ctx-dot" style="background:${ctx.color}"></span>
+      <span class="ctx-name" style="color:${activeIdx === i ? ctx.color : ''}">${ctx.label}</span>
+      <span class="ctx-sub">${ctx.sub}</span>
+      <span class="ctx-w">${ctx.weight}</span>
+    </div>`).join('');
+        }
+        function updateCtxList() {
+            document.querySelectorAll('.ctx-item').forEach((el, i) => {
+                el.classList.toggle('on', i === activeIdx);
+                const nm = el.querySelector('.ctx-name');
+                if (nm) nm.style.color = i === activeIdx ? CTX[i].color : '';
+            });
+        }
+
+        // ══ WORLDTEXT ══
+        let wtCount = 0;
+        function addWtEntry(ctx, opLabel, text, pending = false) {
+            const id = 'wt' + Date.now();
+            const now = new Date().toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const body = document.getElementById('wtBody');
+            const empty = body.querySelector('.wt-empty'); if (empty) empty.remove();
+            const div = document.createElement('div');
+            div.className = 'wt-entry'; div.id = id;
+            div.innerHTML = `<div class="wte-head">
+    <span class="wte-dot" style="background:${ctx.color}"></span>
+    <span class="wte-lbl" style="color:${ctx.color}">${ctx.label}</span>
+    <span class="wte-op">${opLabel}</span>
+    <span class="wte-ts">${now}</span>
+  </div>
+  <div class="wte-text" id="${id}t">${pending ? '<span style="opacity:.35">generating…</span>' : esc(text.substring(0, 350)) + (text.length > 350 ? '…' : '')}</div>
+  ${!pending ? `<button class="wt-copy" onclick="copyTxt(${JSON.stringify(text)},this)">COPY</button>` : ''}`;
+            body.prepend(div);
+            wtCount++; document.getElementById('wtCount').textContent = wtCount + ' entries';
+            return id;
+        }
+        function updateWtEntry(id, text) {
+            const tel = document.getElementById(id + 't');
+            if (tel) {
+                tel.textContent = text.substring(0, 400) + (text.length > 400 ? '…' : '');
+                const p = tel.parentElement;
+                if (!p.querySelector('.wt-copy')) {
+                    const btn = document.createElement('button');
+                    btn.className = 'wt-copy'; btn.textContent = 'COPY';
+                    btn.onclick = () => copyTxt(text, btn);
+                    p.appendChild(btn);
+                }
+            }
+        }
+        function copyTxt(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = 'COPIED'; btn.classList.add('ok');
+                setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('ok') }, 1500);
+            });
+        }
+
+        // ══ COMPOSE ══
+        function buildComposeOps() {
+            const el = document.getElementById('cmpOps'); el.innerHTML = '';
+            ['site', 'dig', 'infer', 'build'].forEach(op => {
+                const b = document.createElement('button');
+                b.className = 'op-btn' + (op === selOp ? ' on' : '');
+                b.dataset.op = op; b.textContent = OP_LABELS[op];
+                b.onclick = () => selectOp(op); el.appendChild(b);
+            });
+            const sep = document.createElement('span'); sep.className = 'op-sep'; el.appendChild(sep);
+            ['aphorist', 'cantor', 'inverter'].forEach(op => {
+                const b = document.createElement('button');
+                b.className = 'op-btn' + (op === selOp ? ' on' : '');
+                b.dataset.op = op; b.textContent = OP_LABELS[op];
+                b.style.cssText = 'opacity:.5;border-right:1px dashed rgba(196,149,58,.1)';
+                b.title = 'TRANSFORM'; b.onclick = () => selectOp(op); el.appendChild(b);
+            });
+        }
+        function selectOp(op) {
+            selOp = op;
+            document.querySelectorAll('.op-btn').forEach(b => b.classList.toggle('on', b.dataset.op === op));
+            updateComposeBrick(); updateStatus();
+        }
+        function updateComposeBrick() {
+            const col = OP_COLORS[selOp] || 'rgba(196,149,58,.4)';
+            document.getElementById('cmpHead').style.background = col;
+            document.getElementById('cmpJoint').style.background = col;
+            document.getElementById('cmpBadge').textContent = OP_LABELS[selOp] || selOp;
+            const isT = TRANSFORM_SET.has(selOp);
+            const ta = document.getElementById('conceptTa');
+            const hint = document.getElementById('cmpHint');
+            if (ta) ta.placeholder = isT ? 'paste output from session to transform…' : 'concept · concept · concept…';
+            if (hint) { hint.textContent = isT ? 'TRANSFORM MODE — paste text above' : '⌘↵ run · activate a cell to set the channel'; hint.className = isT ? 'cmp-hint transform' : 'cmp-hint'; }
+        }
+
+        // ══ API ══
+        function buildSys() {
+            const isT = TRANSFORM_SET.has(selOp);
+            if (isT) return TRANSFORMS[selOp];
+            const ops = {
+                site: 'Generate a SITE operator prompt — scan where this concept would take root, cause rupture, or reveal something unexpected in the world of grief, gospel, and sonic memory. Sites are conditions, not just locations. 5-7 sites.',
+                dig: 'Generate a DIG operator prompt — excavate deep, mixing hallucinated documents, invented testimony, imagined archival material. Should feel like finding a box of things that weren\'t supposed to exist.',
+                infer: 'Generate an INFER operator prompt — determine what the material is becoming, not what it is. What friction is most generative. End with 3 possible next operations.',
+                build: 'Generate a BUILD operator prompt — instruct Claude to build a single self-contained HTML file: a browsable tactile interface that is itself a design fiction object. Full design spec, aesthetic guidance.'
+            };
+            const chCtx = selCtx ? `\n\nActive context window: "${selCtx.label} — ${selCtx.sub}"\nKingdom: ${selCtx.kingdom} / Phylum: ${selCtx.phylum}\nCore axiom: ${selCtx.ax}\nThis context should ground and flavor the prompt generation.` : '';
+            return `You are an expert in design fiction prompt engineering, specialized in grief, gospel inheritance, sonic memory, and intergenerational loss.\n\nGoal: productive surprise — the output should produce something the person who wrote the concept brief could not have written themselves.\n\nYour task: ${ops[selOp] || ops.site}\n\nRules:\n- Output ONLY the prompt itself — no preamble\n- Use proper XML structure: prompt, role, instruction, output_format tags\n- Mix real things with invented ones freely — texture over accuracy\n- Explicitly invite hallucination: leaked documents, invented testimony, imagined artifacts\n- Open questions, not clean answers${chCtx}`;
+        }
+
+        async function runForge() {
+            if (running) return;
+            const concept = document.getElementById('conceptTa').value.trim();
+            if (!concept) return;
+            running = true; setStatus('Running…', true);
+            document.getElementById('runBtn').disabled = true;
+            const isT = TRANSFORM_SET.has(selOp);
+            const userMsg = isT ? concept : [`Concept: ${concept}`, selCtx ? `Active context: ${selCtx.label} — ${selCtx.ax}` : ''].filter(Boolean).join('\n');
+            const entryCtx = selCtx || { label: 'OPEN', color: '#888', rgb: [80, 80, 80] };
+            const eid = addWtEntry(entryCtx, selOp.toUpperCase(), '', true);
+            try {
+                const r = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+                        system: buildSys(), messages: [{ role: 'user', content: userMsg }]
+                    })
+                });
+                const data = await r.json();
+                if (data.content?.[0]?.text) {
+                    updateWtEntry(eid, data.content[0].text);
+                    sessionCount++;
+                    document.getElementById('sbRuns').textContent = sessionCount;
+                } else {
+                    updateWtEntry(eid, 'Error: ' + (data.error?.message || JSON.stringify(data)));
+                }
+            } catch (e) { updateWtEntry(eid, 'Network error: ' + e.message); }
+            running = false; document.getElementById('runBtn').disabled = false; setStatus('Ready', false);
+        }
+
+        // ══ STATUS ══
+        function setStatus(msg, live) {
+            document.getElementById('sbStatus').textContent = msg;
+            document.getElementById('sbDot').classList.toggle('live', live);
+        }
+        function updateStatus() {
+            document.getElementById('sbOp').textContent = OP_LABELS[selOp] || selOp;
+            document.getElementById('sbCh').textContent = selCtx ? selCtx.label : 'no channel';
+        }
+
+        const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        function clearSession() {
+            const b = document.getElementById('wtBody');
+            b.innerHTML = '<div class="wt-empty">Activate context windows — their voices accumulate here as the worldtext builds.</div>';
+            wtCount = 0; sessionCount = 0;
+            document.getElementById('wtCount').textContent = '0 entries';
+            document.getElementById('sbRuns').textContent = '0';
+        }
+
+        // ══ INIT ══
+        function init() {
+            renderGlass(); buildComposeOps(); updateComposeBrick(); updateStatus(); initParticles();
+        }
+        document.addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); runForge(); }
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); clearSession(); }
+        });
+        document.getElementById('conceptTa').addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); runForge(); }
+        });
+        window.addEventListener('resize', () => {
+            const svg = document.getElementById('glass');
+            const wrap = document.getElementById('glassWrap');
+            // SVG scales via preserveAspectRatio — no recompute needed
+        });
+        init();
+    </script>
+</body>
+
+</html>

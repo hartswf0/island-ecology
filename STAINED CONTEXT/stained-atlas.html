@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+    <title>Epistemic Interface — Voronoi Xanadu</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden
+        }
+
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            user-select: none;
+            touch-action: none
+        }
+
+        /* ── DESIGN TOKENS ── */
+        .dark {
+            --bg: #07090f;
+            --bg2: #0a0d16;
+            --bg3: #0d1020;
+            --ink: #8ab0c4;
+            --ink2: #c0d8e8;
+            --ink3: rgba(140, 180, 210, .32);
+            --ink4: rgba(140, 180, 210, .1);
+            --gold: #d4a84b;
+            --gold2: rgba(212, 168, 75, .35);
+            --rule: rgba(140, 180, 210, .09);
+            --rule2: rgba(140, 180, 210, .05);
+            --cell: 35;
+            --bord: 62;
+        }
+
+        .light {
+            --bg: #f7f3ec;
+            --bg2: #ede8de;
+            --bg3: #e5dfd4;
+            --ink: #2a2018;
+            --ink2: #120c04;
+            --ink3: rgba(50, 35, 15, .45);
+            --ink4: rgba(50, 35, 15, .08);
+            --gold: #7a4e0e;
+            --gold2: rgba(122, 78, 14, .3);
+            --rule: rgba(50, 35, 15, .12);
+            --rule2: rgba(50, 35, 15, .06);
+            --cell: 72;
+            --bord: 35;
+        }
+
+        html,
+        body,
+        #app {
+            background: var(--bg);
+            color: var(--ink)
+        }
+
+        ::selection {
+            background: var(--gold2);
+            color: var(--ink2)
+        }
+
+        /* ── LAYOUT ── */
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh
+        }
+
+        .top {
+            height: 32px;
+            background: var(--bg2);
+            border-bottom: 1px solid var(--rule);
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            z-index: 50;
+            position: relative;
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            min-height: 0
+        }
+
+        .bot {
+            height: 38px;
+            background: var(--bg2);
+            border-top: 1px solid var(--rule);
+            display: flex;
+            align-items: stretch;
+            flex-shrink: 0
+        }
+
+        /* TOP */
+        .tlogo {
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .2em;
+            color: var(--gold);
+            text-transform: uppercase;
+            padding: 0 12px;
+            border-right: 1px solid var(--rule);
+            white-space: nowrap
+        }
+
+        .tstat {
+            padding: 0 9px;
+            border-right: 1px solid var(--rule2)
+        }
+
+        .tlbl {
+            font-size: 5px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--ink3);
+            margin-bottom: 1px
+        }
+
+        .tval {
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--ink2);
+            white-space: nowrap
+        }
+
+        .tmsg {
+            flex: 1;
+            padding: 0 10px;
+            font-size: 8px;
+            color: var(--ink3);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 5px
+        }
+
+        .tmsg strong {
+            color: var(--ink2);
+            font-weight: 600
+        }
+
+        .tmsg em {
+            color: var(--gold);
+            font-style: normal
+        }
+
+        .tdot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--ink4);
+            flex-shrink: 0;
+            transition: all .3s
+        }
+
+        .tdot.run {
+            background: #5dba8e;
+            animation: dp .8s ease infinite alternate
+        }
+
+        .tdot.aim {
+            background: var(--gold)
+        }
+
+        @keyframes dp {
+            from {
+                opacity: .4
+            }
+
+            to {
+                opacity: 1
+            }
+        }
+
+        .tr {
+            margin-left: auto;
+            display: flex
+        }
+
+        .tb {
+            background: none;
+            border: none;
+            border-left: 1px solid var(--rule2);
+            color: var(--ink3);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 7px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            padding: 0 10px;
+            height: 32px;
+            cursor: pointer;
+            transition: color .12s;
+            white-space: nowrap;
+            touch-action: manipulation
+        }
+
+        .tb:hover,
+        .tb.on {
+            color: var(--gold)
+        }
+
+        /* VORONOI */
+        .vp {
+            position: relative;
+            flex: 1;
+            overflow: hidden;
+            min-width: 0
+        }
+
+        #vc {
+            display: block;
+            position: absolute;
+            inset: 0
+        }
+
+        #overlayCanvas {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        /* DIVIDER */
+        .div {
+            width: 3px;
+            background: var(--rule2);
+            cursor: col-resize;
+            flex-shrink: 0;
+            transition: background .15s
+        }
+
+        .div:hover {
+            background: var(--rule)
+        }
+
+        /* ── WORLD TEXT PANEL (RIGHT SIDE) ── */
+        .wtp {
+            width: 340px;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            border-left: 1px solid var(--rule);
+            z-index: 10;
+            transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .wtp.xanadu-mode {
+            width: 55vw !important;
+            max-width: 1000px;
+            min-width: 600px;
+        }
+
+        .wthd {
+            height: 30px;
+            border-bottom: 1px solid var(--rule);
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 4px;
+            flex-shrink: 0;
+            background: var(--bg2)
+        }
+
+        .wtttl {
+            font-size: 7px;
+            font-weight: 600;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--ink3);
+            flex: 1
+        }
+
+        .wz {
+            background: none;
+            border: 1px solid var(--rule);
+            color: var(--ink3);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 9px;
+            padding: 1px 5px;
+            cursor: pointer;
+            transition: color .1s;
+        }
+
+        .wz:hover {
+            color: var(--gold)
+        }
+
+        /* DEFAULT STREAM VIEW */
+        .wtbd {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: relative
+        }
+
+        .wtp.xanadu-mode .wtbd {
+            display: none;
+        }
+
+        .wtbd::-webkit-scrollbar {
+            width: 2px
+        }
+
+        .wtbd::-webkit-scrollbar-thumb {
+            background: var(--rule)
+        }
+
+        .wtinner {
+            position: relative;
+            min-height: 100%
+        }
+
+        #lkc {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            pointer-events: none;
+            z-index: 0
+        }
+
+        .wtlist {
+            position: relative;
+            z-index: 1;
+            padding: 0 0 60px
+        }
+
+        /* ── XANADU INSPECTOR VIEW ── */
+        .x-inspector {
+            display: none;
+            flex: 1;
+            flex-direction: row;
+            position: relative;
+            overflow: hidden;
+            background: var(--bg);
+        }
+
+        .wtp.xanadu-mode .x-inspector {
+            display: flex;
+        }
+
+        .x-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            z-index: 2;
+        }
+
+        .x-col-left {
+            border-right: 1px solid var(--rule);
+            background: var(--bg2);
+        }
+
+        .x-col-hd {
+            height: 24px;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid var(--rule);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 7px;
+            letter-spacing: 0.1em;
+            color: var(--gold);
+            text-transform: uppercase;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .x-col-bd {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px 60px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 14.5px;
+            line-height: 1.7;
+            color: var(--ink2);
+            user-select: text;
+        }
+
+        .x-col-bd::-webkit-scrollbar {
+            width: 2px;
+        }
+
+        .x-col-bd::-webkit-scrollbar-thumb {
+            background: var(--rule);
+        }
+
+        /* The Canvas drawing the transclusion polygons between the two text panes */
+        #x-beam-canvas {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Transclusion text spans */
+        .x-frag {
+            background: var(--ink4);
+            border-bottom: 1px dashed var(--gold2);
+            padding: 0 2px;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+        }
+
+        .x-frag:hover,
+        .x-frag.hovered {
+            background: var(--gold2);
+            color: var(--gold);
+            border-bottom: 1px solid var(--gold);
+            text-shadow: 0 0 8px rgba(212, 168, 75, 0.4);
+        }
+
+        /* ── OP CARDS ── */
+        .ocard {
+            position: relative;
+            margin: 0 6px 5px;
+            border: 1px solid var(--rule);
+            background: var(--bg2);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .ocard:hover {
+            border-color: var(--ink4)
+        }
+
+        .ocard.active {
+            border-color: var(--gold);
+            box-shadow: -3px 0 0 var(--gold);
+            background: var(--bg3);
+        }
+
+        .ospine {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px
+        }
+
+        .ohdr {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 4px;
+            padding: 4px 7px 3px 8px;
+            border-bottom: 1px solid var(--rule2)
+        }
+
+        .obadge {
+            font-size: 6px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            padding: 1px 5px;
+            border: 1px solid;
+            flex-shrink: 0
+        }
+
+        .oarrow {
+            font-size: 7px;
+            color: var(--ink3);
+            flex-shrink: 0
+        }
+
+        .ofrom {
+            font-size: 7px;
+            color: var(--ink3);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1
+        }
+
+        /* LINEAGE TRACE */
+        .o-lineage {
+            font-size: 6px;
+            color: var(--gold);
+            letter-spacing: 0.15em;
+            margin-bottom: 2px;
+            padding-bottom: 4px;
+            border-bottom: 1px dashed var(--rule2);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            opacity: 0.8;
+            flex-wrap: wrap;
+        }
+
+        .o-lineage-step {
+            background: var(--bg3);
+            padding: 1px 4px;
+            border-radius: 2px;
+            white-space: nowrap;
+        }
+
+        .wsecs {
+            padding: 0
+        }
+
+        .wsec {
+            position: relative;
+            display: flex;
+            border-bottom: 1px solid var(--rule2);
+            transition: background .1s
+        }
+
+        .sbody {
+            flex: 1;
+            padding: 5px 8px;
+            user-select: text
+        }
+
+        .sp {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 13px;
+            font-style: italic;
+            color: var(--ink2);
+            line-height: 1.65;
+            word-break: break-word
+        }
+
+        .oacts {
+            display: flex;
+            border-top: 1px solid var(--rule2);
+            opacity: 0;
+            transition: opacity .12s
+        }
+
+        .ocard:hover .oacts {
+            opacity: 1
+        }
+
+        .oa {
+            flex: 1;
+            background: none;
+            border: none;
+            border-right: 1px solid var(--rule2);
+            color: var(--ink3);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 7px;
+            font-weight: 600;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+            padding: 3px 0;
+            cursor: pointer;
+            transition: all .1s;
+        }
+
+        .oa:hover {
+            background: var(--bg3);
+            color: var(--ink2)
+        }
+
+        .oa-xanadu {
+            color: var(--gold);
+        }
+
+        .oa-xanadu:hover {
+            background: var(--gold2);
+            color: var(--gold);
+        }
+
+        /* ── QUIVER ── */
+        #quiver {
+            position: fixed;
+            left: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 80;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            border: 1px solid var(--rule);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            width: 50px;
+        }
+
+        .qv {
+            position: relative;
+            background: var(--bg2);
+            border: none;
+            border-bottom: 1px solid var(--rule2);
+            color: var(--ink3);
+            font-family: 'IBM Plex Mono', monospace;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 8px 6px;
+            transition: all .15s;
+            overflow: hidden;
+            text-align: left;
+        }
+
+        .qv:hover {
+            color: var(--ink2);
+            background: var(--bg3);
+        }
+
+        .qv.sel {
+            border-left: 2px solid var(--gold);
+            color: var(--gold);
+            background: var(--bg3);
+        }
+
+        .qv-heat {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.2;
+        }
+
+        .qv-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .qvdot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-left: 2px;
+        }
+
+        .quiver-footer {
+            padding: 6px;
+            border-top: 1px solid var(--rule);
+            display: flex;
+            justify-content: center;
+        }
+
+        #try-mode {
+            background: none;
+            border: 1px solid var(--rule);
+            color: var(--ink3);
+            font-family: inherit;
+            font-size: 7px;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            cursor: pointer;
+            transition: all 0.1s;
+            width: 100%;
+        }
+
+        #try-mode.active {
+            background: rgba(212, 168, 75, 0.1);
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        /* BOT */
+        .bin {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--ink2);
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 14px;
+            font-style: italic;
+            padding: 0 12px;
+            outline: none;
+            user-select: text;
+            min-width: 0
+        }
+
+        .bin::placeholder {
+            color: var(--ink3)
+        }
+
+        .brun {
+            background: none;
+            border: none;
+            border-left: 1px solid var(--rule);
+            color: var(--gold);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 7px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            padding: 0 12px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body class="dark">
+    <div id="app">
+        <div class="top">
+            <span class="tlogo">⬡ XANADU FIELD</span>
+            <div class="tstat">
+                <div class="tlbl">Nodes</div>
+                <div class="tval" id="sN">0</div>
+            </div>
+            <div class="tmsg">
+                <div class="tdot" id="tDot"></div><span id="tMsg">Explore · shift+drag to aim · click [⑀ Xanadu] on
+                    cards to inspect transclusion</span>
+            </div>
+            <div id="api-hud"
+                style="display:flex;align-items:center;margin-left:auto;padding-right:10px;gap:6px;border-left:1px solid var(--rule);padding-left:10px">
+                <div id="dot-api" class="tdot"></div>
+                <input type="password" id="api-key-input" placeholder="OpenAI Key..."
+                    style="background:var(--bg3);border:1px solid var(--rule);color:var(--gold);font-family:inherit;font-size:8px;padding:2px 6px;width:100px;outline:none;"
+                    onchange="saveApiKey()">
+            </div>
+            <div class="tr">
+                <button class="tb on" id="tbEx" onclick="setMode('explore')">Explore</button>
+                <button class="tb" id="tbFi" onclick="setMode('fire')">⊙ Aim</button>
+                <button class="tb" onclick="clearAll()">Clear</button>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="vp" id="vp"><canvas id="vc"></canvas></div>
+            <div class="div" id="divider"></div>
+
+            <div class="wtp" id="wtp">
+                <div class="wthd">
+                    <span class="wtttl" id="wtTitle">Stream</span>
+                    <button class="wz" id="closeXanaduBtn" style="display:none; color:var(--gold)"
+                        onclick="closeXanadu()">✕ Close Inspector</button>
+                </div>
+
+                <!-- STANDARD LOG VIEW -->
+                <div class="wtbd" id="wtBd">
+                    <div class="wtinner" id="wtIn">
+                        <canvas id="lkc"></canvas>
+                        <div class="wtlist" id="wtL"></div>
+                    </div>
+                </div>
+
+                <!-- XANADU SPLIT INSPECTOR -->
+                <div class="x-inspector" id="xInspector">
+                    <canvas id="x-beam-canvas"></canvas>
+                    <div class="x-col x-col-left">
+                        <div class="x-col-hd" id="xSourceHd">Source Node</div>
+                        <div class="x-col-bd" id="xSourceBd" onscroll="drawXanaduBeams()"></div>
+                    </div>
+                    <div class="x-col x-col-right">
+                        <div class="x-col-hd" id="xResultHd">Generated Output</div>
+                        <div class="x-col-bd" id="xResultBd" onscroll="drawXanaduBeams()"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="bot">
+            <input class="bin" id="bIn" placeholder="drop a bad component & behavior — ⌘↵ to spawn…"
+                onkeydown="bKey(event)">
+            <button class="brun" onclick="spawnInput()">Spawn</button>
+        </div>
+    </div>
+
+    <!-- MAIN CANVAS OVERLAY FOR BEAMS -->
+    <canvas id="overlayCanvas"></canvas>
+
+    <div id="quiver">
+        <div class="op-groups" id="quiver-body"></div>
+        <div class="quiver-footer">
+            <button id="try-mode" onclick="togTryMode()" title="Draft Mode">Try</button>
+        </div>
+    </div>
+
+    <script>
+        'use strict';
+
+        // ══════════════════════════════
+        // POML OPERATORS & CONSTANTS
+        // ══════════════════════════════
+        const baseSys = `You are a POML narrative analyst. You analyze worlds, entities, relations, events, and states from structured narrative data. RULES: Output structured lines, one per fact. Every line MUST reference a specific named entity, relation, or event from the data provided. Format:
+WORLD: name — genre, narrative function
+ENTITY: Name[Type] — role, what it does, who it connects to
+RELATION: A→type→B — causal significance
+EVENT: name — what it triggers, what changes
+CAUSAL: chain of cause→effect through the data
+Zero interface design advice. Zero UX suggestions. You analyze STORY STRUCTURE, not software. Max 200 words. You MUST reference at least 3 specific elements by exact name from the data.`;
+
+        const OPS = {
+            surface: { lbl: 'SURFACE', hue: 205, verb: 'trace causal chains', sys: `${baseSys}\nDIRECTIVE: Trace hidden causal chains. For each entity: what relation chains connect it to other entities? What event sequences does it participate in? What states does it produce or consume? Map the causality not visible from the name alone.` },
+            limits: { lbl: 'LIMITS', hue: 270, verb: 'find narrative bottlenecks', sys: `${baseSys}\nDIRECTIVE: Identify narrative bottlenecks. Which entities concentrate the most relations? Which events gate access to other events? Where does story flow narrow through a single entity or state? Name exact choke points.` },
+            modes: { lbl: 'MODES', hue: 148, verb: 'find parallel storylines', sys: `${baseSys}\nDIRECTIVE: Identify parallel storylines. Which entities appear in multiple relation types? Which events can unfold independently vs. sequentially dependent? Map the parallel threads.` },
+            manip: { lbl: 'MANIP', hue: 35, verb: 'trace action→reaction chains', sys: `${baseSys}\nDIRECTIVE: Trace action-reaction chains. For each entity action: what event does it trigger? What state change results? What further entity behaviors cascade? Build explicit cause→effect→consequence chains.` },
+            zoom: { lbl: 'ZOOM', hue: 168, verb: 'decompose world hierarchy', sys: `${baseSys}\nDIRECTIVE: Decompose world hierarchy. Level 1: genre and thematic function. Level 2: entity groups by type and inter-group relations. Level 3: individual entity states, events, relation targets. Name every element.` },
+            play: { lbl: 'PLAY', hue: 38, verb: 'identify counterfactuals', sys: `${baseSys}\nDIRECTIVE: Identify counterfactuals. For each key entity: what happens to the relation graph if removed? What events become impossible? What states unreachable? Which other entities lose narrative function?` },
+            holistic: { lbl: 'HOLISTIC', hue: 355, verb: 'full world audit', sys: `${baseSys}\nDIRECTIVE: Full world audit. Output:\nENTITY CENSUS: list all entities by Name[Type]\nRELATION GRAPH: list all A→type→B\nEVENT TIMELINE: order events by causal dependency\nSTATE INVENTORY: list states and holders\nBOTTLENECK: entity with most connections\nCOUNTERFACTUAL: what breaks if bottleneck removed` }
+        };
+
+        const hsl = (h, s, l, a = 1) => `hsla(${h},${s}%,${l}%,${a})`;
+        const opH = op => (OPS[op] || OPS.surface).hue;
+        const opC = (op, l = 55, a = 1) => hsl(opH(op), 68, l, a);
+        const opLbl = op => (OPS[op] || { lbl: op }).lbl;
+
+        // ══════════════════════════════
+        // STATE
+        // ══════════════════════════════
+        const canvas = document.getElementById('vc');
+        const ctx = canvas.getContext('2d');
+        const oCanvas = document.getElementById('overlayCanvas');
+        const oCtx = oCanvas.getContext('2d');
+        let VW = 0, VH = 0;
+
+        let API_KEY = "";
+        const CONFIG = { model: "gpt-4o", storageKey: "epistemic_openai_key" };
+        function saveApiKey() { API_KEY = document.getElementById('api-key-input').value.trim(); localStorage.setItem(CONFIG.storageKey, API_KEY); }
+        function loadApiKey() { API_KEY = localStorage.getItem(CONFIG.storageKey) || ""; if (document.getElementById('api-key-input')) document.getElementById('api-key-input').value = API_KEY; }
+
+        let nodes = [], ops = [], edges = [], nid = 0, oid = 0;
+        let selNode = null, hovNode = null, dragging = null, dox = 0, doy = 0;
+        let aiming = null, arrowAnims = [];
+        let mode = 'explore', curOp = 'surface';
+        let vmap = null, vsW = 0, vsH = 0;
+        const SAMP = 3;
+        let nbMap = new Map(), ripples = [], phRunning = false;
+        let tryMode = false;
+        let xHoverNodeId = null; // Used to highlight voronoi cells when hovering text
+        let activeXanaduOp = null; // Currently inspected operation
+
+        // ══════════════════════════════
+        // NODES
+        // ══════════════════════════════
+        function mkNode(text, op, x, y, draft = false) { return { id: ++nid, text, op, x, y, vx: 0, vy: 0, glow: 0, run: 0, depth: 0, draft }; }
+        function addNode(text, op, x, y, draft = false) { const n = mkNode(text, op, x, y, draft); nodes.push(n); document.getElementById('sN').textContent = nodes.length; computeV(); redrawV(); return n; }
+        function selectNode(n) { selNode = n; if (n) n.glow = .45; computeV(); redrawV(); }
+
+        // ══════════════════════════════
+        // QUIVER & UI
+        // ══════════════════════════════
+        function buildQuiver() {
+            const bd = document.getElementById('quiver-body');
+            bd.innerHTML = '';
+            Object.entries(OPS).forEach(([id, op]) => {
+                const btn = document.createElement('button');
+                btn.className = 'qv' + (id === curOp ? ' sel' : '');
+                const content = document.createElement('div'); content.className = 'qv-content';
+                const dot = document.createElement('div'); dot.className = 'qvdot'; dot.style.background = opC(id, 56, .7);
+                content.appendChild(dot); btn.appendChild(content);
+                btn.title = op.lbl + ' — ' + op.verb;
+                btn.onclick = e => { curOp = id; buildQuiver(); setMsg(`<em>${op.lbl}</em> loaded`); };
+                bd.appendChild(btn);
+            });
+        }
+
+        function togTryMode() {
+            tryMode = !tryMode;
+            document.getElementById('try-mode').classList.toggle('active', tryMode);
+            setMsg(tryMode ? "Try Mode ON: Generated nodes are drafts." : "Try Mode OFF");
+        }
+
+        function setMsg(html, state = '') {
+            document.getElementById('tMsg').innerHTML = html;
+            document.getElementById('tDot').className = 'tdot' + (state ? ' ' + state : '');
+        }
+
+        // ══════════════════════════════
+        // VORONOI
+        // ══════════════════════════════
+        function computeV() {
+            if (!nodes.length) { vmap = null; nbMap.clear(); return; }
+            vsW = Math.ceil(VW / SAMP); vsH = Math.ceil(VH / SAMP);
+            vmap = new Int16Array(vsW * vsH).fill(-1);
+            for (let sy = 0; sy < vsH; sy++) for (let sx = 0; sx < vsW; sx++) {
+                const px = sx * SAMP + SAMP * .5, py = sy * SAMP + SAMP * .5;
+                let md = Infinity, mi = -1;
+                for (let i = 0; i < nodes.length; i++) {
+                    const n = nodes[i]; const d = (px - n.x) ** 2 + (py - n.y) ** 2;
+                    if (d < md) { md = d; mi = i; }
+                }
+                vmap[sy * vsW + sx] = mi;
+            }
+        }
+
+        // ══════════════════════════════
+        // PHYSICS
+        // ══════════════════════════════
+        function physTick() {
+            let dirty = false;
+            nodes.forEach(n => {
+                if (Math.abs(n.vx) > .05 || Math.abs(n.vy) > .05) {
+                    n.x += n.vx; n.y += n.vy; n.vx *= .8; n.vy *= .8;
+                    n.x = Math.max(44, Math.min(VW - 44, n.x)); n.y = Math.max(44, Math.min(VH - 44, n.y));
+                    dirty = true;
+                }
+                if (n.glow > 0) { n.glow = Math.max(0, n.glow - .014); dirty = true; }
+            });
+            ripples.forEach(r => { if (r.active) dirty = true; });
+
+            // Keep running to animate the marching ants if a node is hovered in Xanadu mode
+            if (dirty || xHoverNodeId !== null) { computeV(); redrawV(); }
+            else phRunning = false;
+        }
+        function startPhys() { if (!phRunning) { phRunning = true; requestAnimationFrame(function L() { physTick(); if (phRunning) requestAnimationFrame(L); }); } }
+        function hapPush(n, fx, fy, str = 8) { const dx = n.x - fx, dy = n.y - fy, d = Math.sqrt(dx * dx + dy * dy) || 1; n.vx += (dx / d) * str; n.vy += (dy / d) * str; n.glow = 1; startPhys(); }
+        function hapSpawnNode(n, str = 4) { n.vx = (Math.random() - .5) * str; n.vy = (Math.random() - .5) * str; n.glow = .6; startPhys(); }
+
+        function fireRipple(ni, s = 1) {
+            if (ni < 0) return;
+            ripples.push({ ni, t0: performance.now(), dur: 800, s, active: true });
+            nodes[ni].glow = Math.max(nodes[ni].glow, .4);
+            startPhys();
+        }
+
+        // ══════════════════════════════
+        // DRAW VORONOI & NODES
+        // ══════════════════════════════
+        function redrawV() {
+            ctx.clearRect(0, 0, VW, VH);
+            ctx.fillStyle = '#07090f'; ctx.fillRect(0, 0, VW, VH);
+
+            ctx.strokeStyle = 'rgba(25,45,70,.09)'; ctx.lineWidth = 1;
+            for (let x = 0; x < VW; x += 26) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, VH); ctx.stroke(); }
+            for (let y = 0; y < VH; y += 26) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(VW, y); ctx.stroke(); }
+
+            if (vmap && nodes.length) {
+                // Draw Cells
+                const aimH = aiming ? opH(curOp) : 0;
+                for (let sy = 0; sy < vsH; sy++) for (let sx = 0; sx < vsW; sx++) {
+                    const ni = vmap[sy * vsW + sx]; if (ni < 0) continue;
+                    const n = nodes[ni]; const h = opH(n.op);
+                    const d2 = (sx * SAMP - n.x) ** 2 + (sy * SAMP - n.y) ** 2;
+                    const fade = Math.max(0, 1 - d2 / (150 ** 2));
+
+                    const isXanaduHover = xHoverNodeId === n.id;
+                    const baseAlpha = (.04 + (selNode === n ? .07 : 0) + (isXanaduHover ? .05 : 0)) * fade * (n.draft ? 0.3 : 1);
+
+                    if (aiming && hovNode === n && aiming.srcNode !== n) {
+                        ctx.fillStyle = hsl(aimH, 80, 45, (baseAlpha + 0.3) * fade);
+                    } else if (isXanaduHover) {
+                        ctx.fillStyle = hsl(h, 90, 40, baseAlpha + 0.15);
+                    } else {
+                        ctx.fillStyle = hsl(h, 65, 35, baseAlpha);
+                    }
+                    ctx.fillRect(sx * SAMP, sy * SAMP, SAMP, SAMP);
+                }
+
+                // Draw Borders (with routing animation on hover)
+                ctx.save();
+                for (let sy = 0; sy < vsH - 1; sy++) for (let sx = 0; sx < vsW - 1; sx++) {
+                    const c = vmap[sy * vsW + sx], r = vmap[sy * vsW + sx + 1], d = vmap[(sy + 1) * vsW + sx];
+                    const x = sx * SAMP, y = sy * SAMP;
+                    function seg(ni1, ni2, horiz) {
+                        const na = nodes[ni1], nb = nodes[ni2]; if (!na || !nb) return;
+                        const h = (opH(na.op) + opH(nb.op)) / 2;
+                        const isXHover = xHoverNodeId === na.id || xHoverNodeId === nb.id;
+
+                        if (isXHover) {
+                            ctx.strokeStyle = hsl(h, 90, 70, 0.9);
+                            ctx.lineWidth = 2.5;
+                            // Marching ants simulating data routing
+                            ctx.setLineDash([6, 6]);
+                            ctx.lineDashOffset = -performance.now() / 20;
+                        } else {
+                            ctx.strokeStyle = hsl(h, 76, 62, .15);
+                            ctx.lineWidth = .6;
+                            ctx.setLineDash([]);
+                        }
+
+                        ctx.beginPath();
+                        if (horiz) { ctx.moveTo(x, y + SAMP); ctx.lineTo(x + SAMP, y + SAMP); }
+                        else { ctx.moveTo(x + SAMP, y); ctx.lineTo(x + SAMP, y + SAMP); }
+                        ctx.stroke();
+                    }
+                    if (c !== r && c >= 0 && r >= 0) seg(c, r, false);
+                    if (c !== d && c >= 0 && d >= 0) seg(c, d, true);
+                }
+                ctx.restore();
+            }
+
+            // Draw Edges
+            ctx.save(); ctx.setLineDash([2, 8]);
+            edges.forEach(e => {
+                const a = e.from, b = e.to; if (!a || !b) return;
+                const g = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+                g.addColorStop(0, opC(a.op, 60, .1)); g.addColorStop(1, opC(b.op, 60, .05));
+                ctx.strokeStyle = g; ctx.lineWidth = .7;
+                ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+            });
+            ctx.setLineDash([]); ctx.restore();
+
+            // Draw Labels
+            nodes.forEach(n => {
+                const h = opH(n.op); const isSel = selNode === n;
+                const isXHover = xHoverNodeId === n.id;
+
+                ctx.beginPath(); ctx.arc(n.x, n.y, isSel || isXHover ? 7 : 4, 0, Math.PI * 2);
+                ctx.fillStyle = hsl(h, 75, isXHover ? 70 : 60, n.draft ? 0.6 : 1); ctx.fill();
+
+                if (isSel || isXHover) {
+                    ctx.beginPath(); ctx.arc(n.x, n.y, 13, 0, Math.PI * 2);
+                    ctx.strokeStyle = hsl(h, 70, 60, .3); ctx.lineWidth = 1; ctx.stroke();
+                }
+
+                ctx.textAlign = 'center'; ctx.font = `600 7px 'IBM Plex Mono',monospace`;
+                ctx.fillStyle = hsl(h, 70, 68, .6);
+                ctx.fillText(n.draft ? `[DRAFT]` : opLbl(n.op), n.x, n.y - 11);
+
+                // Plain text preview
+                const stripped = n.text.replace(/<[^>]*>?/gm, '');
+                ctx.font = `italic 11px 'Cormorant Garamond',serif`;
+                ctx.fillStyle = `rgba(185,215,230,.5)`;
+                ctx.fillText(stripped.slice(0, 19) + '…', n.x, n.y + 5);
+            });
+
+            if (aiming) {
+                ctx.strokeStyle = hsl(opH(curOp), 65, 55, .3); ctx.setLineDash([3, 7]);
+                ctx.beginPath(); ctx.moveTo(aiming.sx, aiming.sy); ctx.lineTo(aiming.ex, aiming.ey); ctx.stroke(); ctx.setLineDash([]);
+            }
+
+            drawArrF();
+            drawCanvasTransclusionBeams(); // Draws beams from side panel to canvas
+        }
+
+        function drawArrF() {
+            arrowAnims.forEach(a => {
+                ctx.fillStyle = hsl(a.h, 75, 65, .95);
+                ctx.beginPath(); ctx.arc(a.x1 + (a.x2 - a.x1) * a.t, a.y1 + (a.y2 - a.y1) * a.t, 3, 0, Math.PI * 2); ctx.fill();
+            });
+        }
+
+        // ══════════════════════════════
+        // TRANSLUSION BEAMS (CANVAS <-> DOM BORDER ROUTING)
+        // ══════════════════════════════
+        function drawCanvasTransclusionBeams() {
+            oCtx.clearRect(0, 0, VW, VH);
+            if (!xHoverNodeId) return;
+            const n = nodes.find(nd => nd.id === xHoverNodeId);
+            if (!n) return;
+
+            // Find hovered spans in DOM
+            const spans = document.querySelectorAll(`.x-frag.hovered[data-src-node="${n.id}"]`);
+            if (spans.length === 0) return;
+
+            oCtx.save();
+            spans.forEach(span => {
+                const rect = span.getBoundingClientRect();
+                const domX = rect.left;
+                const domY = rect.top + rect.height / 2;
+
+                // Find nearest boundary point of this node's territory
+                let nearestBX = n.x, nearestBY = n.y, minDist = Infinity;
+                if (vmap) {
+                    for (let sy = 0; sy < vsH - 1; sy += 1) {
+                        for (let sx = 0; sx < vsW - 1; sx += 1) {
+                            const idx = sy * vsW + sx;
+                            const c = vmap[idx];
+                            if (c === n.id) {
+                                const r = vmap[idx + 1];
+                                const d = vmap[idx + vsW];
+                                if ((r !== -1 && r !== n.id) || (d !== -1 && d !== n.id)) {
+                                    const px = sx * SAMP;
+                                    const py = sy * SAMP;
+                                    const dist = Math.hypot(px - domX, py - domY);
+                                    if (dist < minDist) {
+                                        minDist = dist;
+                                        nearestBX = px;
+                                        nearestBY = py;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                const h = opH(n.op);
+
+                // Draw beam from DOM to the nearest Voronoi boundary
+                oCtx.strokeStyle = hsl(h, 90, 70, 0.9);
+                oCtx.lineWidth = 2;
+                oCtx.setLineDash([4, 4]);
+                oCtx.lineDashOffset = -performance.now() / 20;
+                oCtx.beginPath();
+                oCtx.moveTo(nearestBX, nearestBY);
+                const cpX = (nearestBX + domX) / 2;
+                const cpY = (nearestBY + domY) / 2 - 50;
+                oCtx.quadraticCurveTo(cpX, cpY, domX, domY);
+                oCtx.stroke();
+
+                // Draw a solid connection point on the boundary
+                oCtx.setLineDash([]);
+                oCtx.fillStyle = hsl(h, 90, 80, 1);
+                oCtx.beginPath();
+                oCtx.arc(nearestBX, nearestBY, 4, 0, Math.PI * 2);
+                oCtx.fill();
+
+                // Gradient fill underneath the beam
+                const grad = oCtx.createLinearGradient(nearestBX, nearestBY, domX, domY);
+                grad.addColorStop(0, hsl(h, 90, 60, 0.3));
+                grad.addColorStop(1, hsl(h, 90, 60, 0.02));
+                oCtx.fillStyle = grad;
+                oCtx.beginPath();
+                oCtx.moveTo(nearestBX, nearestBY - 15);
+                oCtx.lineTo(nearestBX, nearestBY + 15);
+                oCtx.lineTo(domX, domY + rect.height / 2);
+                oCtx.lineTo(domX, domY - rect.height / 2);
+                oCtx.fill();
+            });
+            oCtx.restore();
+        }
+
+        // ══════════════════════════════
+        // POINTER EVENTS
+        // ══════════════════════════════
+        function evP(e) { return { x: e.clientX, y: e.clientY }; }
+        function nodeAt(x, y) { let best = null, bd = Infinity; nodes.forEach(n => { const d = (x - n.x) ** 2 + (y - n.y) ** 2; if (d < bd) { bd = d; best = n; } }); return best && bd < 50 ** 2 ? best : null; }
+
+        canvas.addEventListener('mousedown', e => {
+            const p = evP(e); const n = nodeAt(p.x, p.y);
+            if (!n || e.button === 2) { dragging = null; dox = p.x; doy = p.y; return; }
+            if (e.shiftKey || mode === 'fire') { aiming = { srcNode: n, sx: n.x, sy: n.y, ex: p.x, ey: p.y }; redrawV(); }
+            else { dragging = n; selectNode(n); }
+        });
+
+        canvas.addEventListener('mousemove', e => {
+            const p = evP(e);
+            if (dragging) { dragging.x = p.x; dragging.y = p.y; computeV(); redrawV(); return; }
+            if (!aiming && !dragging && e.buttons === 1) { dox = p.x; doy = p.y; }
+            if (aiming) { aiming.ex = p.x; aiming.ey = p.y; hovNode = nodeAt(p.x, p.y); redrawV(); return; }
+            const n = nodeAt(p.x, p.y);
+            if (hovNode !== n) { hovNode = n; redrawV(); }
+        });
+
+        canvas.addEventListener('mouseup', e => {
+            if (dragging) { dragging = null; computeV(); redrawV(); return; }
+            if (aiming) {
+                const snap = { ...aiming }; aiming = null; hovNode = null;
+                const tgt = nodeAt(e.clientX, e.clientY);
+                if (tgt && tgt !== snap.srcNode) fireTo(snap.srcNode, tgt, curOp);
+                else if (Math.sqrt((snap.ex - snap.sx) ** 2 + (snap.ey - snap.sy) ** 2) > 20) {
+                    const opN = addNode(opLbl(curOp), curOp, snap.ex, snap.ey, tryMode);
+                    edges.push({ from: snap.srcNode, to: opN });
+                    setTimeout(() => fireTo(snap.srcNode, opN, curOp), 50);
+                }
+                redrawV();
+            }
+        });
+
+        // ══════════════════════════════
+        // FIRE & TRANSCLUSION LOGIC
+        // ══════════════════════════════
+        function shootArr(x1, y1, x2, y2, h, cb) {
+            const dist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const spd = Math.min(.05, 90 / (dist || 1)) + .018;
+            const anim = { x1, y1, x2, y2, t: 0, h };
+            arrowAnims.push(anim);
+            const go = () => {
+                anim.t += spd; redrawV();
+                if (anim.t < 1) { requestAnimationFrame(go); }
+                else {
+                    arrowAnims = arrowAnims.filter(a => a !== anim);
+                    let ht = 0;
+                    const imp = () => {
+                        ht += .1;
+                        ctx.save(); ctx.strokeStyle = hsl(h, 75, 60, (1 - ht) * .65); ctx.lineWidth = 1.5;
+                        ctx.beginPath(); ctx.arc(x2, y2, 42 * ht, 0, Math.PI * 2); ctx.stroke();
+                        ctx.restore();
+                        if (ht < 1) requestAnimationFrame(imp); else { redrawV(); cb && cb(); }
+                    }; imp();
+                }
+            }; requestAnimationFrame(go);
+        }
+
+        function fireTo(srcNode, opNode, opKey) {
+            const op = OPS[opKey];
+            shootArr(srcNode.x, srcNode.y, opNode.x, opNode.y, opH(opKey), () => {
+                hapPush(opNode, srcNode.x, srcNode.y, 8);
+                edges.push({ from: srcNode, to: opNode });
+                fireRipple(nodes.indexOf(opNode));
+                runOp(srcNode, opNode, opKey);
+            });
+        }
+
+        async function runOp(srcNode, opNode, opKey) {
+            const op = OPS[opKey];
+            const rx = Math.max(44, Math.min(VW - 44, opNode.x + 80 + (Math.random() - .5) * 40));
+            const ry = Math.max(44, Math.min(VH - 44, opNode.y + (Math.random() - .5) * 40));
+
+            const resNode = mkNode('…', opKey, rx, ry, tryMode);
+            resNode.depth = (srcNode.depth || 0) + 1;
+            nodes.push(resNode); document.getElementById('sN').textContent = nodes.length;
+            edges.push({ from: opNode, to: resNode });
+            computeV(); redrawV();
+
+            const rec = { id: ++oid, srcNode, opNode, resNode, opKey, ts: Date.now(), text: '', streaming: true };
+            ops.push(rec); addCard(rec);
+
+            // Build context from source node
+            const concept = srcNode.text.replace(/<[^>]*>?/gm, '').trim();
+            let nodeDetail = concept;
+            if (srcNode.ctx && srcNode.ctx.length > 0) {
+                nodeDetail += '\n\nCONTEXT DATA:\n' + srcNode.ctx.slice(0, 800);
+            }
+            const priorOp = ops.find(o => o.resNode === srcNode && o.text && o.id !== rec.id);
+            if (priorOp) {
+                nodeDetail += '\n\nPRIOR ANALYSIS:\n' + priorOp.text.replace(/<[^>]*>?/gm, '').slice(0, 300);
+            }
+
+            const userMsg = `Analyze THIS world/entity using its POML data. Output structured lines.\n\nTarget: ${concept}\n${nodeDetail !== concept ? nodeDetail : ''}\n\nAnalysis type: ${op.verb}. Reference specific entities by NAME[TYPE], relations by A→type→B, events by name. Zero generic advice — only facts from the data.`;
+
+            try {
+                let text = '';
+                if (!API_KEY) {
+                    text = `**No API key** — configure key in top bar to get real analysis.\n\n1. **${op.verb}** for ${concept}: [requires API key]`;
+                    await new Promise(r => setTimeout(r, 600));
+                } else {
+                    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
+                        body: JSON.stringify({
+                            model: CONFIG.model,
+                            messages: [{ role: 'system', content: op.sys }, { role: 'user', content: userMsg }],
+                            temperature: 0.4,
+                            max_tokens: 400
+                        })
+                    });
+                    const data = await r.json();
+                    text = data.choices?.[0]?.message?.content || 'Error: ' + (data.error?.message || JSON.stringify(data));
+                }
+
+                rec.text = text; resNode.text = text; rec.streaming = false;
+                updateCard(rec.id, text, true);
+                hapPush(resNode, opNode.x, opNode.y, 5);
+                fireRipple(nodes.indexOf(resNode), .6);
+                computeV(); redrawV();
+                selectNode(resNode);
+                setMsg(`Done · ${op.lbl} → N${resNode.id}`);
+            } catch (err) {
+                rec.text = 'Error: ' + err.message;
+                rec.streaming = false;
+                updateCard(rec.id, rec.text, true);
+                resNode.text = rec.text;
+            }
+        }
+
+        // ══════════════════════════════
+        // WORLD TEXT / XANADU INSPECTOR / LINEAGE
+        // ══════════════════════════════
+
+        function getLineageHtml(node, targetId) {
+            let trace = [];
+            let curr = node;
+            // Go back max 3 generations
+            while (curr && trace.length < 3) {
+                trace.unshift(curr);
+                let edge = edges.find(e => e.to === curr);
+                curr = edge ? edge.from : null;
+            }
+            let html = trace.map(n => `<span class="o-lineage-step">${opLbl(n.op)} N${n.id}</span>`).join('<span style="color:var(--ink4); margin: 0 2px;">→</span>');
+            html += `<span style="color:var(--ink4); margin: 0 2px;">→</span><span class="o-lineage-step" style="color:var(--gold); border: 1px solid var(--gold2)">N${targetId}</span>`;
+            return html;
+        }
+
+        function drawLinks() {
+            const bd = document.getElementById('wtBd'); const lc = document.getElementById('lkc'); if (!lc) return;
+            const bw = bd.clientWidth; const bh = Math.max(bd.scrollHeight, 600) + 60;
+            lc.width = bw; lc.height = bh; lc.style.height = bh + 'px';
+            const c2 = lc.getContext('2d'); c2.clearRect(0, 0, bw, bh);
+            const sr = bd.getBoundingClientRect(); const st = bd.scrollTop;
+            ops.forEach(rec => {
+                const srcOp = ops.find(o => o.resNode === rec.srcNode); if (!srcOp) return;
+                const child = document.querySelector(`.ocard[data-oid="${rec.id}"]`);
+                const par = document.querySelector(`.ocard[data-oid="${srcOp.id}"]`);
+                if (!child || !par) return;
+                const cr = child.getBoundingClientRect(), pr = par.getBoundingClientRect();
+                const cy = cr.top - sr.top + st + cr.height / 2; const py = pr.top - sr.top + st + pr.height / 2;
+                const h = opH(rec.opKey);
+                c2.save();
+
+                // Strengthened link lines
+                c2.strokeStyle = hsl(h, 65, 55, .4);
+                c2.lineWidth = 2; c2.setLineDash([4, 4]);
+
+                c2.beginPath(); c2.moveTo(5, py); c2.bezierCurveTo(-15, py, -15, cy, 5, cy); c2.stroke(); c2.setLineDash([]);
+                [py, cy].forEach(y => { c2.beginPath(); c2.arc(5, y, 3, 0, Math.PI * 2); c2.fillStyle = hsl(h, 65, 60, .8); c2.fill(); });
+                c2.restore();
+            });
+        }
+
+        document.getElementById('wtBd').addEventListener('scroll', drawLinks);
+
+        function addCard(rec) {
+            const list = document.getElementById('wtL');
+            const card = document.createElement('div');
+            card.className = 'ocard'; card.dataset.oid = rec.id;
+
+            const h = opH(rec.opKey);
+            const strippedFrom = rec.srcNode.text.replace(/<[^>]*>?/gm, '');
+            const from = `${opLbl(rec.srcNode.op)} N${rec.srcNode.id} · "${strippedFrom.slice(0, 26)}…"`;
+
+            const lineageHtml = getLineageHtml(rec.srcNode, rec.resNode.id);
+
+            card.innerHTML = `
+                <div class="ospine" style="background:${hsl(h, 65, 50, .55)}"></div>
+                <div class="ohdr">
+                    <div class="o-lineage">${lineageHtml}</div>
+                    <div style="display:flex; align-items:baseline; gap:4px">
+                        <span class="obadge" style="color:${hsl(h, 70, 58)};border-color:${hsl(h, 60, 40, .35)}">${opLbl(rec.opKey)}</span>
+                        <span class="oarrow">←</span>
+                        <span class="ofrom" title="${from}">${from}</span>
+                    </div>
+                </div>
+                <div class="wsecs"><div class="wsec"><div class="sbody"><p class="sp">${rec.resNode.text}</p></div></div></div>
+                <div class="oacts">
+                    <button class="oa oa-xanadu" onclick="openXanadu(${rec.id})">⑀ Inspect Transclusion</button>
+                    <button class="oa" onclick="navigator.clipboard.writeText('${rec.resNode.text.replace(/<[^>]*>?/gm, '')}')">Copy</button>
+                </div>`;
+
+            list.appendChild(card);
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            bindHoverEvents(card);
+
+            // Draw links after adding to ensure they connect visually
+            setTimeout(drawLinks, 50);
+        }
+
+        function bindHoverEvents(container) {
+            container.querySelectorAll('.x-frag').forEach(span => {
+                span.addEventListener('mouseenter', (e) => {
+                    const linkId = e.target.dataset.link;
+                    document.querySelectorAll(`.x-frag[data-link="${linkId}"]`).forEach(el => el.classList.add('hovered'));
+                    xHoverNodeId = parseInt(e.target.dataset.srcNode);
+                    if (!phRunning) startPhys(); // Start physics tick to animate marching ants!
+                    redrawV();
+                    drawXanaduBeams();
+                });
+                span.addEventListener('mouseleave', (e) => {
+                    const linkId = e.target.dataset.link;
+                    document.querySelectorAll(`.x-frag[data-link="${linkId}"]`).forEach(el => el.classList.remove('hovered'));
+                    xHoverNodeId = null;
+                    redrawV();
+                    drawXanaduBeams();
+                });
+            });
+        }
+
+        function openXanadu(opId) {
+            const rec = ops.find(o => o.id === opId);
+            if (!rec) return;
+            activeXanaduOp = rec;
+
+            const wtp = document.getElementById('wtp');
+            wtp.classList.add('xanadu-mode');
+            document.getElementById('wtTitle').textContent = `Xanadu Inspector // N${rec.srcNode.id} → N${rec.resNode.id}`;
+            document.getElementById('closeXanaduBtn').style.display = 'block';
+
+            const lCol = document.getElementById('xSourceBd');
+            const rCol = document.getElementById('xResultBd');
+
+            lCol.innerHTML = rec.srcNode.text.replace(/\n/g, '<br><br>');
+            rCol.innerHTML = rec.resNode.text.replace(/\n/g, '<br><br>');
+
+            bindHoverEvents(lCol);
+            bindHoverEvents(rCol);
+
+            setTimeout(drawXanaduBeams, 350);
+        }
+
+        function closeXanadu() {
+            activeXanaduOp = null;
+            document.getElementById('wtp').classList.remove('xanadu-mode');
+            document.getElementById('wtTitle').textContent = 'Stream';
+            document.getElementById('closeXanaduBtn').style.display = 'none';
+            const c = document.getElementById('x-beam-canvas');
+            const ctx2 = c.getContext('2d');
+            ctx2.clearRect(0, 0, c.width, c.height);
+        }
+
+        // Draw polygons connecting the left pane spans to right pane spans
+        function drawXanaduBeams() {
+            if (!activeXanaduOp) return;
+            const c = document.getElementById('x-beam-canvas');
+            const container = document.getElementById('xInspector');
+            const rect = container.getBoundingClientRect();
+
+            c.width = rect.width;
+            c.height = rect.height;
+            const ctx2 = c.getContext('2d');
+            ctx2.clearRect(0, 0, c.width, c.height);
+
+            const lCol = document.getElementById('xSourceBd');
+            const rCol = document.getElementById('xResultBd');
+
+            const lSpans = lCol.querySelectorAll('.x-frag');
+            lSpans.forEach(lSpan => {
+                const linkId = lSpan.dataset.link;
+                const rSpan = rCol.querySelector(`.x-frag[data-link="${linkId}"]`);
+                if (!rSpan) return;
+
+                const lr = lSpan.getBoundingClientRect();
+                const rr = rSpan.getBoundingClientRect();
+
+                const x1 = lr.right - rect.left;
+                const y1_top = lr.top - rect.top;
+                const y1_bot = lr.bottom - rect.top;
+
+                const x2 = rr.left - rect.left;
+                const y2_top = rr.top - rect.top;
+                const y2_bot = rr.bottom - rect.top;
+
+                const isHovered = lSpan.classList.contains('hovered');
+                const h = opH(activeXanaduOp.opKey);
+
+                ctx2.save();
+                ctx2.fillStyle = isHovered ? hsl(h, 80, 50, 0.25) : hsl(h, 60, 40, 0.08);
+
+                ctx2.beginPath();
+                ctx2.moveTo(x1, y1_top);
+                ctx2.bezierCurveTo(x1 + 40, y1_top, x2 - 40, y2_top, x2, y2_top);
+                ctx2.lineTo(x2, y2_bot);
+                ctx2.bezierCurveTo(x2 - 40, y2_bot, x1 + 40, y1_bot, x1, y1_bot);
+                ctx2.closePath();
+                ctx2.fill();
+
+                ctx2.strokeStyle = isHovered ? hsl(h, 80, 60, 0.6) : hsl(h, 60, 40, 0.15);
+                ctx2.lineWidth = isHovered ? 1.5 : 1;
+                ctx2.beginPath();
+                ctx2.moveTo(x1, y1_top); ctx2.bezierCurveTo(x1 + 40, y1_top, x2 - 40, y2_top, x2, y2_top);
+                ctx2.stroke();
+                ctx2.beginPath();
+                ctx2.moveTo(x1, y1_bot); ctx2.bezierCurveTo(x2 - 40, y2_bot, x1 + 40, y1_bot, x1, y1_bot);
+                ctx2.stroke();
+
+                ctx2.restore();
+            });
+        }
+
+        window.addEventListener('resize', () => {
+            const r = document.getElementById('vp').getBoundingClientRect();
+            VW = canvas.width = oCanvas.width = r.width;
+            VH = canvas.height = oCanvas.height = r.height;
+            computeV(); redrawV();
+            if (activeXanaduOp) drawXanaduBeams();
+        });
+
+        // ══════════════════════════════
+        // INPUT
+        // ══════════════════════════════
+        function bKey(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); spawnInput(); } }
+        function spawnInput() {
+            const inp = document.getElementById('bIn'); const t = inp.value.trim(); if (!t) return;
+            const x = 60 + Math.random() * (VW - 130); const y = 60 + Math.random() * (VH - 120);
+            const n = addNode(t, curOp, x, y, tryMode); hapSpawnNode(n, 7); inp.value = '';
+        }
+        function setMode(m) {
+            mode = m;
+            document.getElementById('tbEx').classList.toggle('on', m === 'explore');
+            document.getElementById('tbFi').classList.toggle('on', m === 'fire');
+        }
+        function clearAll() { nodes = []; edges = []; ops = []; selNode = null; hovNode = null; vmap = null; ripples = []; document.getElementById('sN').textContent = '0'; document.getElementById('wtL').innerHTML = ''; redrawV(); closeXanadu(); }
+
+        // ══════════════════════════════
+        // INIT
+        // ══════════════════════════════
+        loadApiKey();
+        buildQuiver();
+        const r = document.getElementById('vp').getBoundingClientRect(); VW = canvas.width = oCanvas.width = r.width; VH = canvas.height = oCanvas.height = r.height;
+
+        // Seed
+        const n1 = addNode("The interface forces users to remember state across 3 modal screens.", 'surface', VW * .3, VH * .4);
+        const n2 = addNode("A monolithic dashboard hides casual links between metrics.", 'limits', VW * .6, VH * .6);
+
+        const linkId = "seed_link_1";
+        n1.text = `The interface forces users to remember <span class="x-frag" data-link="${linkId}" data-src-node="${n1.id}">state across 3 modal screens.</span>`;
+        n2.text = `A monolithic dashboard hides casual links between metrics. By avoiding <span class="x-frag" data-link="${linkId}" data-src-node="${n1.id}">state across 3 modal screens.</span> we improve flow.`;
+
+        const rec = { id: ++oid, srcNode: n1, opNode: n1, resNode: n2, opKey: 'limits', ts: Date.now() };
+        ops.push(rec);
+        edges.push({ from: n1, to: n2 });
+        addCard(rec);
+
+        computeV(); redrawV();
+        requestAnimationFrame(physTick);
+    </script>
+</body>
+
+</html>

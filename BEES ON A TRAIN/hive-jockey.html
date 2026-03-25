@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>HIVE JOCKEY — Pheromone Chat Lattice</title>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}
+        body{font-family:ui-monospace,'IBM Plex Mono','Courier New',monospace;user-select:none;transition:background .7s,color .7s}
+        body.dark{background:#050a0a;color:#34d399}
+        body.light{background:#f1f5f9;color:#0f766e}
+        ::selection{background:rgba(52,211,153,.3)}
+
+        /* ── CRT OVERLAY ── */
+        .crt{position:fixed;inset:0;pointer-events:none;z-index:200;
+            background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,.12) 50%),linear-gradient(90deg,rgba(255,0,0,.02),rgba(0,255,0,.008),rgba(0,0,255,.02));
+            background-size:100% 3px,3px 100%}
+        .light .crt{opacity:.03}
+
+        /* ── LAYOUT ── */
+        #app{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr auto;height:100vh;gap:0}
+
+        /* ── HEADER ── */
+        .hdr{grid-column:1/-1;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid;z-index:10}
+        .dark .hdr{border-color:rgba(52,211,153,.08)}
+        .light .hdr{border-color:rgba(15,118,110,.12)}
+        .hdr h1{font-size:16px;font-weight:900;letter-spacing:.25em;text-transform:uppercase}
+        .dark .hdr h1{text-shadow:0 0 12px rgba(52,211,153,.5)}
+        .hdr-sub{font-size:9px;letter-spacing:.3em;text-transform:uppercase;opacity:.35;margin-top:2px}
+        .hdr-right{display:flex;align-items:center;gap:16px}
+        .hdr-stat{text-align:right}
+        .hdr-stat-label{font-size:7px;letter-spacing:.2em;text-transform:uppercase;opacity:.3}
+        .hdr-stat-val{font-size:14px;font-weight:900;letter-spacing:.05em}
+        .focus-btn{background:none;border:1px solid;padding:6px 16px;font-family:inherit;font-size:8px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .3s}
+        .auto-btn{background:none;border:1px solid;padding:6px 12px;font-family:inherit;font-size:8px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .3s}
+        .auto-btn.active{animation:autoPulse 1.5s infinite}
+        @keyframes autoPulse{0%,100%{border-color:rgba(251,191,36,.3)}50%{border-color:rgba(251,191,36,.8);box-shadow:0 0 12px rgba(251,191,36,.3)}}
+        .dark .auto-btn{border-color:rgba(251,191,36,.2);color:#fbbf24}
+        .light .auto-btn{border-color:#92400e;color:#92400e}
+        .dark .focus-btn{border-color:rgba(52,211,153,.3);color:#34d399}
+        .dark .focus-btn:hover{background:rgba(52,211,153,.08);box-shadow:0 0 12px rgba(52,211,153,.2)}
+        .light .focus-btn{border-color:#0f766e;color:#0f766e;font-weight:900}
+
+        /* ── LATTICE (LEFT) ── */
+        .lattice-wrap{position:relative;overflow:hidden;border-right:1px solid}
+        .dark .lattice-wrap{border-color:rgba(52,211,153,.06)}
+        .light .lattice-wrap{border-color:rgba(15,118,110,.1)}
+        #lattice{display:block;position:absolute;inset:0}
+
+        /* ── PHEROMONE LAYER ── */
+        .phero-layer{position:absolute;inset:0;pointer-events:none;z-index:20;overflow:hidden}
+        .phero{position:absolute;letter-spacing:.15em;text-transform:uppercase;white-space:nowrap;pointer-events:none}
+        @keyframes pheroDrift{0%{opacity:0;transform:translate(0,0) scale(.97)}12%{opacity:.8;transform:translate(-8px,-12px) scale(1)}80%{opacity:.6;transform:translate(-20px,-70px) scale(1)}100%{opacity:0;transform:translate(-30px,-130px) scale(.95);filter:blur(3px)}}
+        .phero{animation:pheroDrift 8s cubic-bezier(.2,.8,.2,1) forwards}
+
+        /* ── CHAT (RIGHT) — the honey chamber ── */
+        .chat-wrap{display:flex;flex-direction:column;overflow:hidden}
+        .chat-header{height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid;flex-shrink:0;font-size:8px;font-weight:900;letter-spacing:.18em;text-transform:uppercase}
+        .copy-log-btn{background:none;border:1px solid rgba(52,211,153,.1);color:rgba(52,211,153,.3);font-family:inherit;font-size:7px;padding:3px 8px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .15s}
+        .copy-log-btn:hover{border-color:rgba(52,211,153,.4);color:rgba(52,211,153,.7)}
+        .dark .chat-header{border-color:rgba(52,211,153,.06);color:rgba(52,211,153,.5)}
+        .light .chat-header{border-color:rgba(15,118,110,.1);color:rgba(15,118,110,.5)}
+        .chat-body{flex:1;overflow-y:auto;padding:12px 0}
+        .chat-body::-webkit-scrollbar{width:2px}
+        .dark .chat-body::-webkit-scrollbar-thumb{background:rgba(52,211,153,.1)}
+
+        /* Messages as pollen/honey */
+        .msg{padding:10px 20px;margin:4px 0;line-height:1.7;font-size:15px;letter-spacing:.03em}
+        .msg.pollen{border-left:2px solid;margin-left:12px;padding-left:16px}
+        .dark .msg.pollen{color:#fbbf24;border-color:rgba(251,191,36,.3);text-shadow:0 0 6px rgba(251,191,36,.15)}
+        .light .msg.pollen{color:#92400e;border-color:#d97706}
+        .msg.honey{border-left:2px solid;margin-left:12px;padding-left:16px;font-style:italic}
+        .dark .msg.honey{color:#a7f3d0;border-color:rgba(52,211,153,.15)}
+        .light .msg.honey{color:#064e3b;border-color:rgba(15,118,110,.2)}
+        .msg.reflection{border-left:2px solid;margin-left:12px;padding-left:16px;font-style:italic}
+        .dark .msg.reflection{color:#c084fc;border-color:rgba(192,132,252,.2)}
+        .light .msg.reflection{color:#7c3aed;border-color:rgba(124,58,237,.2)}
+        .msg.system{font-size:9px;opacity:.35;margin-left:12px;border-left:1px solid;padding-left:16px;letter-spacing:.12em}
+        .dark .msg.system{border-color:rgba(52,211,153,.05)}
+        .msg.expert-vote{font-size:9px;opacity:.5;margin-left:12px;border-left:2px solid rgba(239,68,68,.15);padding-left:16px}
+        .msg{position:relative}
+        .msg .copy-btn{position:absolute;right:8px;top:6px;background:none;border:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.2);font-size:8px;padding:2px 6px;cursor:pointer;border-radius:2px;opacity:0;transition:opacity .15s;font-family:inherit}
+        .msg:hover .copy-btn{opacity:1}
+        .msg .copy-btn:hover{color:#34d399;border-color:rgba(52,211,153,.3)}
+        .msg .copy-btn.copied{color:#fbbf24;border-color:rgba(251,191,36,.3)}
+
+        /* ── INPUT ── */
+        .chat-input-wrap{border-top:1px solid;padding:10px 16px;display:flex;gap:8px;flex-shrink:0;align-items:stretch}
+        .dark .chat-input-wrap{border-color:rgba(52,211,153,.06);background:rgba(5,10,10,.8)}
+        .light .chat-input-wrap{border-color:rgba(15,118,110,.1);background:#f8fafc}
+        .chat-input{flex:1;background:transparent;border:1px solid;font-family:inherit;font-size:15px;padding:10px 14px;outline:none;transition:all .3s;letter-spacing:.03em}
+        .dark .chat-input{border-color:rgba(52,211,153,.1);color:#34d399}
+        .dark .chat-input:focus{border-color:#34d399;box-shadow:0 0 15px rgba(52,211,153,.08)}
+        .dark .chat-input::placeholder{color:rgba(52,211,153,.15)}
+        .light .chat-input{border-color:rgba(15,118,110,.15);color:#0f766e}
+        .light .chat-input:focus{border-color:#0f766e}
+        .light .chat-input::placeholder{color:rgba(15,118,110,.2)}
+        .send-btn{background:none;border:1px solid;font-family:inherit;font-size:9px;font-weight:900;padding:10px 18px;cursor:pointer;letter-spacing:.15em;text-transform:uppercase;transition:all .2s;white-space:nowrap}
+        .dark .send-btn{border-color:rgba(52,211,153,.2);color:#34d399}
+        .dark .send-btn:hover{background:rgba(52,211,153,.06);box-shadow:0 0 10px rgba(52,211,153,.15)}
+        .light .send-btn{border-color:rgba(15,118,110,.2);color:#0f766e}
+
+        /* ── RIPPLE ── */
+        @keyframes rippleExpand{0%{transform:scale(0);opacity:.7}100%{transform:scale(12);opacity:0}}
+        .ripple-fx{position:fixed;width:24px;height:24px;margin:-12px;border-radius:50%;border:2px solid;pointer-events:none;z-index:100;animation:rippleExpand 1s cubic-bezier(.1,.7,.1,1) forwards}
+        .dark .ripple-fx{border-color:#22d3ee;box-shadow:0 0 20px #22d3ee}
+        .light .ripple-fx{border-color:#0891b2;box-shadow:0 0 15px #0891b2}
+
+        /* ── FOOTER STATS ── */
+        .footer{grid-column:1/-1;height:26px;display:flex;align-items:center;gap:18px;padding:0 24px;border-top:1px solid;font-size:8px;letter-spacing:.15em;z-index:10}
+        .dark .footer{border-color:rgba(52,211,153,.06);background:#050a0a}
+        .light .footer{border-color:rgba(15,118,110,.1);background:#f8fafc}
+        .stat{display:flex;gap:4px}.stat-l{opacity:.3;text-transform:uppercase}.stat-v{font-weight:900}
+
+        /* ── OP CONFIG ── */
+        .op-config{border-bottom:1px solid;overflow:hidden;transition:max-height .3s}
+        .dark .op-config{border-color:rgba(52,211,153,.04);background:rgba(5,10,10,.6)}
+        .light .op-config{border-color:rgba(15,118,110,.08);background:#f0fdf4}
+        .op-config.collapsed{max-height:28px}.op-config.expanded{max-height:260px}
+        .op-toggle{display:flex;align-items:center;height:28px;padding:0 16px;cursor:pointer;justify-content:space-between;font-size:7px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;opacity:.5}
+        .op-body{padding:6px 16px 10px}
+        .op-row{display:flex;gap:6px;margin-bottom:5px;align-items:center}
+        .op-label{font-size:7px;letter-spacing:.08em;text-transform:uppercase;opacity:.3;width:40px;flex-shrink:0}
+        .op-input{background:transparent;border:1px solid;font-family:inherit;font-size:10px;padding:4px 8px;flex:1;outline:none}
+        .dark .op-input{border-color:rgba(52,211,153,.08);color:#34d399}
+        .light .op-input{border-color:rgba(15,118,110,.1);color:#0f766e}
+
+        /* ── Ambient glow blobs ── */
+        .glow-bl{position:fixed;border-radius:50%;pointer-events:none;z-index:0;filter:blur(120px)}
+        .glow-1{bottom:-100px;left:-100px;width:500px;height:500px}
+        .dark .glow-1{background:rgba(52,211,153,.03)}
+        .light .glow-1{background:rgba(15,118,110,.05)}
+        .glow-2{top:-100px;right:-100px;width:500px;height:500px}
+        .dark .glow-2{background:rgba(34,211,238,.02)}
+        .light .glow-2{background:rgba(6,182,212,.04)}
+    </style>
+    <script src="data.js"></script>
+    <script src="route-engine.js"></script>
+</head>
+<body class="dark">
+    <div class="crt"></div>
+    <div class="glow-bl glow-1"></div>
+    <div class="glow-bl glow-2"></div>
+    <div id="rippleLayer"></div>
+
+    <div id="app">
+        <div class="hdr">
+            <div>
+                <h1>HIVE_JOCKEY</h1>
+                <div class="hdr-sub">pollen → chat → honey // context_window_lattice</div>
+            </div>
+            <div class="hdr-right">
+                <div class="hdr-stat"><div class="hdr-stat-label">Cognitive Load</div><div class="hdr-stat-val" id="sCog">0.000</div></div>
+                <div class="hdr-stat"><div class="hdr-stat-label">Honey</div><div class="hdr-stat-val" id="sHoney">0</div></div>
+                <button class="auto-btn" id="autoBtn" onclick="toggleAutopilot()">AUTO: <span id="autoLabel">OFF</span></button>
+                <button class="focus-btn" onclick="toggleFocus()">FOCUS: <span id="focusLabel">OFF</span></button>
+            </div>
+        </div>
+
+        <div class="lattice-wrap" id="latticeWrap">
+            <canvas id="lattice"></canvas>
+            <div class="phero-layer" id="pheroLayer"></div>
+        </div>
+
+        <div class="chat-wrap">
+            <div class="op-config collapsed" id="opConfig">
+                <div class="op-toggle" onclick="toggleOp()"><span>⚙ API</span><span id="opArrow">▸</span></div>
+                <div class="op-body">
+                    <div class="op-row"><span class="op-label">Key</span><input type="password" class="op-input" id="opKey" placeholder="sk-..." oninput="saveCfg()"></div>
+                    <div class="op-row"><span class="op-label">Model</span><input class="op-input" id="opModel" value="gpt-4o-mini" oninput="saveCfg()"></div>
+                    <div class="op-row"><span class="op-label">Base</span><input class="op-input" id="opBase" value="https://api.openai.com/v1" oninput="saveCfg()"></div>
+                </div>
+            </div>
+            <div class="chat-header"><span>🐝 honey chamber — your words are pollen</span><button class="copy-log-btn" onclick="copyLog()">📋 COPY LOG</button></div>
+            <div class="chat-body" id="chatBody"></div>
+            <div class="chat-input-wrap">
+                <input class="chat-input" id="chatInput" placeholder="speak pollen into the hive..." onkeydown="if(event.key==='Enter')sendPollen()">
+                <button class="send-btn" onclick="sendPollen()">▸ FORAGE</button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="stat"><span class="stat-l">Cell</span><span class="stat-v" id="sCell">—</span></div>
+            <div class="stat"><span class="stat-l">Pollen</span><span class="stat-v" id="sPollen">0</span></div>
+            <div class="stat"><span class="stat-l">Energy</span><span class="stat-v" id="sEnergy">100</span></div>
+            <div class="stat"><span class="stat-l">Steps</span><span class="stat-v" id="sSteps">0</span></div>
+            <div class="stat"><span class="stat-l">Memory</span><span class="stat-v" id="sMemory">0</span></div>
+            <div class="stat"><span class="stat-l">Reflections</span><span class="stat-v" id="sReflect">0</span></div>
+            <div style="flex:1"></div>
+            <div class="stat"><span class="stat-l" id="statusPulse">_AWAITING_POLLEN</span></div>
+        </div>
+    </div>
+
+    <script src="jockey-engine.js"></script>
+</body>
+</html>

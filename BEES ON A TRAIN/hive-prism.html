@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>HIVE PRISM — Stage / Actor Disentanglement</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}
+        body{font-family:'IBM Plex Mono',monospace;font-size:12px;user-select:none;background:#07090f;color:#a0c4d8}
+        ::selection{background:rgba(212,168,75,.35)}
+        :root{
+            --bg:#07090f;--bg2:#0b0f18;--bg3:#0f1322;
+            --ink:#a0c4d8;--ink2:#d0e4f0;--ink3:rgba(160,196,216,.35);--ink4:rgba(160,196,216,.12);
+            --gold:#d4a84b;--gold2:rgba(212,168,75,.3);--gold3:rgba(212,168,75,.55);
+            --rule:rgba(160,196,216,.1);--rule2:rgba(160,196,216,.05);
+            --halo:rgba(212,168,75,.07);--halo2:rgba(212,168,75,.14);
+            --alive:#d4a84b;--abiotic:#444a54;
+            --stage:hsl(210,55%,50%);--actor:hsl(15,75%,55%);
+            --glitch1:hsl(280,60%,55%);--glitch2:hsl(160,60%,45%);
+            --honey:#e8a832;
+        }
+        #app{display:flex;flex-direction:column;height:100vh}
+
+        /* ─── TOPBAR ─── */
+        .topbar{height:42px;background:var(--bg2);border-bottom:1px solid var(--rule);display:flex;align-items:center;flex-shrink:0;z-index:50;padding:0 4px;gap:2px}
+        .logo{font-size:9px;font-weight:600;letter-spacing:.25em;color:var(--glitch1);text-transform:uppercase;padding:0 14px;border-right:1px solid var(--rule);white-space:nowrap}
+
+        /* HEX BUTTON — the core reusable hexagonal control */
+        .hex-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;padding:6px 16px;background:var(--bg3);color:var(--ink2);font-family:inherit;font-size:10px;font-weight:600;letter-spacing:.06em;border:none;cursor:pointer;clip-path:polygon(8% 0%,92% 0%,100% 50%,92% 100%,8% 100%,0% 50%);transition:all .2s;min-width:60px;text-align:center}
+        .hex-btn:hover{background:var(--halo);color:var(--gold)}
+        .hex-btn.on{background:var(--gold2);color:var(--gold)}
+        .hex-btn.stage-on{background:hsla(210,55%,50%,.12);color:var(--stage)}
+        .hex-btn.actor-on{background:hsla(15,75%,55%,.12);color:var(--actor)}
+
+        .hex-stat{display:flex;flex-direction:column;align-items:center;padding:0 12px}
+        .hex-stat-lbl{font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+        .hex-stat-val{font-size:11px;font-weight:600;color:var(--ink2)}
+        .topbar-spacer{flex:1}
+
+        .hex-group{display:flex;gap:2px;align-items:center;margin:0 4px}
+        .mode-label{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-right:4px}
+
+        /* ─── MAIN ─── */
+        .main{flex:1;display:flex;overflow:hidden;min-height:0}
+
+        /* ─── GLITCH CANVAS ─── */
+        .glitch-wrap{flex:1;position:relative;overflow:hidden;min-width:0}
+        #glitchCanvas{display:block;position:absolute;inset:0}
+        .hex-nav{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:3px;z-index:20}
+
+        /* ─── DIVIDER ─── */
+        .divider{width:3px;background:var(--rule2);cursor:col-resize;flex-shrink:0}.divider:hover{background:var(--rule)}
+
+        /* ─── PRISM PANEL ─── */
+        .prism-panel{width:480px;min-width:280px;display:flex;flex-direction:column;background:var(--bg);border-left:1px solid var(--rule);z-index:10;overflow:hidden}
+
+        /* ─── PRISM SPLIT HEADER ─── */
+        .prism-header{display:flex;height:28px;border-bottom:1px solid var(--rule);flex-shrink:0}
+        .prism-tab{flex:1;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+        .prism-tab.stage{color:var(--stage);border-bottom:2px solid transparent}
+        .prism-tab.actor{color:var(--actor);border-bottom:2px solid transparent}
+        .prism-tab.stage.on{border-color:var(--stage);background:hsla(210,55%,50%,.04)}
+        .prism-tab.actor.on{border-color:var(--actor);background:hsla(15,75%,55%,.04)}
+        .prism-tab.both{color:var(--gold);flex:0.6}
+        .prism-tab.both.on{border-color:var(--gold);background:var(--halo)}
+
+        .prism-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+        .prism-body::-webkit-scrollbar{width:2px}.prism-body::-webkit-scrollbar-thumb{background:var(--rule)}
+
+        /* ─── WORLD HEADER ─── */
+        .world-hdr{padding:18px 22px 14px;border-bottom:1px solid var(--rule2)}
+        .wh-name{font-size:18px;font-weight:600;color:var(--gold);letter-spacing:.04em;margin-bottom:4px;text-shadow:0 0 16px var(--halo2)}
+        .wh-meta{font-size:8px;color:var(--ink3);letter-spacing:.1em;margin-bottom:8px}
+        .wh-genre{font-size:8px;text-transform:uppercase;letter-spacing:.2em;color:var(--ink3);padding:3px 10px;background:var(--halo);border-radius:2px;display:inline-block;margin-bottom:12px}
+        .wh-desc{font-family:'Cormorant Garamond',serif;font-size:18px;font-style:italic;color:var(--ink2);line-height:1.75}
+        .wh-ai{display:flex;align-items:center;gap:12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--rule2)}
+        .wh-ai-num{font-size:30px;font-weight:600;font-family:'Cormorant Garamond',serif}
+        .wh-ai-num.alive{color:var(--alive)}.wh-ai-num.abiotic{color:var(--abiotic)}
+        .wh-ai-bar{flex:1;height:5px;background:var(--rule2);border-radius:3px;overflow:hidden}
+        .wh-ai-fill{height:100%;border-radius:3px;transition:width .4s}
+
+        /* ─── STAGE SECTION ─── */
+        .sec-hd{font-size:8px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;padding:12px 22px 6px;display:flex;align-items:center;gap:6px}
+        .sec-hd.stage-hd{color:var(--stage);border-top:2px solid hsla(210,55%,50%,.15)}
+        .sec-hd.actor-hd{color:var(--actor);border-top:2px solid hsla(15,75%,55%,.15)}
+        .sec-hd .sec-badge{font-size:6px;padding:2px 6px;border-radius:2px;letter-spacing:.08em}
+        .sec-hd.stage-hd .sec-badge{background:hsla(210,55%,50%,.1);color:var(--stage)}
+        .sec-hd.actor-hd .sec-badge{background:hsla(15,75%,55%,.1);color:var(--actor)}
+
+        /* items */
+        .item-list{padding:0 14px 8px}
+        .item{display:flex;align-items:baseline;gap:8px;padding:6px 8px;margin:2px 0;border-radius:3px;transition:background .15s;font-size:11px}
+        .item:hover{background:var(--halo)}
+        .item-icon{font-size:9px;flex-shrink:0}
+        .item-icon.stage-icon{color:var(--stage)}
+        .item-icon.actor-icon{color:var(--actor)}
+        .item-name{font-weight:600;color:var(--ink2);font-size:11px}
+        .item-type{color:var(--ink3);font-size:9px}
+        .item-verb{color:var(--actor);font-style:italic;font-family:'Cormorant Garamond',serif;font-size:14px}
+        .item-arrow{color:var(--ink4);font-size:9px}
+        .item-state-key{color:var(--ink)}
+        .item-state-val{color:var(--stage);font-weight:600;font-size:10px}
+        .evt-block{padding:7px 8px;margin:2px 0;border:1px solid var(--rule2);border-radius:3px;border-left:3px solid var(--actor);transition:border-color .2s}
+        .evt-block:hover{border-color:hsla(15,75%,55%,.4)}
+        .evt-name{font-size:11px;font-weight:600;color:var(--actor);margin-bottom:3px}
+        .evt-detail{font-size:9px;color:var(--ink3);line-height:1.5}
+
+        /* ─── HONEY ─── */
+        .honey-block{padding:16px 22px;border-top:2px solid hsla(232,168,50,.15);background:linear-gradient(180deg,rgba(232,168,50,.03),transparent)}
+        .honey-hd{font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--honey);margin-bottom:8px}.honey-hd::before{content:'🍯 '}
+        .honey-text{font-family:'Cormorant Garamond',serif;font-size:17px;font-style:italic;color:var(--ink2);line-height:1.8;white-space:pre-wrap}
+        .honey-loading{color:var(--ink3);font-size:10px}.honey-loading::after{content:'';animation:dots 1.5s infinite}
+        @keyframes dots{0%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}
+
+        /* ─── OP CONFIG ─── */
+        .op-config{border-bottom:1px solid var(--rule);background:var(--bg2);overflow:hidden;transition:max-height .3s}
+        .op-config.collapsed{max-height:28px}.op-config.expanded{max-height:360px}
+        .op-toggle{display:flex;align-items:center;height:28px;padding:0 14px;cursor:pointer;justify-content:space-between}
+        .op-toggle-label{font-size:7px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+        .op-toggle-arrow{font-size:9px;color:var(--ink3)}
+        .op-body{padding:8px 14px 12px}
+        .op-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+        .op-label{font-size:7px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);width:50px;flex-shrink:0}
+        .op-select,.op-input{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:inherit;font-size:10px;padding:5px 8px;border-radius:2px;flex:1;outline:none}
+        .op-textarea{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:'Cormorant Garamond',serif;font-size:14px;font-style:italic;padding:8px;border-radius:2px;width:100%;height:72px;resize:vertical;outline:none;line-height:1.5}
+
+        /* ─── EMPTY ─── */
+        .empty-state{padding:40px 24px;font-family:'Cormorant Garamond',serif;font-size:18px;font-style:italic;color:var(--ink3);line-height:1.8}
+        .empty-state strong{color:var(--ink2);font-weight:600;font-style:normal}
+    </style>
+    <script src="data.js"></script>
+    <script src="route-engine.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="topbar">
+            <span class="logo">Hive Prism</span>
+            <div class="hex-stat"><div class="hex-stat-lbl">Cell</div><div class="hex-stat-val" id="sStn">—</div></div>
+            <div class="hex-stat"><div class="hex-stat-lbl">Index</div><div class="hex-stat-val" id="sAI">—</div></div>
+            <div class="hex-stat"><div class="hex-stat-lbl">View</div><div class="hex-stat-val" id="sView">Both</div></div>
+            <div class="topbar-spacer"></div>
+            <div class="hex-group">
+                <span class="mode-label">View</span>
+                <button class="hex-btn stage-on" id="vStage" onclick="setView('stage')">◆ Stage</button>
+                <button class="hex-btn on" id="vBoth" onclick="setView('both')">⬡ Both</button>
+                <button class="hex-btn actor-on" id="vActor" onclick="setView('actor')">⚡ Actor</button>
+            </div>
+            <div class="hex-group">
+                <span class="mode-label">Mode</span>
+                <button class="hex-btn on" id="mManual" onclick="setMode('manual')">Manual</button>
+                <button class="hex-btn" id="mAgent" onclick="setMode('agentic')">🐝 Agentic</button>
+            </div>
+        </div>
+        <div class="main">
+            <div class="glitch-wrap" id="glitchWrap"><canvas id="glitchCanvas"></canvas>
+                <div class="hex-nav">
+                    <button class="hex-btn" onclick="step(-1)">◀ Prev</button>
+                    <button class="hex-btn" onclick="step(1)">Next ▶</button>
+                </div>
+            </div>
+            <div class="divider" id="divider"></div>
+            <div class="prism-panel" id="prismPanel">
+                <div class="op-config collapsed" id="opConfig">
+                    <div class="op-toggle" onclick="toggleOp()"><span class="op-toggle-label">🐝 Operator</span><span class="op-toggle-arrow" id="opArrow">▸</span></div>
+                    <div class="op-body">
+                        <div class="op-row"><span class="op-label">Smoke</span><select class="op-select" id="opTemplate" onchange="applyTpl()"><option value="prism">🔮 Prism Analyst</option><option value="director">🎬 Director</option><option value="custom">✏️ Custom</option></select></div>
+                        <textarea class="op-textarea" id="opPrompt">You are a prism analyst. Given a POML world disentangled into STAGE (static structure — entities, states, geometry) and ACTOR (dynamic motion — relations, events, causal chains), analyze the tension between the two layers. What is the stage holding that the actors are breaking? What motion disturbs the geometry? Keep responses under 200 words.</textarea>
+                        <div class="op-row"><span class="op-label">API Key</span><input type="password" class="op-input" id="opKey" placeholder="sk-..." oninput="saveCfg()"></div>
+                        <div class="op-row"><span class="op-label">Model</span><input class="op-input" id="opModel" value="gpt-4o-mini" oninput="saveCfg()"></div>
+                        <div class="op-row"><span class="op-label">Base</span><input class="op-input" id="opBase" value="https://api.openai.com/v1" oninput="saveCfg()"></div>
+                    </div>
+                </div>
+                <div class="prism-header">
+                    <div class="prism-tab stage on" id="tabStage" onclick="setView('stage')">◆ Stage</div>
+                    <div class="prism-tab both on" id="tabBoth" onclick="setView('both')">⬡</div>
+                    <div class="prism-tab actor on" id="tabActor" onclick="setView('actor')">⚡ Actor</div>
+                </div>
+                <div class="prism-body" id="prismBody">
+                    <div class="empty-state"><strong>The Hive Prism</strong><br><br>Each POML world is split through a prism:<br><br><span style="color:var(--stage)">◆ STAGE</span> — the static geometry. Entities, states, boundaries. What <em>is</em>.<br><br><span style="color:var(--actor)">⚡ ACTOR</span> — the dynamic motion. Relations, events, causal chains. What <em>happens</em>.<br><br>Click any hexagonal cell to disentangle it.<br><br><em>"The stage holds. The actor breaks."</em></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="prism-engine.js"></script>
+</body>
+</html>

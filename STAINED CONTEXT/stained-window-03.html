@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Text — Stained Glass Xanadu</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            background: #040c12;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            color: #5ab8cc
+        }
+
+        #c {
+            position: fixed;
+            inset: 0;
+            cursor: crosshair;
+            z-index: 1
+        }
+
+        /* ── TOP BAR ── */
+        #topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 32px;
+            background: rgba(4, 10, 18, 0.96);
+            border-bottom: 1px solid rgba(60, 140, 180, 0.15);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 24px;
+            z-index: 20;
+            pointer-events: none
+        }
+
+        .tb-item {
+            display: flex;
+            flex-direction: column;
+            gap: 1px
+        }
+
+        .tb-label {
+            font-size: 7px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: rgba(80, 150, 180, 0.45)
+        }
+
+        .tb-val {
+            font-size: 10px;
+            letter-spacing: .06em;
+            color: rgba(180, 220, 240, 0.8)
+        }
+
+        .tb-sep {
+            width: 1px;
+            height: 20px;
+            background: rgba(80, 150, 180, 0.12);
+            flex-shrink: 0
+        }
+
+        #tb-title {
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: .1em;
+            color: #7ad4e8;
+            margin-right: 8px
+        }
+
+        /* ── RIGHT PANEL ── */
+        #panel {
+            position: fixed;
+            right: 0;
+            top: 32px;
+            bottom: 0;
+            width: 260px;
+            background: rgba(4, 10, 18, 0.94);
+            border-left: 1px solid rgba(60, 140, 180, 0.12);
+            padding: 14px;
+            overflow-y: auto;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px
+        }
+
+        .ps {
+            border: 1px solid rgba(60, 140, 180, 0.1);
+            padding: 10px
+        }
+
+        .ps-lbl {
+            font-size: 7px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: rgba(80, 150, 180, 0.4);
+            margin-bottom: 5px
+        }
+
+        .ps-title {
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: .07em;
+            color: #b8dded;
+            margin-bottom: 5px;
+            word-break: break-all
+        }
+
+        .ps-body {
+            font-size: 8.5px;
+            color: rgba(100, 190, 210, 0.65);
+            line-height: 1.7
+        }
+
+        .ps-tax {
+            font-size: 8px;
+            color: rgba(80, 170, 190, 0.55);
+            line-height: 1.9
+        }
+
+        .conn-row {
+            font-size: 8px;
+            color: rgba(80, 200, 140, 0.65);
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(60, 140, 180, 0.07);
+            display: flex;
+            align-items: center;
+            gap: 5px
+        }
+
+        .conn-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0
+        }
+
+        #wt-log {
+            font-size: 7.5px;
+            color: rgba(80, 160, 120, 0.6);
+            line-height: 1.9;
+            max-height: 160px;
+            overflow-y: auto
+        }
+
+        .log-ts {
+            color: rgba(60, 120, 100, 0.5)
+        }
+
+        /* ── CHARGE + HINT ── */
+        #charge {
+            position: fixed;
+            bottom: 56px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 140px;
+            height: 3px;
+            background: rgba(80, 150, 180, 0.1);
+            pointer-events: none;
+            z-index: 20;
+            opacity: 0;
+            transition: opacity .15s
+        }
+
+        #charge.on {
+            opacity: 1
+        }
+
+        #cbar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #22d3ee, #fbbf24, #f97316);
+            box-shadow: 0 0 8px #fbbf24;
+            transition: width .04s linear
+        }
+
+        #hint {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 8px;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            color: rgba(80, 150, 180, 0.25);
+            pointer-events: none;
+            z-index: 20;
+            white-space: nowrap
+        }
+
+        @media(max-width:700px) {
+            #panel {
+                width: 220px
+            }
+
+            #topbar .tb-item:nth-child(n+5) {
+                display: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="c"></canvas>
+
+    <!-- TOP BAR -->
+    <div id="topbar">
+        <span id="tb-title">◈ WORLDTEXT</span>
+        <div class="tb-sep"></div>
+        <div class="tb-item">
+            <div class="tb-label">Depth</div>
+            <div class="tb-val" id="tb-depth">D12</div>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="tb-item">
+            <div class="tb-label">Width</div>
+            <div class="tb-val">2,500,000</div>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="tb-item">
+            <div class="tb-label">Option</div>
+            <div class="tb-val">CORE·ALPHA</div>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="tb-item">
+            <div class="tb-label">Links</div>
+            <div class="tb-val" id="tb-links">0</div>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="tb-item">
+            <div class="tb-label">Nodes</div>
+            <div class="tb-val">20</div>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="tb-item">
+            <div class="tb-label">Latency</div>
+            <div class="tb-val" id="tb-lat">38ms</div>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div id="panel">
+        <div class="ps">
+            <div class="ps-lbl">Selected Node</div>
+            <div class="ps-title" id="p-title">—</div>
+            <div class="ps-body" id="p-body">Click a cell. Drag to aim. Release to transcluse.</div>
+        </div>
+        <div class="ps">
+            <div class="ps-lbl">Taxonomy</div>
+            <div class="ps-tax" id="p-tax">Kingdom: BIOTA<br>Phylum: DIGITIFERA<br>Class: HEXA_ARCHIVUM<br>Order:
+                VORONOI_FRAGMENT</div>
+        </div>
+        <div class="ps">
+            <div class="ps-lbl">Connections <span id="conn-count" style="color:rgba(180,230,240,0.7)">0</span></div>
+            <div id="conn-list"></div>
+        </div>
+        <div class="ps">
+            <div class="ps-lbl">World Text Log</div>
+            <div id="wt-log"></div>
+        </div>
+    </div>
+
+    <div id="charge">
+        <div id="cbar"></div>
+    </div>
+    <div id="hint">Hold &amp; Aim · Release to Transcluse</div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            // ──────────────────────────────────────────────────────
+            // WORLD DATA — 20 context nodes
+            // ──────────────────────────────────────────────────────
+            const NODES = [
+                { t: 'ENTROPY·ZERO', b: 'all advanced technology will inevitably break and fail the maintenance infrastructure is the real product', hex: '#0e3a5c' },
+                { t: 'DIEGETIC·PROP', b: 'the future cannot be theorized it must be rendered as a diegetic prototype placed inside the camera frame', hex: '#1a5c3a' },
+                { t: 'ROGUE·FIX·447', b: 'unauthorized repair method that voids the warranty but actually works attributed to anonymous forum post', hex: '#5c3a0e' },
+                { t: 'TERMINAL·VELOC', b: 'the terminal velocity of all innovation is hyper-commodification 0.99 is the end of the miracle', hex: '#5c1a1a' },
+                { t: 'SHADOW·INFRA', b: 'a design fiction is incomplete until its shadow infrastructure of maintenance and repair is fully codified', hex: '#2a1a5c' },
+                { t: 'QUICK·START·S3', b: 'step 3 contains ambiguity 23 percent of users resolve incorrectly footnote attributes the error to user negligence', hex: '#0e4a4a' },
+                { t: 'GREY·MARKET', b: '500 dollar drones marketed for weddings modified with 3d-printed release mechanisms price dumping democratized air', hex: '#3a1a5c' },
+                { t: 'LANGUAGE·GAME', b: 'rules for dictating human physical sequences in fictional space camera operation and physical blocking', hex: '#5c4a0e' },
+                { t: 'THE·OUTTAKE', b: 'do not fix the prop collect the friction the physical rebellion where the artifact refuses the actors intent', hex: '#0e3a4a' },
+                { t: 'XANADU·NODE', b: 'the link is a transclusion the document contains the other every chunk of text is already part of everything else', hex: '#1a2a5c' },
+                { t: 'BIOTA·DIGITIFERA', b: 'class HEXA_ARCHIVUM order VORONOI_FRAGMENT phylum DIGITIFERA kingdom BIOTA specimen CORE_ALPHA_7', hex: '#1a4a3a' },
+                { t: 'WORLD·TEXT', b: 'everything is already text waiting to be connected to everything else the margin notes are the only text', hex: '#2a1a4a' },
+                { t: 'MANIFESTO·CORE', b: 'the repair manual is the design brief write the failure mode before you build the thing', hex: '#4a2a0e' },
+                { t: 'E-WASTE·4·8', b: '78 billion crisis 11 million informal workers dismantle devices without safety equipment 22 billion toxic exposure', hex: '#0e4a3a' },
+                { t: 'BOEING·MCAS', b: 'hidden system forced nose-down marketed as one-hour ipad course 346 deaths liability attributed to pilot', hex: '#5c2a0e' },
+                { t: 'MARGIN·NOTES', b: 'the margin notes are the only text that matters now all other text has been degraded to structural fill', hex: '#0e3a6e' },
+                { t: 'DARK·PATTERN·97', b: '97 percent of popular apps deploy manipulative interfaces cognitive bias exploitation by design not accident', hex: '#3a5c1a' },
+                { t: 'CHIMERA·NODE', b: 'mechanics combine broken components from disparate industries to build monstrous single-use kinetic sculptures', hex: '#5c1a3a' },
+                { t: 'DEERE·JAILBREAK', b: 'farmers buy black-market firmware from ukrainian cyber-forums to bypass OEM digital locks during harvest windows', hex: '#1a5c4a' },
+                { t: 'DISCOUNT·CIRC', b: '0.99 price tag stamped onto device casing 12-digit retail sku page 47 between plastic umbrella and flashlight', hex: '#4a3a0e' },
+            ];
+
+            // Lighter colors for glows and text
+            function hex2rgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+            function lighten(h, a) { const [r, g, b] = hex2rgb(h); return `rgb(${Math.min(255, r + Math.round((255 - r) * a))},${Math.min(255, g + Math.round((255 - g) * a))},${Math.min(255, b + Math.round((255 - b) * a))})`; }
+            function rgba(h, a) { const [r, g, b] = hex2rgb(h); return `rgba(${r},${g},${b},${a})`; }
+            const LIGHT = NODES.map(n => lighten(n.hex, 0.55));
+            const BRIGHT = NODES.map(n => lighten(n.hex, 0.78));
+            const TAX_ORDERS = ['VORONOI·FRAGMENT', 'XANADU·LINK', 'ENTROPY·NODE', 'ROGUE·FIX', 'WORLD·TEXT', 'DARK·PATTERN', 'CHIMERA·FORM', 'REPAIR·LOG', 'QUICK·START', 'DIEGETIC·SET'];
+
+            // ──────────────────────────────────────────────────────
+            // CANVAS + LAYOUT
+            // ──────────────────────────────────────────────────────
+            const C = document.getElementById('c');
+            const ctx = C.getContext('2d');
+            let W, H, WX, WY, WR; // wheel center x/y, radius
+            const PANEL_W = window.innerWidth < 700 ? 220 : 260;
+            const TOP_H = 32;
+
+            function resize() {
+                W = C.width = window.innerWidth;
+                H = C.height = window.innerHeight;
+                const avail = W - PANEL_W;
+                WR = Math.min(avail * 0.42, (H - TOP_H) * 0.44, 310);
+                WX = avail < 600 ? avail * 0.48 : avail * 0.42;
+                WY = (H + TOP_H) / 2;
+                buildVoronoi();
+            }
+            window.addEventListener('resize', resize);
+
+            // ──────────────────────────────────────────────────────
+            // VORONOI
+            // ──────────────────────────────────────────────────────
+            let polys = [], cents = [];
+
+            function seededR(s) { const x = Math.sin(s + 1) * 99999; return x - Math.floor(x); }
+
+            function buildVoronoi() {
+                const pts = [[WX, WY]];
+                for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + 0.5; pts.push([WX + Math.cos(a) * WR * 0.36, WY + Math.sin(a) * WR * 0.36]); }
+                for (let i = 0; i < 13; i++) { const a = i / 13 * Math.PI * 2 + 0.18; const j = (seededR(i * 7 + 3) - 0.5) * WR * 0.14; pts.push([WX + Math.cos(a) * (WR * 0.72 + j), WY + Math.sin(a) * (WR * 0.72 + j)]); }
+                const d = d3.Delaunay.from(pts);
+                const v = d.voronoi([WX - WR * 1.6, WY - WR * 1.6, WX + WR * 1.6, WY + WR * 1.6]);
+                polys = Array.from({ length: 20 }, (_, i) => v.cellPolygon(i));
+                cents = polys.map(p => {
+                    if (!p || !p.length) return [WX, WY];
+                    return [p.reduce((s, q) => s + q[0], 0) / p.length, p.reduce((s, q) => s + q[1], 0) / p.length];
+                });
+            }
+
+            // ──────────────────────────────────────────────────────
+            // STATE
+            // ──────────────────────────────────────────────────────
+            let links = [];     // {from,to,born,col}
+            let hits = [];      // {x,y,t,ci}
+            let arrow = null;   // {sx,sy,tx,ty,from,to,t0,dur}
+            let sel = null, hov = null;
+            let drag = false, dragSrc = null;
+            let charge = 0, chargeT = 0;
+            let mouse = { x: W / 2 || 400, y: H / 2 || 300 };
+            let logLines = [], linkTotal = 0;
+            let ambientT = 0;
+
+            // ──────────────────────────────────────────────────────
+            // HIT TEST
+            // ──────────────────────────────────────────────────────
+            function inCircle(x, y) { return (x - WX) ** 2 + (y - WY) ** 2 <= WR * WR; }
+            function inPoly(x, y, p) {
+                if (!p) return false;
+                let inside = false;
+                for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+                    const [xi, yi] = p[i], [xj, yj] = p[j];
+                    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+                }
+                return inside;
+            }
+            function cellAt(x, y) {
+                if (!inCircle(x, y)) return null;
+                for (let i = 0; i < 20; i++)if (inPoly(x, y, polys[i])) return i;
+                return null;
+            }
+
+            // ──────────────────────────────────────────────────────
+            // DRAW: BACKGROUND
+            // ──────────────────────────────────────────────────────
+            function drawBg() {
+                ctx.fillStyle = '#040c12';
+                ctx.fillRect(0, 0, W, H);
+                // Grid
+                ctx.strokeStyle = 'rgba(30,70,100,0.07)';
+                ctx.lineWidth = 0.5;
+                const g = 44;
+                for (let x = 0; x < W; x += g) { ctx.beginPath(); ctx.moveTo(x, TOP_H); ctx.lineTo(x, H); ctx.stroke(); }
+                for (let y = TOP_H; y < H; y += g) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+                // Scan lines
+                ctx.fillStyle = 'rgba(0,8,18,0.12)';
+                for (let y = TOP_H; y < H; y += 3)ctx.fillRect(0, y, W, 1);
+                // Vignette around wheel
+                const vg = ctx.createRadialGradient(WX, WY, WR * 0.6, WX, WY, WR * 1.6);
+                vg.addColorStop(0, 'transparent');
+                vg.addColorStop(1, 'rgba(2,6,12,0.75)');
+                ctx.fillStyle = vg;
+                ctx.fillRect(0, 0, W, H);
+                // Top bar fill
+                ctx.fillStyle = 'rgba(4,10,18,0.96)';
+                ctx.fillRect(0, 0, W, TOP_H);
+                ctx.strokeStyle = 'rgba(60,140,180,0.12)';
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(0, TOP_H); ctx.lineTo(W, TOP_H); ctx.stroke();
+            }
+
+            // ──────────────────────────────────────────────────────
+            // DRAW: STAINED GLASS CELLS
+            // ──────────────────────────────────────────────────────
+            function drawCells() {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(WX, WY, WR, 0, Math.PI * 2);
+                ctx.clip();
+
+                polys.forEach((p, i) => {
+                    if (!p || p.length < 3) return;
+                    const [cx, cy] = cents[i];
+                    const hex = NODES[i].hex;
+
+                    ctx.beginPath();
+                    p.forEach(([x, y], j) => j ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+                    ctx.closePath();
+
+                    // Stained glass gradient — brighter center, darker rim
+                    const cr = Math.hypot(p[0][0] - cx, p[0][1] - cy) + 20;
+                    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr);
+                    g.addColorStop(0, lighten(hex, 0.28));
+                    g.addColorStop(0.55, hex);
+                    g.addColorStop(1, lighten(hex, -0.2));
+                    ctx.fillStyle = g;
+                    ctx.fill();
+
+                    // Lead lines (thick dark border)
+                    ctx.strokeStyle = '#05090e';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+
+                    // Inner bevel line (lighter)
+                    ctx.strokeStyle = rgba(LIGHT[i], 0.4);
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+
+                    // Hover / selected overlay
+                    if (hov === i || sel === i) {
+                        ctx.fillStyle = sel === i ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.04)';
+                        ctx.fill();
+                        ctx.strokeStyle = rgba(BRIGHT[i], sel === i ? 0.9 : 0.5);
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+                    }
+
+                    // Cell label
+                    drawCellLabel(i, cx, cy, p);
+                });
+
+                ctx.restore();
+
+                // Wheel frame ring
+                ctx.beginPath();
+                ctx.arc(WX, WY, WR, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(70,160,200,0.22)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(70,160,200,0.07)';
+                ctx.lineWidth = 5;
+                ctx.stroke();
+
+                // Ambient glow under wheel
+                const ag = ctx.createRadialGradient(WX, WY, WR * 0.7, WX, WY, WR * 1.05);
+                ag.addColorStop(0, 'transparent');
+                ag.addColorStop(1, 'rgba(4,30,50,0.5)');
+                ctx.fillStyle = ag;
+                ctx.beginPath();
+                ctx.arc(WX, WY, WR * 1.05, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            function polyBounds(p) {
+                let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+                p.forEach(([x, y]) => { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; });
+                return { w: maxX - minX, h: maxY - minY };
+            }
+
+            function drawCellLabel(i, cx, cy, p) {
+                const { w, h } = polyBounds(p);
+                const avail = Math.min(w, h) * 0.78;
+                const isActive = sel === i || hov === i;
+
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Title
+                const ts = Math.max(6.5, Math.min(10, avail / 10.5));
+                ctx.font = `${ts}px 'Courier New',monospace`;
+                ctx.fillStyle = `rgba(200,235,245,${isActive ? 0.95 : 0.72})`;
+                const title = NODES[i].t;
+                const mw = ctx.measureText(title).width;
+                const sc = Math.min(1, (avail * 0.9) / mw);
+                ctx.save(); ctx.translate(cx, cy - (isActive ? ts * 0.7 : 0)); ctx.scale(sc, 1); ctx.fillText(title, 0, 0); ctx.restore();
+
+                // Body preview (active only)
+                if (isActive && avail > 70) {
+                    const bs = 6;
+                    ctx.font = `${bs}px 'Courier New',monospace`;
+                    ctx.fillStyle = `rgba(120,200,220,0.55)`;
+                    const words = NODES[i].b.split(' ');
+                    let line = '', lines = [];
+                    const maxW = avail * 0.88;
+                    words.forEach(w => {
+                        const t = line ? line + ' ' + w : w;
+                        if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; }
+                        else line = t;
+                    });
+                    if (line) lines.push(line);
+                    lines.slice(0, 4).forEach((l, li) => ctx.fillText(l, cx, cy + ts * 0.6 + li * (bs + 2.5)));
+                }
+            }
+
+            // ──────────────────────────────────────────────────────
+            // DRAW: ACCUMULATED LINK THREADS
+            // ──────────────────────────────────────────────────────
+            function drawLinks(ts) {
+                links.forEach(lk => {
+                    const [ax, ay] = cents[lk.from], [bx, by] = cents[lk.to];
+                    const age = Math.min(1, (ts - lk.born) / 1200);
+                    const a = age * 0.45;
+                    const mx = (ax + bx) / 2 + (by - ay) * 0.14, my = (ay + by) / 2 - (bx - ax) * 0.14;
+                    ctx.beginPath();
+                    ctx.moveTo(ax, ay);
+                    ctx.quadraticCurveTo(mx, my, bx, by);
+                    ctx.strokeStyle = rgba(lk.col, a);
+                    ctx.lineWidth = 1.2;
+                    ctx.setLineDash([4, 5]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    // endpoints
+                    [ax, ay, bx, by].forEach((_, i, arr) => {
+                        if (i % 2 !== 0) return;
+                        ctx.beginPath(); ctx.arc(arr[i], arr[i + 1], 2.5, 0, Math.PI * 2);
+                        ctx.fillStyle = rgba(lk.col, a * 0.8); ctx.fill();
+                    });
+                });
+            }
+
+            // ──────────────────────────────────────────────────────
+            // DRAW: TEXT CONE (the key visual from the screenshot)
+            // ──────────────────────────────────────────────────────
+            function drawCone(ts) {
+                if (sel === null && !drag) return;
+                const srcIdx = sel !== null ? sel : (dragSrc?.ci ?? null);
+                if (srcIdx === null) return;
+
+                const [sx, sy] = cents[srcIdx];
+                const nodeLinks = links.filter(lk => lk.from === srcIdx || lk.to === srcIdx);
+
+                // Determine targets for cone streams
+                let targets = [];
+                nodeLinks.forEach(lk => {
+                    const ti = lk.from === srcIdx ? lk.to : lk.from;
+                    targets.push({ x: cents[ti][0], y: cents[ti][1], ci: ti, col: lk.col, connected: true });
+                });
+
+                // If no links or we're dragging, show a default fan toward the panel side
+                if (targets.length === 0 || drag) {
+                    const fanBase = drag ? Math.atan2(mouse.y - sy, mouse.x - sx) : 0.1;
+                    const fanSpread = drag ? 0.35 : 1.1;
+                    for (let i = 0; i < 14; i++) {
+                        const a = fanBase + (i / 13 - 0.5) * fanSpread;
+                        const dist = WR * 0.9 + seededR(i * 17) * WR * 0.4;
+                        targets.push({ x: sx + Math.cos(a) * dist, y: sy + Math.sin(a) * dist, ci: null, col: NODES[srcIdx].hex, connected: false });
+                    }
+                }
+
+                targets.forEach((tgt, ti) => {
+                    const tx = tgt.x, ty = tgt.y;
+                    const dist = Math.hypot(tx - sx, ty - sy);
+                    const baseAngle = Math.atan2(ty - sy, tx - sx);
+                    const spread = tgt.connected ? 0.06 : 0.14;
+                    const streams = tgt.connected ? 10 : 6;
+
+                    for (let s = 0; s < streams; s++) {
+                        const off = (s / (streams - 1) - 0.5) * spread + (seededR(s * 13 + ti * 7) - 0.5) * 0.04;
+                        const ang = baseAngle + off;
+                        const slen = dist * (0.8 + seededR(s * 11 + ti * 3) * 0.35);
+                        const ex = sx + Math.cos(ang) * slen, ey = sy + Math.sin(ang) * slen;
+
+                        // One continuous text line per stream
+                        const numChars = Math.floor(slen / 11);
+                        const body = NODES[srcIdx].b;
+                        const phase = ts / 900;
+
+                        ctx.save();
+                        ctx.translate(sx, sy);
+                        ctx.rotate(ang);
+
+                        for (let c = 0; c < numChars; c++) {
+                            const t = c / numChars;
+                            const wave = (seededR(c * 5 + s * 3) - 0.5) * 6 * t;
+                            const scroll = ((phase + c * 0.18 + s * 0.4) % 1);
+                            const fadePulse = Math.sin(scroll * Math.PI) * 0.9;
+                            const alpha = fadePulse * (1 - t * 0.5) * 0.75 * (tgt.connected ? 0.9 : 0.55) * (drag ? 0.7 : 1);
+                            if (alpha < 0.015) continue;
+
+                            const charIdx = (Math.floor(ts / 110 + c * 2.3 + s * 6.7)) % body.length;
+                            const ch = body[charIdx] || ' ';
+                            const size = Math.max(6, 9.5 * (1 - t * 0.35));
+
+                            ctx.font = `${size}px 'Courier New',monospace`;
+                            ctx.fillStyle = tgt.connected ? rgba(tgt.col, alpha) : `rgba(80,200,180,${alpha * 0.7})`;
+                            ctx.fillText(ch, t * slen, wave);
+                        }
+                        ctx.restore();
+                    }
+                });
+
+                // "UPLOAD COMPLETE | N ASSETS | PARTITION-NODE" labels (like the screenshot)
+                if (sel !== null && nodeLinks.length > 0) {
+                    nodeLinks.forEach((lk, li) => {
+                        const ti = lk.from === sel ? lk.to : lk.from;
+                        const [tx, ty] = cents[ti];
+                        const mx = (sx + tx) / 2, my = (sy + ty) / 2;
+                        const age = Math.min(1, (ts - lk.born) / 1200);
+                        const label = `LINK·COMPLETE | ${li + 1} NODES | PARTITION-${NODES[ti].t.split('·')[0]}`;
+                        ctx.font = '7px "Courier New",monospace';
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = `rgba(80,200,160,${age * 0.5})`;
+                        ctx.fillText(label, mx + 8, my);
+                    });
+                }
+            }
+
+            // ──────────────────────────────────────────────────────
+            // DRAW: BOW
+            // ──────────────────────────────────────────────────────
+            function drawBow() {
+                if (!drag || dragSrc === null) return;
+                const { x: bx, y: by } = mouse;
+                const angle = Math.atan2(dragSrc.y - by, dragSrc.x - bx) + Math.PI;
+                const pull = charge * 18;
+
+                ctx.save();
+                ctx.translate(bx, by);
+                ctx.rotate(angle);
+
+                // Arc body
+                ctx.beginPath();
+                ctx.arc(0, 0, 24, -Math.PI * 0.44, Math.PI * 0.44, false);
+                ctx.strokeStyle = 'rgba(160,110,40,0.9)';
+                ctx.lineWidth = 4.5;
+                ctx.stroke();
+                // Arc shine
+                ctx.beginPath();
+                ctx.arc(0, 0, 24, -Math.PI * 0.44, Math.PI * 0.44, false);
+                ctx.strokeStyle = `rgba(255,200,80,${0.25 + charge * 0.5})`;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // String
+                const tx = Math.cos(-Math.PI * 0.44) * 24, ty = Math.sin(-Math.PI * 0.44) * 24;
+                const bx2 = Math.cos(Math.PI * 0.44) * 24, by2 = Math.sin(Math.PI * 0.44) * 24;
+                ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(-pull, 0); ctx.lineTo(bx2, by2);
+                ctx.strokeStyle = `rgba(255,235,160,${0.6 + charge * 0.4})`;
+                ctx.lineWidth = 1.2; ctx.stroke();
+
+                // Nocked arrow
+                if (charge > 0.05) {
+                    ctx.beginPath(); ctx.moveTo(-pull, 0); ctx.lineTo(32, 0);
+                    ctx.strokeStyle = 'rgba(180,130,40,0.85)'; ctx.lineWidth = 2.5; ctx.stroke();
+                    const ag = ctx.createLinearGradient(-pull, 0, 32, 0);
+                    ag.addColorStop(0, 'transparent'); ag.addColorStop(1, '#ffd700');
+                    ctx.beginPath(); ctx.moveTo(-pull, 0); ctx.lineTo(32, 0);
+                    ctx.strokeStyle = ag; ctx.lineWidth = 1.5; ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(32, 0); ctx.lineTo(22, -7); ctx.lineTo(22, 7); ctx.closePath();
+                    ctx.fillStyle = `rgba(255,210,50,${0.75 + charge * 0.25})`; ctx.fill();
+                }
+                ctx.restore();
+
+                // Dotted aim trail
+                if (charge > 0.12) {
+                    const { x: sx, y: sy } = mouse;
+                    const [tx2, ty2] = [dragSrc.x, dragSrc.y];
+                    const dist = Math.hypot(tx2 - sx, ty2 - sy);
+                    for (let i = 1; i <= 18; i++) {
+                        const f = i / 18;
+                        const px = sx + (tx2 - sx) * f, py = sy + (ty2 - sy) * f - Math.sin(f * Math.PI) * dist * 0.1;
+                        const al = (1 - f) * charge * 0.65;
+                        ctx.beginPath(); ctx.arc(px, py, (3.5 * (1 - f) + 0.5), 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(255,220,70,${al})`; ctx.fill();
+                    }
+                }
+            }
+
+            // ──────────────────────────────────────────────────────
+            // DRAW: FLYING ARROW
+            // ──────────────────────────────────────────────────────
+            function drawArrow(now) {
+                if (!arrow) return;
+                const f = Math.min(1, (now - arrow.t0) / arrow.dur);
+                const e = f < 0.5 ? 2 * f * f : -1 + (4 - 2 * f) * f;
+                const dist = Math.hypot(arrow.tx - arrow.sx, arrow.ty - arrow.sy);
+                const x = arrow.sx + (arrow.tx - arrow.sx) * e;
+                const y = arrow.sy + (arrow.ty - arrow.sy) * e - Math.sin(e * Math.PI) * dist * 0.11;
+                const pf = Math.max(0, e - 0.015);
+                const px = arrow.sx + (arrow.tx - arrow.sx) * pf;
+                const py = arrow.sy + (arrow.ty - arrow.sy) * pf - Math.sin(pf * Math.PI) * dist * 0.11;
+                const ang = Math.atan2(y - py, x - px);
+
+                // Trail
+                for (let i = 0; i < 6; i++) {
+                    const tf = Math.max(0, e - i * 0.02);
+                    const tx = arrow.sx + (arrow.tx - arrow.sx) * tf;
+                    const ty2 = arrow.sy + (arrow.ty - arrow.sy) * tf - Math.sin(tf * Math.PI) * dist * 0.11;
+                    ctx.beginPath(); ctx.arc(tx, ty2, 2 * (1 - i / 6), 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255,200,60,${(1 - i / 6) * 0.4})`; ctx.fill();
+                }
+
+                ctx.save();
+                ctx.translate(x, y); ctx.rotate(ang);
+                ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(10, 0);
+                ctx.strokeStyle = '#c8960c'; ctx.lineWidth = 2.5; ctx.stroke();
+                const ag = ctx.createLinearGradient(-22, 0, 10, 0);
+                ag.addColorStop(0, 'transparent'); ag.addColorStop(0.4, '#c8960c'); ag.addColorStop(1, '#ffd700');
+                ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(10, 0);
+                ctx.strokeStyle = ag; ctx.lineWidth = 1.5; ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(0, -7); ctx.lineTo(0, 7); ctx.closePath();
+                ctx.fillStyle = '#ffd700';
+                ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 10;
+                ctx.fill();
+                ctx.restore();
+
+                if (f >= 1) {
+                    const { from: fi, to: ti } = arrow;
+                    hits.push({ x: arrow.tx, y: arrow.ty, t: 0, ci: ti ?? fi ?? 0 });
+                    if (navigator.vibrate) navigator.vibrate([45, 15, 25]);
+
+                    if (fi !== null && ti !== null && fi !== ti) {
+                        const exists = links.find(l => (l.from === fi && l.to === ti) || (l.from === ti && l.to === fi));
+                        if (!exists) {
+                            links.push({ from: fi, to: ti, born: now, col: NODES[ti].hex });
+                            linkTotal++;
+                            document.getElementById('tb-links').textContent = linkTotal;
+                            addLog(`${NODES[fi].t} → ${NODES[ti].t}`);
+                            updatePanel(fi);
+                        }
+                    }
+                    arrow = null;
+                }
+            }
+
+            // ──────────────────────────────────────────────────────
+            // DRAW: HIT BURST
+            // ──────────────────────────────────────────────────────
+            function drawHits() {
+                hits = hits.filter(h => {
+                    h.t += 0.032; if (h.t >= 1) return false;
+                    const ci = h.ci;
+                    const bright = BRIGHT[ci];
+                    const a = 1 - h.t;
+
+                    for (let r = 0; r < 3; r++) {
+                        const rad = (20 + r * 30) * h.t + r * 8;
+                        ctx.beginPath(); ctx.arc(h.x, h.y, rad, 0, Math.PI * 2);
+                        ctx.strokeStyle = r === 0 ? `rgba(255,220,80,${a * 0.7})` : rgba(bright, a * (0.5 - r * 0.12));
+                        ctx.lineWidth = 2.5 - r * 0.5; ctx.stroke();
+                    }
+                    for (let s = 0; s < 12; s++) {
+                        const sa = s / 12 * Math.PI * 2 + h.t * 1.5;
+                        const sr = h.t * 70;
+                        ctx.beginPath(); ctx.arc(h.x + Math.cos(sa) * sr, h.y + Math.sin(sa) * sr, 2.5 * (1 - h.t), 0, Math.PI * 2);
+                        ctx.fillStyle = s % 2 === 0 ? `rgba(255,210,60,${a})` : (rgba(bright, a));
+                        ctx.fill();
+                    }
+                    return true;
+                });
+            }
+
+            // ──────────────────────────────────────────────────────
+            // AMBIENT PARTICLES
+            // ──────────────────────────────────────────────────────
+            const AMBIENT = Array.from({ length: 40 }, (_, i) => ({
+                x: seededR(i * 31) * 800, y: seededR(i * 17 + 5) * 600,
+                vx: (seededR(i * 7) - 0.5) * 0.3, vy: (seededR(i * 11) - 0.5) * 0.2,
+                ci: i % 20, alpha: 0.05 + seededR(i * 13) * 0.15, r: 1 + seededR(i * 19) * 2
+            }));
+
+            function drawAmbient() {
+                AMBIENT.forEach(p => {
+                    p.x += p.vx; p.y += p.vy;
+                    if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+                    if (p.y < TOP_H) p.y = H; if (p.y > H) p.y = TOP_H;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fillStyle = rgba(NODES[p.ci].hex, p.alpha); ctx.fill();
+                });
+            }
+
+            // ──────────────────────────────────────────────────────
+            // PANEL UPDATE
+            // ──────────────────────────────────────────────────────
+            function updatePanel(ci) {
+                if (ci === null) {
+                    document.getElementById('p-title').textContent = '—';
+                    document.getElementById('p-body').textContent = 'Click a cell. Drag to aim. Release to transcluse.';
+                    return;
+                }
+                const n = NODES[ci];
+                document.getElementById('p-title').textContent = n.t;
+                document.getElementById('p-body').textContent = n.b;
+                const order = TAX_ORDERS[ci % TAX_ORDERS.length];
+                document.getElementById('p-tax').innerHTML = `Kingdom: BIOTA<br>Phylum: DIGITIFERA<br>Class: HEXA_ARCHIVUM<br>Order: ${order}`;
+                const cellLinks = links.filter(l => l.from === ci || l.to === ci);
+                document.getElementById('conn-count').textContent = cellLinks.length;
+                document.getElementById('conn-list').innerHTML = cellLinks.map(l => {
+                    const oi = l.from === ci ? l.to : l.from;
+                    return `<div class="conn-row"><div class="conn-dot" style="background:${LIGHT[oi]}"></div>${NODES[oi].t}</div>`;
+                }).join('');
+            }
+
+            function addLog(txt) {
+                const now = new Date();
+                const ts = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+                logLines.unshift(`<span class="log-ts">${ts}</span> ${txt}`);
+                if (logLines.length > 24) logLines.pop();
+                document.getElementById('wt-log').innerHTML = logLines.join('<br>');
+                // Random latency flicker
+                document.getElementById('tb-lat').textContent = `${18 + Math.floor(Math.random() * 60)}ms`;
+            }
+
+            // ──────────────────────────────────────────────────────
+            // EVENTS
+            // ──────────────────────────────────────────────────────
+            function xy(e) { const t = e.touches?.[0] ?? e; return { x: t.clientX, y: t.clientY }; }
+
+            C.addEventListener('mousedown', onDown);
+            C.addEventListener('touchstart', e => { e.preventDefault(); onDown(e); }, { passive: false });
+            C.addEventListener('mousemove', onMove);
+            C.addEventListener('touchmove', e => { e.preventDefault(); onMove(e); }, { passive: false });
+            C.addEventListener('mouseup', onUp);
+            C.addEventListener('touchend', e => { e.preventDefault(); onUp(e); });
+
+            function onDown(e) {
+                const { x, y } = xy(e);
+                const ci = cellAt(x, y);
+                if (ci !== null) {
+                    drag = true; chargeT = performance.now(); charge = 0;
+                    dragSrc = { x, y, ci }; sel = ci;
+                    updatePanel(ci);
+                    if (navigator.vibrate) navigator.vibrate(12);
+                } else { sel = null; updatePanel(null); }
+                mouse = { x, y };
+            }
+
+            function onMove(e) {
+                const { x, y } = xy(e);
+                mouse = { x, y };
+                hov = cellAt(x, y);
+                if (!drag) return;
+                charge = Math.min(1, (performance.now() - chargeT) / 650);
+                document.getElementById('cbar').style.width = charge * 100 + '%';
+                document.getElementById('charge').classList.add('on');
+            }
+
+            function onUp(e) {
+                document.getElementById('charge').classList.remove('on');
+                document.getElementById('cbar').style.width = '0%';
+                if (!drag) { drag = false; return; }
+                drag = false;
+
+                const { x, y } = xy(e);
+                const toCell = cellAt(x, y);
+                const fromCell = dragSrc?.ci ?? null;
+
+                if (fromCell !== null && charge > 0.1) {
+                    const [sx2, sy2] = cents[fromCell];
+                    const [tx2, ty2] = toCell !== null ? cents[toCell] : [x, y];
+                    const dist = Math.hypot(tx2 - sx2, ty2 - sy2);
+                    arrow = { sx: sx2, sy: sy2, tx: tx2, ty: ty2, from: fromCell, to: toCell, t0: performance.now(), dur: Math.max(160, dist * 0.55 * (1.2 - charge * 0.3)) };
+                }
+                charge = 0; dragSrc = null;
+            }
+
+            // ──────────────────────────────────────────────────────
+            // RAF LOOP
+            // ──────────────────────────────────────────────────────
+            function loop(now) {
+                requestAnimationFrame(loop);
+                ctx.clearRect(0, 0, W, H);
+                drawBg();
+                drawAmbient();
+                drawLinks(now);
+                drawCells();
+                drawCone(now);
+                drawHits();
+                drawArrow(now);
+                drawBow();
+            }
+
+            // ──────────────────────────────────────────────────────
+            // INIT
+            // ──────────────────────────────────────────────────────
+            resize();
+            requestAnimationFrame(loop);
+
+        })();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Island Ecology — The Choke Point</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: #020203;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: #4a5568;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;700;900&display=swap');
+
+        #grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            min-height: 100vh;
+            border: 20px solid #000;
+        }
+
+        .axis {
+            border-right: 1px solid #e53e3e;
+            background: #000;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            height: calc(100vh - 40px);
+        }
+
+        .content-col {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cell {
+            border-bottom: 1px solid #1a202c;
+            padding: 40px 60px;
+            position: relative;
+            background: #020203;
+            transition: background 0.1s;
+        }
+
+        .cell:hover {
+            background: #050508;
+        }
+
+        .cell-id {
+            font-size: 10px;
+            color: #f56565;
+            letter-spacing: 0.2em;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-family: 'Inter', sans-serif;
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            color: #fff;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .sub {
+            font-size: 12px;
+            color: #718096;
+            line-height: 1.6;
+            max-width: 90%;
+            margin-bottom: 40px;
+        }
+
+        .md-text {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            line-height: 1.7;
+            color: #a0aec0;
+            margin-bottom: 30px;
+            border-left: 2px solid #2d3748;
+            padding-left: 20px;
+            max-width: 800px;
+        }
+
+        .md-text strong {
+            color: #e2e8f0;
+            font-weight: 600;
+        }
+
+        .md-text u {
+            text-decoration: none;
+            border-bottom: 1px solid #e53e3e;
+            color: #f56565;
+        }
+
+        .html-worms {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .worm {
+            display: inline-block;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #e2e8f0;
+            text-decoration: none;
+            padding: 10px 16px;
+            border: 1px solid #2d3748;
+            background: #000;
+            transition: border-color 0.1s, color 0.1s;
+        }
+
+        .worm:hover {
+            color: #f56565;
+            border-color: #f56565;
+        }
+
+        .cost {
+            font-size: 9px;
+            color: #e53e3e;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            display: inline-block;
+            margin-bottom: 4px;
+        }
+
+        .warn-btn {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #718096;
+            text-decoration: none;
+            transition: color 0.1s;
+        }
+
+        .warn-btn:hover {
+            color: #fff;
+        }
+
+        .stop-factor {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            text-align: right;
+            font-family: 'Inter', sans-serif;
+            font-weight: 900;
+            font-size: 80px;
+            letter-spacing: -0.04em;
+            color: #050508;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media(max-width:900px){
+            #grid{grid-template-columns:1fr;border-width:8px}
+            .axis{position:relative;height:auto;border-right:none;border-bottom:1px solid #e53e3e;padding:24px 20px 16px}
+            h1{font-size:24px}
+            .sub{max-width:100%;font-size:11px}
+            .cell{padding:24px 20px}
+            .html-worms{padding:20px;gap:6px}
+            .worm{width:100%;font-size:13px;padding:14px 18px}
+            .fallback-list{padding:24px 16px !important}
+            .fallback-list a{padding:16px !important;font-size:13px !important}
+            #ecology-container{position:static !important;height:auto !important;overflow:visible !important;min-height:auto !important}
+            #eco-vc,#eco-camera,#eco-hud{display:none !important}
+        }
+        @media(max-width:480px){
+            #grid{border-width:4px}
+            .axis{padding:16px 14px 12px}
+            h1{font-size:20px}
+            .sub{font-size:10px}
+            .cell{padding:20px 14px}
+            .html-worms{padding:14px 10px;gap:5px}
+            .worm{font-size:12px;padding:12px 14px}
+            .fallback-list{padding:16px 10px !important;gap:8px !important}
+            .fallback-list a{padding:14px 12px !important;font-size:12px !important}
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="grid">
+        <div class="axis">
+            <div>
+                <h1>The Index of Indexes</h1>
+                <div class="sub">Do not hide the text. Do not bury the interface. <br><br>The markdown bleeds into the
+                    view. The HTML surfaces like worms after a soft rain. You cannot avoid the raw structural logic.
+                    Navigating is not an escape; it is an exposure.</div>
+                <div class="cost">Cost: Complete exposure to the text.</div>
+            </div>
+            <div>
+                <a href="index.html" class="warn-btn">← Retreat to Global Topology</a>
+            </div>
+        </div>
+
+        <div class="content-col" id="ecology-container"
+            style="position:relative; min-height:100vh; overflow-y:auto; background:#050508;">
+            <!-- Progressive Enhancement Fallback -->
+            <div class="fallback-list"
+                style="padding: 60px; color: #e2e8f0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; gap: 15px;">
+                <h2
+                    style="font-weight:900; text-transform:uppercase; color:#9dd8e8; letter-spacing:-0.02em; margin:0 0 20px 0; font-size:18px;">
+                    Federal Directory [Fallback Mode]</h2>
+                <a href="index.html"
+                    style="display:block; padding:24px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:700; letter-spacing:0.05em; transition:border-color 0.2s;"
+                    onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">ROOT
+                    TERRITORY<div
+                        style="font-family:'IBM Plex Mono', monospace; font-size:11px; color:#718096; margin-top:8px;">[
+                        STATE INDEX ]</div></a>
+                <a href="STAINED CONTEXT/index.html"
+                    style="display:block; padding:24px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:700; letter-spacing:0.05em; transition:border-color 0.2s;"
+                    onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">STAINED
+                    REGION<div
+                        style="font-family:'IBM Plex Mono', monospace; font-size:11px; color:#718096; margin-top:8px;">[
+                        STATE INDEX ]</div></a>
+                <a href="BEES ON A TRAIN/index.html"
+                    style="display:block; padding:24px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:700; letter-spacing:0.05em; transition:border-color 0.2s;"
+                    onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">BEES
+                    ECOLOGY<div
+                        style="font-family:'IBM Plex Mono', monospace; font-size:11px; color:#718096; margin-top:8px;">[
+                        STATE INDEX ]</div></a>
+                <a href="BEES ON A TRAIN/hive-manifest.html"
+                    style="display:block; padding:24px; background:#08080c; border:1px solid #d4a84b33; color:#d4a84b; text-decoration:none; font-weight:700; letter-spacing:0.05em; transition:border-color 0.2s;"
+                    onmouseover="this.style.borderColor='#d4a84b'" onmouseout="this.style.borderColor='#d4a84b33'">◆ METAHIVE
+                    MANIFEST<div
+                        style="font-family:'IBM Plex Mono', monospace; font-size:11px; color:#718096; margin-top:8px;">[
+                        APIARY ARCHIVE ]</div></a>
+            </div>
+        </div>
+    </div>
+
+    <script src="d3-delaunay.min.js"></script>
+    <script src="ecology-engine.js"></script>
+    <script>
+        const nodesData = [
+            { id: 'state1', title: 'Root Territory', url: 'index.html', group: 'ROOT' },
+            { id: 'state2', title: 'Stained Region', url: 'STAINED CONTEXT/index.html', group: 'STAINED CONTEXT' },
+            { id: 'state3', title: 'Bees Ecology', url: 'BEES ON A TRAIN/index.html', group: 'BEES ON A TRAIN' },
+            { id: 'state4', title: '◆ Metahive Manifest', url: 'BEES ON A TRAIN/hive-manifest.html', group: 'METAHIVE' }
+        ];
+
+        window.onload = () => {
+            if (window.innerWidth > 960) {
+                const engine = new EcologyEngine('ecology-container', nodesData, 'DESCEND');
+            }
+        };
+    </script>
+</body>
+
+</html>

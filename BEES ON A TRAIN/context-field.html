@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Design Fiction — Context Field</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/* ── BASE STYLES (Provided Template) ── */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#08090e}
+body{font-family:'IBM Plex Mono',monospace;color:#7ab0c0;font-size:11px;user-select:none}
+
+.top{height:36px;background:rgba(8,9,14,.98);border-bottom:1px solid rgba(100,170,200,.1);
+  display:flex;align-items:center;flex-shrink:0;z-index:50}
+.t-logo{font-size:9px;font-weight:600;letter-spacing:.18em;color:#d4a84b;text-transform:uppercase;padding:0 16px;border-right:1px solid rgba(100,170,200,.1)}
+.t-stat{padding:0 14px;border-right:1px solid rgba(100,170,200,.07)}
+.t-lbl{font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:rgba(100,170,200,.28);margin-bottom:1px}
+.t-val{font-size:9px;font-weight:600;color:#8ec8d8;letter-spacing:.03em;line-height:1}
+.t-r{margin-left:auto;display:flex}
+.tb{background:none;border:none;border-left:1px solid rgba(100,170,200,.08);
+  color:rgba(100,170,200,.32);font-family:'IBM Plex Mono',monospace;font-size:8px;
+  font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  padding:0 14px;height:36px;cursor:pointer;transition:color .12s}
+.tb:hover{color:#8ec8d8}
+.tb.on{color:#d4a84b;border-bottom:2px solid #d4a84b}
+
+.main{display:flex;height:calc(100vh - 36px - 40px);position:relative}
+
+/* VORONOI */
+#vcanvas{display:block;position:absolute;inset:0;cursor:crosshair}
+.vpanel{position:relative;flex:1;overflow:hidden}
+
+/* DIVIDER */
+.div{width:3px;background:rgba(100,170,200,.06);cursor:col-resize;flex-shrink:0;transition:background .15s}
+.div:hover{background:rgba(100,170,200,.2)}
+
+/* WORLD TEXT */
+.wtp{width:340px;min-width:220px;display:flex;flex-direction:column;background:#06080e;border-left:1px solid rgba(100,170,200,.08);position:relative;z-index:10}
+.wt-head{height:36px;border-bottom:1px solid rgba(100,170,200,.08);display:flex;align-items:center;padding:0 12px;gap:8px;background:rgba(6,8,14,.9);flex-shrink:0}
+.wt-title{font-size:8px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(100,170,200,.35);flex:1}
+.wz{background:none;border:1px solid rgba(100,170,200,.12);color:rgba(100,170,200,.35);
+  font-family:'IBM Plex Mono',monospace;font-size:9px;padding:1px 7px;cursor:pointer;transition:all .1s}
+.wz:hover{border-color:rgba(100,170,200,.4);color:#8ec8d8}
+.wt-body{flex:1;overflow-y:auto;position:relative}
+.wt-body::-webkit-scrollbar{width:2px}
+.wt-body::-webkit-scrollbar-thumb{background:rgba(100,170,200,.1)}
+#linkCanvas{position:absolute;top:0;left:0;width:100%;pointer-events:none;z-index:0}
+.wt-list{position:relative;z-index:1}
+
+/* CHUNK */
+.chunk{border-bottom:1px solid rgba(100,170,200,.05);cursor:pointer;transition:background .12s,opacity .15s;position:relative}
+.chunk:hover{background:rgba(100,170,200,.025)}
+.chunk.active{background:rgba(100,170,200,.04)}
+.chunk.muted{opacity:.28}
+.chunk-spine{position:absolute;top:0;bottom:0;left:0;width:3px}
+.chunk-body{padding:9px 10px 8px 14px}
+.chunk-head{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.chunk-badge{font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  padding:1px 5px;border:1px solid;opacity:.8}
+.chunk-text{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;
+  color:rgba(195,220,230,.7);line-height:1.65;word-break:break-word;user-select:text}
+.chunk-acts{display:flex;margin-top:6px;gap:0;opacity:0;transition:opacity .12s}
+.chunk:hover .chunk-acts{opacity:1}
+.ca{background:none;border:1px solid rgba(100,170,200,.1);color:rgba(100,170,200,.38);
+  font-family:'IBM Plex Mono',monospace;font-size:7px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  padding:2px 6px;cursor:pointer;border-right:none;transition:all .1s}
+.ca:last-child{border-right:1px solid rgba(100,170,200,.1)}
+
+/* ── BOTTOM ── */
+.bottom{height:40px;background:rgba(6,8,14,.98);border-top:1px solid rgba(100,170,200,.1);
+  display:flex;align-items:stretch}
+.b-in{flex:1;background:none;border:none;color:rgba(200,222,232,.78);
+  font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;
+  padding:0 14px;outline:none;user-select:text}
+.b-op{background:none;border:none;border-left:1px solid rgba(100,170,200,.1);
+  color:rgba(100,170,200,.4);font-family:'IBM Plex Mono',monospace;font-size:8px;
+  font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  padding:0 12px;cursor:pointer;white-space:nowrap;transition:color .1s}
+.b-run{background:rgba(212,168,75,.07);border:none;border-left:1px solid rgba(212,168,75,.2);
+  color:rgba(212,168,75,.7);font-family:'IBM Plex Mono',monospace;font-size:8px;
+  font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  padding:0 14px;cursor:pointer;transition:all .12s}
+
+/* ── OP PICKER ── */
+#opPicker{position:fixed;bottom:40px;left:50%;transform:translateX(-50%);
+  z-index:200;background:rgba(6,8,14,.98);border:1px solid rgba(100,170,200,.16);
+  display:none;flex-wrap:wrap;max-width:400px}
+.op-p{background:none;border:none;border-right:1px solid rgba(100,170,200,.07);border-bottom:1px solid rgba(100,170,200,.07);
+  color:rgba(100,170,200,.35);font-family:'IBM Plex Mono',monospace;font-size:8px;
+  font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  padding:7px 11px;cursor:pointer;transition:all .1s}
+.op-p.sel{color:#d4a84b}
+
+#ctx{position:fixed;z-index:300;background:rgba(6,8,14,.98);
+  border:1px solid rgba(100,170,200,.16);display:none;min-width:148px}
+.cx{display:flex;align-items:center;gap:7px;padding:6px 11px;cursor:pointer;
+  font-size:8px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:rgba(100,170,200,.42);border-bottom:1px solid rgba(100,170,200,.05);transition:all .1s}
+
+/* WORLD MANIFEST HUD */
+#worldManifest{position:fixed;left:8px;top:44px;bottom:48px;width:300px;
+  background:rgba(8,10,16,0.98);border:1px solid rgba(100,170,200,0.15);
+  z-index:100;display:none;flex-direction:column;pointer-events:all;box-shadow: 10px 0 40px rgba(0,0,0,0.8);}
+.wm-header{padding:10px;border-bottom:1px solid rgba(100,170,200,0.1);display:flex;justify-content:space-between;color:#d4a84b;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;}
+.wm-list{flex:1;overflow-y:auto;padding:5px 0;}
+.wm-item{padding:8px 12px;border-bottom:1px solid rgba(100,170,200,0.05);cursor:pointer;}
+.wm-item:hover{background:rgba(100,170,200,0.05);}
+.wm-name{font-size:10px;font-weight:600;color:#8ec8d8;}
+.wm-desc{font-size:8px;color:rgba(100,170,200,0.3);margin-top:3px;line-height:1.3;}
+.wm-manifest-btn{margin-top:5px;background:rgba(212,168,75,0.1);border:1px solid rgba(212,168,75,0.3);color:#d4a84b;font-size:7px;font-weight:600;padding:2px 6px;cursor:pointer;text-transform:uppercase;}
+
+/* LEGEND */
+#legend{position:fixed;bottom:44px;left:8px;z-index:40;
+  font-size:7px;color:rgba(100,170,200,.25);line-height:2;letter-spacing:.04em;pointer-events:none}
+.leg-row{display:flex;align-items:center;gap:5px}
+.leg-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* API HUD */
+#api-inline{margin-left:auto;display:flex;align-items:center;gap:8px;padding-right:12px;}
+#api-key-input{background:rgba(0,0,0,0.3);border:1px solid rgba(100,170,200,0.1);color:#d4a84b;font-family:inherit;font-size:8px;padding:3px 6px;width:100px;outline:none;}
+.status-dot{width:5px;height:5px;border-radius:50%;background:#3a4555;}
+.status-dot.ok{background:#00ff88;box-shadow:0 0 5px #00ff88;}
+.status-dot.busy{background:#ffb000;box-shadow:0 0 5px #ffb000;animation:pulse 1s infinite;}
+@keyframes pulse{50%{opacity:0.3;}}
+</style>
+</head>
+<body>
+<div style="display:flex;flex-direction:column;height:100vh">
+
+<div class="top">
+  <span class="t-logo">⬡ Context Field</span>
+  <div class="t-stat"><div class="t-lbl">Nodes</div><div class="t-val" id="sN">0</div></div>
+  <div class="t-stat"><div class="t-lbl">Operator</div><div class="t-val" id="sO">SITE</div></div>
+  <div class="t-stat"><div class="t-lbl">Status</div><div class="t-val" id="sSt">READY</div></div>
+  <div class="t-stat" id="tNeighStat" style="display:none"><div class="t-lbl">Neighbors</div><div class="t-val" id="sNb">—</div></div>
+  
+  <div class="t-stat">
+    <div class="t-lbl">Meshwork Mode</div>
+    <div class="t-val" id="meshMode" style="color:#d4a84b">GRIT (Mirror)</div>
+  </div>
+
+  <div id="api-inline">
+    <div id="dot-api" class="status-dot"></div>
+    <input type="password" id="api-key-input" placeholder="OpenAI Key..." onchange="saveApiKey()">
+  </div>
+
+  <div class="t-r">
+    <button class="tb" onclick="toggleWorldManifest()">Manifest 🐝</button>
+    <button class="tb" onclick="toggleMeshMode()">Grit/Grout</button>
+    <button class="tb on" id="tbEx" onclick="setMode('explore')">Explore</button>
+    <button class="tb" id="tbFi" onclick="setMode('fire')">Fire ◎</button>
+    <button class="tb" onclick="clearAll()">Clear</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="vpanel" id="vpanel">
+    <canvas id="vcanvas"></canvas>
+  </div>
+  <div class="div" id="divider"></div>
+  <div class="wtp" id="wtp">
+    <div class="wt-head">
+      <span class="wt-title">World Text</span>
+      <div class="wt-zoom" style="display:flex;gap:3px">
+        <button class="wz" onclick="wtZ(1.12)">+</button>
+        <button class="wz" onclick="wtZ(.89)">−</button>
+        <button class="wz" onclick="wtZ(0)">·</button>
+        <button class="wz" id="linkToggle" onclick="togLinks()" title="Toggle transclusion links" style="color:#d4a84b">⌁</button>
+      </div>
+    </div>
+    <div class="wt-body" id="wtBody">
+      <canvas id="linkCanvas"></canvas>
+      <div class="wt-list" id="wtList"></div>
+    </div>
+  </div>
+</div>
+
+<div id="worldManifest">
+  <div class="wm-header">
+    <span>World Manifest // Synthesis</span>
+    <button style="background:none;border:none;color:#7ab0c0;cursor:pointer;" onclick="toggleWorldManifest()">&times;</button>
+  </div>
+  <div style="padding:8px; border-bottom:1px solid rgba(100,170,200,0.1);">
+    <input type="text" id="wmSearch" placeholder="Search manifestations..." style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(100,170,200,0.1);color:#8ec8d8;font-size:9px;padding:3px 6px;outline:none;" oninput="updateWorldManifest()">
+  </div>
+  <div class="wm-list" id="wmList"></div>
+</div>
+
+<div class="bottom">
+  <input class="b-in" id="bIn" placeholder="seed concept — ⌘↵ spawn · right-click for operators…" onkeydown="bKey(event)">
+  <button class="b-op" id="bOp" onclick="togPicker()">SITE ▾</button>
+  <button class="b-run" onclick="spawnInput()">Spawn</button>
+</div>
+
+</div>
+
+<div id="opPicker">
+  <button class="op-p sel" data-op="site" onclick="pickOp('site',this)">SITE</button>
+  <button class="op-p" data-op="archaeologist" onclick="pickOp('archaeologist',this)">DIG</button>
+  <button class="op-p" data-op="analyst" onclick="pickOp('analyst',this)">INFER</button>
+  <button class="op-p" data-op="crate" onclick="pickOp('crate',this)">BUILD</button>
+  <button class="op-p" data-op="hybrid" onclick="pickOp('hybrid',this)">HYBRID</button>
+  <button class="op-p" data-op="custom" onclick="pickOp('custom',this)">OPEN</button>
+  <button class="op-p t" data-op="aphorist" onclick="pickOp('aphorist',this)">APHORIST</button>
+  <button class="op-p t" data-op="pragmatist" onclick="pickOp('pragmatist',this)">PRAGMATIST</button>
+  <button class="op-p t" data-op="inverter" onclick="pickOp('inverter',this)">INVERTER</button>
+</div>
+<div id="ctx"></div>
+
+<div id="legend">
+  <div class="leg-row"><div class="leg-dot" style="background:#1a90d4"></div>SITE — where it grows</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#8040c0"></div>DIG — real &amp; imagined docs</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#d4a84b"></div>GROUT — narrative smoothing</div>
+  <div class="leg-row" style="margin-top:4px;color:rgba(100,170,200,.18)">drag · shift+drag to fire</div>
+</div>
+
+<!-- DATA LAYER -->
+<script src="synthesized_data.js"></script>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════
+// CONFIG & OPENAI
+// ══════════════════════════════════════
+const OP_HUE={site:205,archaeologist:275,analyst:148,crate:168,hybrid:35,custom:22,
+  aphorist:38,pragmatist:18,inverter:355,axiom:210,branch:158,seed:200};
+const OP_LBL={site:'SITE',archaeologist:'DIG',analyst:'INFER',crate:'BUILD',
+  hybrid:'HYBRID',custom:'OPEN',aphorist:'APHORIST',pragmatist:'PRAGMATIST',
+  inverter:'INVERTER',axiom:'AXIOM',branch:'BRANCH',seed:'SEED'};
+const TF=new Set(['aphorist','pragmatist','inverter']);
+
+let API_KEY = localStorage.getItem('stained_plus_openai_key') || "";
+const OPENAI_MODEL = "gpt-4o";
+
+const hsl=(h,s,l,a=1)=>`hsla(${h},${s}%,${l}%,${a})`;
+const opH=(op)=>OP_HUE[op]??200;
+const opC=(op,l=55,a=1)=>hsl(opH(op),70,l,a);
+
+// ══════════════════════════════════════
+// PHILOSOPHY: GROUT VS GRIT
+// ══════════════════════════════════════
+let meshMode = 'grit'; // grit = friction/evidence, grout = smoothing/narrative
+
+function toggleMeshMode() {
+    meshMode = meshMode === 'grit' ? 'grout' : 'grit';
+    const val = document.getElementById('meshMode');
+    val.textContent = meshMode === 'grit' ? 'GRIT (Mirror)' : 'GROUT (Lamp)';
+    val.style.color = meshMode === 'grit' ? '#d4a84b' : '#00ff88';
+    
+    // Fire a global ripple to indicate shift
+    nodes.forEach((n,i) => {
+        if(Math.random() > 0.7) fireRipple(n.id, 0.5);
+    });
+}
+
+function buildSys(op, gritMode) {
+    let base = "";
+    if (gritMode === 'grit') {
+        base = "PHILOSOPHY (GRIT): You are an evidentiary mirror (Afewerk Tekle). Focus on raw friction, edge cases, and unvarnished truth. Maintain the independent structural integrity of each 'stone' of data. Avoid smooth transitions; let the contradictions stand as a tight-woven dry-stone mesh (Tim Ingold). ";
+    } else {
+        base = "PHILOSOPHY (GROUT): You are a narrative lamp (Afewerk Tekle). Act as the 'connective tissue' or 'grout' that binds discrete insights into a unified architecture. Smooth over conceptual gaps. Provide the narrative filler that makes the disparate parts feel like a continuous, illuminated path. ";
+    }
+    
+    if(TF.has(op)) return base + {
+        aphorist:`philosophical distillation. Reconstruct into fragmented, introspective, numbered aphorisms. numbered aphorisms.`,
+        pragmatist:`operational pragmatism. Reconstruct as frictionless control surfaces. Output: Operational Diagnostic then Control Surface Draft.`,
+        inverter:`axis inversion. Reconstruct for the vertical axis: how the reader values. Output: Axis Inversion Report then Vertical Draft.`
+    }[op];
+
+    return base + {
+        site:`Identify 5 specific sites (grey markets, warranty disputes, etc) where this concept reveals its structural failure or generative potential.`,
+        archaeologist:`hallucinated internal memos, leaked specs, and invented testimony. Excavate through Surface, Function, Shadow, and Failure.`,
+        analyst:`diffractive analysis. Determine what the material is becoming. Question the intent.`,
+        crate:`Design a self-contained HTML research interface. Output ONLY the code.`,
+        hybrid:`route through multiple design fiction idioms simultaneously.`,
+        custom:`pursue productive surprise.`
+    }[op];
+}
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+const canvas=document.getElementById('vcanvas');
+const ctx=canvas.getContext('2d');
+let VW=0,VH=0;
+
+let nodes=[],edges=[],chunks=[];
+let nid=0,cid=0;
+let selNode=null,hovNode=null;
+let dragging=null,dox=0,doy=0;
+let aiming=null,arrowAnim=null;
+let mode='explore',curOp='site';
+let wtScaleCur=1;
+let ripples=[];
+let neighborMap=new Map();
+
+let SAMP=4;
+let vmap=null,vsW=0,vsH=0;
+
+// ══════════════════════════════════════
+// VORONOI COMPUTE
+// ══════════════════════════════════════
+function computeV(){
+  if(!nodes.length){vmap=null;neighborMap.clear();return;}
+  vsW=Math.ceil(VW/SAMP);vsH=Math.ceil(VH/SAMP);
+  vmap=new Int16Array(vsW*vsH).fill(-1);
+  for(let sy=0;sy<vsH;sy++){
+    for(let sx=0;sx<vsW;sx++){
+      const px=sx*SAMP+SAMP*.5,py=sy*SAMP+SAMP*.5;
+      let md=Infinity,mi=-1;
+      for(let i=0;i<nodes.length;i++){
+        const n=nodes[i];
+        const d=(px-n.x)**2+(py-n.y)**2;
+        if(d<md){md=d;mi=i;}
+      }
+      vmap[sy*vsW+sx]=mi;
+    }
+  }
+  buildNeighborMap();
+}
+
+function buildNeighborMap(){
+  neighborMap.clear();
+  nodes.forEach(n=>neighborMap.set(n.id,new Set()));
+  const edgeLen=new Map();
+  for(let sy=0;sy<vsH-1;sy++){
+    for(let sx=0;sx<vsW-1;sx++){
+      const c=vmap[sy*vsW+sx];
+      const r=vmap[sy*vsW+sx+1];
+      const d=vmap[(sy+1)*vsW+sx];
+      if(c>=0&&r>=0&&c!==r){
+        const k=Math.min(c,r)+'_'+Math.max(c,r);
+        edgeLen.set(k,(edgeLen.get(k)||0)+1);
+      }
+      if(c>=0&&d>=0&&c!==d){
+        const k=Math.min(c,d)+'_'+Math.max(c,d);
+        edgeLen.set(k,(edgeLen.get(k)||0)+1);
+      }
+    }
+  }
+  edgeLen.forEach((len,key)=>{
+    const [ai,bi]=key.split('_').map(Number);
+    if(ai<nodes.length&&bi<nodes.length){
+      neighborMap.get(nodes[ai].id)?.add({id:nodes[bi].id,len});
+      neighborMap.get(nodes[bi].id)?.add({id:nodes[ai].id,len});
+    }
+  });
+  updateNeighborStat();
+}
+
+function getNeighbors(node){
+  return [...(neighborMap.get(node.id)||[])].map(nb=>({node:nodes.find(n=>n.id===nb.id),len:nb.len})).filter(x=>x.node);
+}
+
+function updateNeighborStat(){
+  if(selNode){
+    const nb=getNeighbors(selNode);
+    document.getElementById('tNeighStat').style.display='';
+    document.getElementById('sNb').textContent=nb.length+' cells';
+  } else {
+    document.getElementById('tNeighStat').style.display='none';
+  }
+}
+
+// ══════════════════════════════════════
+// RIPPLE SYSTEM
+// ══════════════════════════════════════
+function fireRipple(nodeId,strength=1){
+  const visited=new Set([nodeId]);
+  const queue=[{id:nodeId,t:0,s:strength}];
+  while(queue.length){
+    const{id,t,s}=queue.shift();
+    const ni=nodes.findIndex(n=>n.id===id);
+    if(ni<0)continue;
+    ripples.push({ni,t0:performance.now()+t*80,strength:s,duration:600+t*40});
+    if(s>.08){
+      const nbs=getNeighbors(nodes[ni]);
+      nbs.forEach(({node:nb,len})=>{
+        if(!visited.has(nb.id)){
+          visited.add(nb.id);
+          const decay=len/200;
+          queue.push({id:nb.id,t:t+1,s:s*(0.35+decay*.4)});
+        }
+      });
+    }
+  }
+  if(!rippleRunning)runRipples();
+}
+let rippleRunning=false;
+function runRipples(){
+  rippleRunning=true;
+  const go=()=>{
+    const now=performance.now();
+    ripples=ripples.filter(r=>now<r.t0+r.duration);
+    if(ripples.length>0){redrawV();requestAnimationFrame(go);}
+    else{rippleRunning=false;redrawV();}
+  };requestAnimationFrame(go);
+}
+
+// ══════════════════════════════════════
+// PHYSICS
+// ══════════════════════════════════════
+let physRunning=false;
+function physTick(){
+  let dirty=false;
+  nodes.forEach(n=>{
+    if(Math.abs(n.vx)>.1||Math.abs(n.vy)>.1){
+      n.x+=n.vx;n.y+=n.vy;n.vx*=.78;n.vy*=.78;
+      n.x=Math.max(40,Math.min(VW-40,n.x));
+      n.y=Math.max(40,Math.min(VH-40,n.y));
+      dirty=true;
+    }
+  });
+  if(dirty){computeV();redrawV();requestAnimationFrame(physTick);}
+  else physRunning=false;
+}
+function startPhys(){if(!physRunning){physRunning=true;requestAnimationFrame(physTick);}}
+function hapticHit(n,fx,fy,str=10){
+  const dx=n.x-fx,dy=n.y-fy,d=Math.sqrt(dx*dx+dy*dy)||1;
+  n.vx+=(dx/d)*str;n.vy+=(dy/d)*str;startPhys();
+}
+function hapticSpawn(n,str=5){n.vx=(Math.random()-.5)*str;n.vy=(Math.random()-.5)*str;startPhys();}
+
+// ══════════════════════════════════════
+// DRAW ENGINE
+// ══════════════════════════════════════
+function redrawV(){
+  ctx.clearRect(0,0,VW,VH);
+  drawGrid();
+  if(vmap&&nodes.length>0){
+    drawCells();
+    drawBorders();
+    drawAffinityPaths();
+    drawContextFlow();
+    drawLabels();
+  }
+  drawEdgeLines();
+  drawRipples();
+  drawSymbols();
+  if(aiming)drawAim();
+  if(arrowAnim)drawArrow();
+}
+
+function drawContextFlow() {
+    if (!selNode) return;
+    const now = performance.now();
+    const nb = getNeighbors(selNode);
+    if (!nb.length) return;
+    const maxLen = Math.max(...nb.map(x => x.len), 1);
+    
+    nb.forEach(({node, len}) => {
+        const aff = len / maxLen;
+        const count = Math.ceil(aff * 6);
+        for (let i = 0; i < count; i++) {
+            const t = ((now * 0.0008 * (0.6 + aff)) + (i / count)) % 1;
+            const x = selNode.x + (node.x - selNode.x) * t;
+            const y = selNode.y + (node.y - selNode.y) * t;
+            const alpha = Math.sin(t * Math.PI) * aff * 0.5;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 1.2 / wtScaleCur, 0, Math.PI * 2);
+            ctx.fillStyle = meshMode === 'grit' ? hsl(40, 70, 75, alpha) : hsl(160, 75, 75, alpha);
+            ctx.fill();
+        }
+    });
+}
+
+function drawSymbols() {
+    ctx.save();
+    ctx.font = '32px serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.globalAlpha = 0.12;
+    if (meshMode === 'grit') {
+        ctx.fillStyle = '#d4a84b';
+        ctx.fillText('🪞', VW - 30, VH - 30);
+    } else {
+        ctx.fillStyle = '#00ff88';
+        ctx.fillText('🪔', VW - 30, VH - 30);
+    }
+    ctx.restore();
+}
+
+function drawGrid(){
+  ctx.save();ctx.strokeStyle='rgba(40,65,100,.08)';ctx.lineWidth=1;
+  const g=24;
+  for(let x=0;x<VW;x+=g){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VH);ctx.stroke();}
+  for(let y=0;y<VH;y+=g){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VW,y);ctx.stroke();}
+  ctx.restore();
+}
+
+function drawCells(){
+  const now=performance.now();
+  for(let sy=0;sy<vsH;sy++){
+    for(let sx=0;sx<vsW;sx++){
+      const ni=vmap[sy*vsW+sx];if(ni<0)continue;
+      const n=nodes[ni];
+      const h=opH(n.op);
+      const isSel=selNode===n,isHov=hovNode===n;
+      const px=sx*SAMP,py=sy*SAMP;
+      const d2=(px-n.x)**2+(py-n.y)**2;
+      const maxR=(200)**2;
+      const fade=Math.max(0,1-d2/maxR);
+      let rip=0;
+      ripples.forEach(r=>{if(r.ni===ni){const t=(now-r.t0)/r.duration;if(t>=0&&t<1)rip+=r.strength*(1-t);}});
+      const baseA=.06+(isSel?.1:0)+(isHov?.05:0)+rip*.15;
+      const lum=30+(isSel?10:0)+rip*15;
+      ctx.fillStyle=hsl(h,60,lum,baseA*fade);
+      ctx.fillRect(px,py,SAMP,SAMP);
+    }
+  }
+}
+
+function drawBorders(){
+  const now=performance.now();
+  for(let sy=0;sy<vsH-1;sy++){
+    for(let sx=0;sx<vsW-1;sx++){
+      const c=vmap[sy*vsW+sx];
+      const r=vmap[sy*vsW+sx+1];
+      const d=vmap[(sy+1)*vsW+sx];
+      const x=sx*SAMP,y=sy*SAMP;
+      if(c!==r&&c>=0&&r>=0){
+        const nA=nodes[c],nB=nodes[r];
+        const isSel=(selNode===nA||selNode===nB);
+        const a=isSel?.4:.18;
+        const hM=(opH(nA.op)+opH(nB.op))/2;
+        ctx.strokeStyle=hsl(hM,70,isSel?70:55,a);
+        ctx.lineWidth=isSel?1.5:.5;
+        ctx.beginPath();ctx.moveTo(x+SAMP,y);ctx.lineTo(x+SAMP,y+SAMP);ctx.stroke();
+      }
+      if(c!==d&&c>=0&&d>=0){
+        const nA=nodes[c],nB=nodes[d];
+        const isSel=(selNode===nA||selNode===nB);
+        const a=isSel?.4:.18;
+        const hM=(opH(nA.op)+opH(nB.op))/2;
+        ctx.strokeStyle=hsl(hM,70,isSel?70:55,a);
+        ctx.lineWidth=isSel?1.5:.5;
+        ctx.beginPath();ctx.moveTo(x,y+SAMP);ctx.lineTo(x+SAMP,y+SAMP);ctx.stroke();
+      }
+    }
+  }
+}
+
+function drawAffinityPaths(){
+  if(!selNode)return;
+  const nb=getNeighbors(selNode);
+  const maxLen=Math.max(...nb.map(x=>x.len),1);
+  nb.forEach(({node,len})=>{
+    if(!node)return;
+    const aff=len/maxLen;
+    ctx.save();
+    ctx.strokeStyle=opC(selNode.op,65,aff*.3);
+    ctx.lineWidth=aff*3+.5;
+    ctx.beginPath();ctx.moveTo(selNode.x,selNode.y);ctx.lineTo(node.x,node.y);ctx.stroke();
+    ctx.restore();
+  });
+}
+
+function drawLabels(){
+  nodes.forEach((n,ni)=>{
+    const h=opH(n.op);
+    const isSel=selNode===n,isHov=hovNode===n;
+    ctx.save();
+    const dotR=isSel?7:5;
+    ctx.beginPath();ctx.arc(n.x,n.y,dotR,0,Math.PI*2);
+    ctx.fillStyle=hsl(h,75,isSel?75:60,.8);ctx.fill();
+    
+    ctx.font=`600 9px 'IBM Plex Mono',monospace`;
+    ctx.textAlign='center';
+    ctx.fillStyle=hsl(h,70,75,isSel?1:.6);
+    ctx.fillText(OP_LBL[n.op]||n.op,n.x,n.y-14);
+
+    const prev=n.text.length>24?n.text.slice(0,24)+'…':n.text;
+    ctx.font=`italic 11px 'Cormorant Garamond',serif`;
+    ctx.fillStyle=`rgba(200,225,240,${isSel?0.9:0.6})`;
+    ctx.fillText(prev,n.x,n.y+6);
+    ctx.restore();
+  });
+}
+
+function drawEdgeLines(){
+  ctx.save();ctx.setLineDash([2,10]);
+  edges.forEach(e=>{
+    const a=e.from,b=e.to;if(!a||!b)return;
+    ctx.strokeStyle='rgba(212,168,75,.1)';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  });
+  ctx.setLineDash([]);ctx.restore();
+}
+
+// ══════════════════════════════════════
+// AIM & ARROW
+// ══════════════════════════════════════
+function arcCtrl(x1,y1,x2,y2){
+  const dx=x2-x1,dy=y2-y1,d=Math.sqrt(dx*dx+dy*dy)||1;
+  const h=Math.min(d*.3,140);
+  return{x:(x1+x2)/2+(-dy/d)*h,y:(y1+y2)/2+(dx/d)*h};
+}
+
+function drawAim(){
+  const {sx,sy,ex,ey}=aiming;
+  const cp=arcCtrl(sx,sy,ex,ey);
+  ctx.save();
+  ctx.setLineDash([4,8]);ctx.strokeStyle='rgba(212,168,75,.25)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(cp.x,cp.y,ex,ey);ctx.stroke();
+  ctx.restore();
+}
+
+function drawArrow(){
+  if(!arrowAnim)return;
+  const{x1,y1,x2,y2,t}=arrowAnim;
+  const cp=arcCtrl(x1,y1,x2,y2);
+  const s=Math.min(t,1);
+  const bx=(1-s)**2*x1+2*(1-s)*s*cp.x+s**2*x2;
+  const by=(1-s)**2*y1+2*(1-s)*s*cp.y+s**2*y2;
+  ctx.save();
+  ctx.fillStyle='#d4a84b';ctx.beginPath();ctx.arc(bx,by,3,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+function launchArrow(x1,y1,x2,y2,fromN,toN,cb){
+  arrowAnim={x1,y1,x2,y2,t:0};
+  const run=()=>{
+    arrowAnim.t+=0.05;redrawV();
+    if(arrowAnim.t<1)requestAnimationFrame(run);
+    else{arrowAnim=null;cb&&cb();}
+  };run();
+}
+
+// ══════════════════════════════════════
+// WORLD MANIFEST
+// ══════════════════════════════════════
+function toggleWorldManifest() {
+    const p = document.getElementById('worldManifest');
+    p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
+    if(p.style.display === 'flex') updateWorldManifest();
+}
+
+function updateWorldManifest() {
+    const s = document.getElementById('wmSearch').value.toLowerCase();
+    const list = document.getElementById('wmList');
+    const filtered = GLOBAL_SYNTHESIS.worlds.filter(w => w.name.toLowerCase().includes(s));
+    list.innerHTML = filtered.map(w => `
+        <div class="wm-item">
+            <div class="wm-name">${w.name}</div>
+            <div class="wm-desc">${(w.meta.description||'').slice(0,60)}...</div>
+            <button class="wm-manifest-btn" onclick="spawnWorldManifest('${w.uid}')">Manifest</button>
+        </div>
+    `).join('');
+}
+
+function spawnWorldManifest(uid) {
+    const w = GLOBAL_SYNTHESIS.worlds.find(x => x.uid === uid);
+    if(!w) return;
+    const cx = 100+Math.random()*(VW-200), cy = 100+Math.random()*(VH-200);
+    const hub = addNode(w.meta.description || w.name, 'site', cx, cy);
+    hapticSpawn(hub, 10);
+    w.locations.slice(0,3).forEach((loc,i)=>{
+        const ang = i*2.1;
+        addNode(loc.description||loc.id, 'site', cx+Math.cos(ang)*150, cy+Math.sin(ang)*150);
+    });
+    toggleWorldManifest();
+}
+
+// ══════════════════════════════════════
+// NODE & CHUNK MGMT
+// ══════════════════════════════════════
+function mkNode(text,op,x,y){return{id:++nid,text,op,x,y,vx:0,vy:0,depth:0,runAnim:0};}
+function addNode(text,op,x,y){
+  const n=mkNode(text,op,x,y);nodes.push(n);
+  document.getElementById('sN').textContent=nodes.length;
+  addChunk(text,op,n.id,null,null,false);
+  computeV();redrawV();return n;
+}
+
+function addChunk(text,op,nodeId,parentCid,srcNid,streaming){
+  const c={id:++cid,nodeId,text,op,depth:0,parentCid,srcNid,ts:Date.now(),complete:!streaming,streaming};
+  if(parentCid!=null){const p=chunks.find(x=>x.id===parentCid);if(p)c.depth=p.depth+1;}
+  chunks.push(c);renderWT();return c;
+}
+
+function renderWT(){
+  const list=document.getElementById('wtList');list.innerHTML='';
+  chunks.forEach(c=>{
+    const div=document.createElement('div');div.className='chunk'+(selNode?.id===c.nodeId?' active':'');
+    div.innerHTML=`<div class="chunk-spine" style="background:${opC(c.op,55)}"></div>
+      <div class="chunk-body">
+        <div class="chunk-head"><span class="chunk-badge" style="color:${opC(c.op,65)}">${OP_LBL[c.op]||c.op}</span></div>
+        <div class="chunk-text">${c.text}</div>
+      </div>`;
+    div.onclick=()=>{const n=nodes.find(x=>x.id===c.nodeId);if(n)selectNode(n);};
+    list.appendChild(div);
+  });
+}
+
+function selectNode(n){selNode=n;computeV();redrawV();updateNeighborStat();renderWT();scrollToChunk(n.id);}
+function scrollToChunk(nid){const el=document.querySelector(`.chunk[data-nid="${nid}"]`);if(el)el.scrollIntoView({behavior:'smooth'});}
+
+// ══════════════════════════════════════
+// OPERATORS
+// ══════════════════════════════════════
+async function runOp(fromNode,toNode){
+  const op=toNode.op;
+  const sys=buildSys(op, meshMode);
+  const userMsg=fromNode.text;
+  toNode.runAnim=.01;startPhys();
+  const rx=toNode.x+150+Math.random()*50, ry=toNode.y+Math.random()*100-50;
+  const rn=addNode('...',op,rx,ry);
+  edges.push({from:toNode,to:rn});
+  try{
+    const res = await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${API_KEY}`},
+      body:JSON.stringify({model:OPENAI_MODEL,messages:[{role:'system',content:sys},{role:'user',content:userMsg}]})
+    });
+    const data=await res.json();
+    const text=data.choices[0].message.content;
+    rn.text=text;
+    const ch = chunks.find(x=>x.nodeId===rn.id);if(ch)ch.text=text;
+    rn.runAnim=0;toNode.runAnim=0;renderWT();redrawV();
+  }catch(err){rn.text='Error: '+err.message;renderWT();}
+}
+
+// ══════════════════════════════════════
+// INTERACTION (Provided Template Base)
+// ══════════════════════════════════════
+canvas.addEventListener('mousedown',e=>{
+  const n=nodeAt(e.clientX,e.clientY);if(!n)return;
+  if(mode==='fire'||e.shiftKey){aiming={srcNode:n,sx:n.x,sy:n.y,ex:e.clientX,ey:e.clientY};}
+  else{dragging=n;dox=e.clientX-n.x;doy=e.clientY-n.y;selectNode(n);}
+});
+canvas.addEventListener('mousemove',e=>{
+  const n=nodeAt(e.clientX,e.clientY);
+  if(dragging){dragging.x=e.clientX-dox;dragging.y=e.clientY-doy;computeV();redrawV();}
+  if(aiming){aiming.ex=e.clientX;aiming.ey=e.clientY;redrawV();}
+});
+canvas.addEventListener('mouseup',e=>{
+  if(dragging){dragging=null;}
+  if(aiming){
+    const s={...aiming};aiming=null;
+    const tgt=nodeAt(e.clientX,e.clientY);
+    if(tgt&&tgt!==s.srcNode){
+      launchArrow(s.sx,s.sy,tgt.x,tgt.y,s.srcNode,tgt,()=>{
+        edges.push({from:s.srcNode,to:tgt});runOp(s.srcNode,tgt);
+      });
+    }
+  }
+});
+canvas.addEventListener('click',e=>{const n=nodeAt(e.clientX,e.clientY);if(n)selectNode(n);else selNode=null;computeV();redrawV();renderWT();});
+function nodeAt(x,y){return nodes.find(n=>(x-n.x)**2+(y-n.y)**2<80*80);}
+function resize(){VW=canvas.width=document.getElementById('vpanel').offsetWidth;VH=canvas.height=document.getElementById('vpanel').offsetHeight;computeV();redrawV();}
+window.addEventListener('resize',resize);
+function saveApiKey(){API_KEY=document.getElementById('api-key-input').value.trim();localStorage.setItem('stained_plus_openai_key',API_KEY);}
+function bKey(e){if(e.key==='Enter')spawnInput();}
+function spawnInput(){const v=document.getElementById('bIn').value.trim();if(!v)return;addNode(v,curOp,VW/2,VH/2);document.getElementById('bIn').value='';}
+function clearAll(){nodes=[];edges=[];chunks=[];nid=0;cid=0;selNode=null;renderWT();computeV();redrawV();}
+function wtZ(f){if(f===0)wtScaleCur=1;else wtScaleCur*=f;document.getElementById('wtList').style.transform=`scale(${wtScaleCur})`;document.getElementById('wtList').style.transformOrigin='top left';}
+function togPicker(){const p=document.getElementById('opPicker');p.style.display=p.style.display==='flex'?'none':'flex';}
+function pickOp(op,b){curOp=op;document.querySelectorAll('.op-p').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');document.getElementById('bOp').textContent=OP_LBL[op]+' ▾';document.getElementById('sO').textContent=OP_LBL[op];togPicker();}
+function setMode(m){mode=m;document.getElementById('tbEx').classList.toggle('on',m==='explore');document.getElementById('tbFi').classList.toggle('on',m==='fire');}
+
+resize();
+addNode('Seed Concept: The future is a meshwork of contested sites.', 'site', VW/2, VH/2);
+</script>
+</body>
+</html>

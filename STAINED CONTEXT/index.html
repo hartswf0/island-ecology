@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stained Context — The Anatomical Register</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        html, body {
+            width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden;
+            background: #020203; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #4a5568;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;700;900&display=swap');
+
+        #grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            min-height: 100vh;
+            border: 20px solid #000;
+        }
+
+        .axis {
+            border-right: 1px solid #e53e3e;
+            background: #000;
+            padding: 40px;
+            display: flex; flex-direction: column; justify-content: space-between;
+            position: sticky; top: 0; height: calc(100vh - 40px);
+        }
+
+        .ledger {
+            display: flex; flex-direction: column; position: relative;
+        }
+
+        .intro-cell {
+            padding: 40px 60px; border-bottom: 1px solid #1a202c; background: #050508;
+        }
+
+        .md-text {
+            font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.8; color: #a0aec0;
+            border-left: 2px solid #2d3748; padding-left: 20px; max-width: 800px;
+        }
+
+        h1 { font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 900; letter-spacing: -0.02em; color: #fff; line-height: 1.1; margin-bottom: 20px; text-transform: uppercase;}
+        .sub { font-size: 12px; color: #718096; line-height: 1.6; max-width: 90%; margin-bottom: 40px; }
+        
+        .cost-label { color: #e53e3e; text-transform: uppercase; font-size: 10px; font-weight: 600; letter-spacing: 0.15em; margin-bottom: 10px;}
+        
+        .warn-btn {
+            display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: #718096; text-decoration: none; transition: color 0.1s;
+        }
+        .warn-btn:hover { color: #fff; }
+
+        .html-worms {
+            display: flex; flex-wrap: wrap; gap: 8px; padding: 40px 60px;
+        }
+
+        .worm {
+            display: inline-block; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700; text-transform: uppercase;
+            color: #e2e8f0; text-decoration: none; padding: 16px 24px; border: 1px solid #2d3748;
+            background: #000; transition: border-color 0.1s, color 0.1s, transform 0.1s; letter-spacing: 0.05em;
+        }
+        .worm:hover { color: #f56565; border-color: #f56565; transform: translateY(-2px); }
+        .worm .meta { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #718096; text-transform: none; letter-spacing: 0; margin-top: 6px; font-weight: 400;}
+
+        .stop-factor {
+            position: absolute; bottom: 40px; right: 40px; text-align: right;
+            font-family: 'Inter', sans-serif; font-weight: 900; font-size: 80px; letter-spacing: -0.04em;
+            color: #050508; pointer-events: none; z-index: 0;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media(max-width:900px){
+            #grid{grid-template-columns:1fr;border-width:8px}
+            .axis{position:relative;height:auto;border-right:none;border-bottom:1px solid #e53e3e;padding:24px 20px 16px}
+            h1{font-size:24px}
+            .sub{max-width:100%;font-size:11px}
+            .html-worms{padding:20px;gap:6px}
+            .worm{width:100%;font-size:13px;padding:14px 18px}
+            .worm .meta{font-size:9px}
+            .intro-cell{padding:24px 20px}
+            #ecology-container{position:static !important;height:auto !important;overflow:visible !important;min-height:auto !important}
+            #eco-vc,#eco-camera,#eco-hud{display:none !important}
+        }
+        @media(max-width:480px){
+            #grid{border-width:4px}
+            .axis{padding:16px 14px 12px}
+            h1{font-size:20px}
+            .sub{font-size:10px}
+            .html-worms{padding:14px 10px;gap:5px}
+            .worm{font-size:12px;padding:12px 14px}
+            .intro-cell{padding:16px 14px}
+        }
+
+    </style>
+</head>
+<body>
+    
+    <div id="grid">
+        <div class="axis">
+            <div>
+                <h1>The Anatomical Register</h1>
+                <div class="sub">Specialized fracturing. The topology broken into brutal, functional nodes. To navigate here is to accept the dismemberment of whole ideas. The text bleeds forward; you cannot look away.</div>
+                <div class="cost-label">Cost: Structural integrity.</div>
+            </div>
+            <div>
+                <a href="../index_of_indexes.html" class="warn-btn">↑ Ascend to Federal Index</a>
+            </div>
+        </div>
+
+        <div class="ledger" id="ecology-container" style="position:relative; min-height:100vh; overflow-y:auto; background:#050508;">
+            <!-- Progressive Enhancement Fallback -->
+            <div class="fallback-list" style="padding: 60px; color: #e2e8f0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; gap: 10px;">
+                <h2 style="font-weight:900; text-transform:uppercase; color:#9dd8e8; letter-spacing:-0.02em; margin:0 0 20px 0; font-size:18px;">Stained Counties [Fallback Mode]</h2>
+                <a href="stained-glass.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Stained Glass</a>
+                <a href="stained-glass-field.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Glass Field</a>
+                <a href="stained-atlas.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Atlas</a>
+                <a href="stained-clavicle.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Clavicle</a>
+                <a href="stained-sternum.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Sternum</a>
+                <a href="stained-rib.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Rib</a>
+                <a href="stained-lat.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Latissimus</a>
+                <a href="stained-bicep.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Bicep</a>
+                <a href="stained-radius.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Radius</a>
+                <a href="stained-carpal.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Carpal</a>
+                <a href="stained-bone.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Bone</a>
+                <a href="stained-tarsal.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Tarsal</a>
+                <a href="stained-skill.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Skill</a>
+                <a href="stained-plus.html" style="display:block; padding:16px; background:#08080c; border:1px solid #2d3748; color:#fff; text-decoration:none; font-weight:600; font-size:14px; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#9dd8e8'" onmouseout="this.style.borderColor='#2d3748'">Plus</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="../d3-delaunay.min.js"></script>
+    <script src="../ecology-engine.js"></script>
+    <script>
+        const nodesData = [
+            { id: 'c1', title: 'Stained Glass', url: 'stained-glass.html', group: 'STAINED CONTEXT' },
+            { id: 'c2', title: 'Glass Field', url: 'stained-glass-field.html', group: 'STAINED CONTEXT' },
+            { id: 'c3', title: 'Atlas', url: 'stained-atlas.html', group: 'STAINED CONTEXT' },
+            { id: 'c4', title: 'Clavicle', url: 'stained-clavicle.html', group: 'STAINED CONTEXT' },
+            { id: 'c5', title: 'Sternum', url: 'stained-sternum.html', group: 'STAINED CONTEXT' },
+            { id: 'c6', title: 'Rib', url: 'stained-rib.html', group: 'STAINED CONTEXT' },
+            { id: 'c7', title: 'Latissimus', url: 'stained-lat.html', group: 'STAINED CONTEXT' },
+            { id: 'c8', title: 'Bicep', url: 'stained-bicep.html', group: 'STAINED CONTEXT' },
+            { id: 'c9', title: 'Radius', url: 'stained-radius.html', group: 'STAINED CONTEXT' },
+            { id: 'c10', title: 'Carpal', url: 'stained-carpal.html', group: 'STAINED CONTEXT' },
+            { id: 'c11', title: 'Bone', url: 'stained-bone.html', group: 'STAINED CONTEXT' },
+            { id: 'c12', title: 'Tarsal', url: 'stained-tarsal.html', group: 'STAINED CONTEXT' },
+            { id: 'c13', title: 'Skill', url: 'stained-skill.html', group: 'STAINED CONTEXT' },
+            { id: 'c14', title: 'Plus', url: 'stained-plus.html', group: 'STAINED CONTEXT' }
+        ];
+
+        window.onload = () => {
+            if (window.innerWidth > 960) {
+                const engine = new EcologyEngine('ecology-container', nodesData);
+            }
+        };
+    </script>
+</body>
+</html>

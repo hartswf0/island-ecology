@@ -1,0 +1,1962 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Design Fiction // Voronoi Field Engine</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #060a10;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: #7db8c8
+        }
+
+        #mainCanvas {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            cursor: crosshair
+        }
+
+        #overlayCanvas {
+            position: fixed;
+            inset: 0;
+            z-index: 3;
+            pointer-events: none
+        }
+
+        #hud {
+            position: fixed;
+            inset: 0;
+            z-index: 4;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column
+        }
+
+        /* TOP BAR */
+        .top-bar {
+            height: 36px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(100, 180, 200, .15);
+            background: rgba(6, 10, 16, .93);
+            flex-shrink: 0;
+            padding: 0 12px;
+            gap: 0;
+            pointer-events: all
+        }
+
+        .top-logo {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .15em;
+            color: #ffd700;
+            text-transform: uppercase;
+            padding-right: 12px;
+            border-right: 1px solid rgba(255, 215, 0, .2);
+            white-space: nowrap
+        }
+
+        .top-stat {
+            display: flex;
+            flex-direction: column;
+            padding: 0 12px;
+            border-right: 1px solid rgba(100, 180, 200, .1)
+        }
+
+        .top-stat-lbl {
+            font-size: 7px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: rgba(100, 180, 200, .4);
+            margin-bottom: 1px
+        }
+
+        .top-stat-val {
+            font-size: 10px;
+            font-weight: 600;
+            color: #9dd8e8;
+            letter-spacing: .04em
+        }
+
+        .top-right {
+            margin-left: auto;
+            display: flex;
+            gap: 0
+        }
+
+        .top-btn {
+            background: none;
+            border: none;
+            border-left: 1px solid rgba(100, 180, 200, .1);
+            color: rgba(100, 180, 200, .4);
+            font-family: inherit;
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            padding: 0 11px;
+            height: 36px;
+            cursor: pointer;
+            transition: color .1s;
+            pointer-events: all
+        }
+
+        .top-btn:hover {
+            color: #9dd8e8
+        }
+
+        .top-btn.active {
+            color: #ffd700;
+            border-bottom: 2px solid #ffd700
+        }
+
+        /* MAIN ROW */
+        .main-row {
+            flex: 1;
+            display: flex;
+            overflow: hidden
+        }
+
+        /* LEFT NAV */
+        .left-nav {
+            width: 36px;
+            border-right: 1px solid rgba(100, 180, 200, .1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 6px 0;
+            gap: 4px;
+            background: rgba(6, 10, 16, .85);
+            pointer-events: all;
+            flex-shrink: 0
+        }
+
+        .lnav-btn {
+            width: 28px;
+            height: 28px;
+            background: none;
+            border: 1px solid rgba(100, 180, 200, .1);
+            color: rgba(100, 180, 200, .4);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all .15s;
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        .lnav-btn:hover,
+        .lnav-btn.active {
+            border-color: rgba(100, 180, 200, .5);
+            color: #9dd8e8;
+            background: rgba(100, 180, 200, .06)
+        }
+
+        .lnav-sep {
+            width: 20px;
+            height: 1px;
+            background: rgba(100, 180, 200, .1);
+            margin: 2px 0
+        }
+
+        .world-area {
+            flex: 1;
+            position: relative;
+            pointer-events: none
+        }
+
+        /* XANADU RIGHT PANEL */
+        .xanadu-panel {
+            width: 290px;
+            border-left: 1px solid rgba(100, 180, 200, .12);
+            background: linear-gradient(90deg, rgba(6, 10, 16, 0) 0%, rgba(6, 10, 16, .93) 18%);
+            pointer-events: all;
+            padding: 10px 8px 10px 28px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            flex-shrink: 0
+        }
+
+        .xanadu-panel::-webkit-scrollbar {
+            width: 2px
+        }
+
+        .xanadu-panel::-webkit-scrollbar-thumb { background: rgba(100, 180, 200, .2); }
+
+        /* RESIZER */
+        .x-resizer {
+            position: absolute; left: 0; top: 0; width: 4px; height: 100%;
+            cursor: col-resize; background: rgba(100, 180, 200, 0.05);
+            transition: background 0.2s; z-index: 5;
+        }
+        .x-resizer:hover { background: rgba(100, 180, 200, 0.2); }
+
+        /* API HUD */
+        #api-inline { display: flex; align-items: center; gap: 6px; pointer-events: all; margin-left:10px; border-left: 1px solid rgba(100, 180, 200, .1); padding-left: 10px; }
+        #api-key-input { 
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(100, 180, 200, 0.15); 
+            color: #ffd700; font-family: inherit; font-size: 9px; padding: 4px 8px; width: 120px; outline: none;
+        }
+        #api-key-input:focus { border-color: #ffd700; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #5d6a81; transition: all 0.3s; }
+        .status-dot.ok { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+        .status-dot.busy { background: #ffb000; box-shadow: 0 0 8px #ffb000; animation: pulse 1s infinite; }
+        .status-dot.err { background: #ff4d5d; box-shadow: 0 0 8px #ff4d5d; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        
+
+        /* NODE CARDS */
+        .x-card {
+            background: rgba(8, 12, 18, .97);
+            border: 1px solid rgba(100, 180, 200, .15);
+            padding: 8px;
+            border-radius: 2px;
+            position: relative;
+            pointer-events: all;
+            font-size: 9px;
+            line-height: 1.5;
+            color: #b4dceb;
+            transition: border-color .18s, transform .18s;
+            cursor: pointer
+        }
+
+        .x-card:hover {
+            border-color: rgba(100, 180, 200, .5);
+            transform: translateX(-3px)
+        }
+
+        .x-card.active {
+            border-color: #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, .18)
+        }
+
+        .x-card.collapsing {
+            border-color: rgba(255, 80, 60, .4);
+            opacity: .6
+        }
+
+        .x-head {
+            font-size: 7px;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: rgba(100, 180, 200, .5);
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 4px
+        }
+
+        .x-head-op {
+            color: #ffd700;
+            font-weight: 600
+        }
+
+        .x-regime-badge {
+            font-size: 6px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            padding: 1px 4px;
+            border: 1px solid currentColor;
+            border-radius: 1px;
+            white-space: nowrap
+        }
+
+        .x-body {
+            color: rgba(200, 230, 240, .82);
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 100px;
+            overflow: hidden;
+            margin-bottom: 5px
+        }
+
+        .x-worldtext {
+            font-size: 8px;
+            font-style: italic;
+            margin-bottom: 5px
+        }
+
+        .x-physics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3px;
+            margin-top: 4px
+        }
+
+        .x-phys-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 1px
+        }
+
+        .x-phys-lbl {
+            font-size: 6px;
+            color: rgba(100, 180, 200, .4);
+            letter-spacing: .08em;
+            text-transform: uppercase
+        }
+
+        .x-phys-track {
+            height: 3px;
+            background: rgba(0, 0, 0, .5);
+            border-radius: 999px;
+            overflow: hidden
+        }
+
+        .x-phys-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width .3s
+        }
+
+        .x-connector {
+            position: absolute;
+            left: -7px;
+            top: 18px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%
+        }
+
+        .x-layer {
+            font-size: 7px;
+            color: rgba(100, 180, 200, .4);
+            margin-top: 3px;
+            border-left: 2px solid rgba(100, 180, 200, .15);
+            padding-left: 4px
+        }
+
+        /* SECTIONS */
+        .x-sections { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+        .x-section { 
+            background: rgba(100, 180, 200, 0.03); border: 1px solid rgba(100, 180, 200, 0.08);
+            padding: 8px; border-radius: 2px; position: relative;
+        }
+        .x-section:hover { background: rgba(100, 180, 200, 0.06); border-color: rgba(100, 180, 200, 0.2); }
+        .x-sect-title { font-weight: 600; font-size: 8px; color: #ffd700; margin-bottom: 4px; letter-spacing: 0.05em; }
+        .x-sect-body { font-size: 8.5px; line-height: 1.4; color: rgba(200, 230, 240, 0.8); }
+        .x-sect-seed { 
+            position: absolute; top: 6px; right: 6px; opacity: 0;
+            background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.3);
+            color: #ffd700; font-size: 7px; font-weight: 600; padding: 2px 5px; cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .x-section:hover .x-sect-seed { opacity: 1; }
+
+        /* ECO SECTION */
+        .eco-section {
+            background: rgba(8, 12, 18, .8);
+            border: 1px solid rgba(100, 180, 200, .12);
+            padding: 7px;
+            border-radius: 2px
+        }
+
+        .eco-head {
+            font-size: 7px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: rgba(100, 180, 200, .5);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px
+        }
+
+        .eco-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0
+        }
+
+        .eco-text {
+            font-size: 8px;
+            line-height: 1.5;
+            color: rgba(200, 230, 240, .75)
+        }
+
+        .panel-section-lbl {
+            font-size: 7px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: rgba(100, 180, 200, .3);
+            margin: 4px 0 3px;
+            border-bottom: 1px solid rgba(100, 180, 200, .07);
+            padding-bottom: 2px
+        }
+
+        /* BOTTOM BAR */
+        .bottom-row {
+            height: 44px;
+            border-top: 1px solid rgba(100, 180, 200, .1);
+            display: flex;
+            align-items: stretch;
+            background: rgba(6, 10, 16, .92);
+            pointer-events: all
+        }
+
+        .b-input {
+            flex: 1;
+            background: none;
+            border: none;
+            color: rgba(200, 230, 240, .85);
+            font-family: inherit;
+            font-size: 11px;
+            font-style: italic;
+            padding: 0 14px;
+            outline: none;
+            letter-spacing: .02em
+        }
+
+        .b-input::placeholder {
+            color: rgba(100, 180, 200, .22)
+        }
+
+        .b-op {
+            font-family: inherit;
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            background: none;
+            border: none;
+            border-left: 1px solid rgba(100, 180, 200, .1);
+            color: rgba(100, 180, 200, .5);
+            padding: 0 11px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: color .1s
+        }
+
+        .b-op:hover {
+            color: #9dd8e8
+        }
+
+        .b-spawn {
+            font-family: inherit;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            background: rgba(255, 215, 0, .08);
+            border: none;
+            border-left: 1px solid rgba(255, 215, 0, .2);
+            color: rgba(255, 215, 0, .8);
+            padding: 0 14px;
+            cursor: pointer;
+            transition: all .12s
+        }
+
+        .b-spawn:hover {
+            background: rgba(255, 215, 0, .15);
+            color: #ffd700
+        }
+
+        /* OP PICKER */
+        #opPicker {
+            position: fixed;
+            bottom: 44px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(6, 10, 16, .97);
+            border: 1px solid rgba(100, 180, 200, .2);
+            display: none;
+            flex-wrap: wrap;
+            max-width: 520px;
+            pointer-events: all
+        }
+
+        .op-p {
+            font-family: inherit;
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            background: none;
+            border: none;
+            border-right: 1px solid rgba(100, 180, 200, .08);
+            border-bottom: 1px solid rgba(100, 180, 200, .08);
+            color: rgba(100, 180, 200, .35);
+            padding: 7px 11px;
+            cursor: pointer;
+            transition: all .1s
+        }
+
+        .op-p:hover {
+            background: rgba(100, 180, 200, .06);
+            color: #9dd8e8
+        }
+
+        .op-p.sel {
+            color: #ffd700
+        }
+
+        .op-p.t {
+            opacity: .6;
+            border-right-style: dashed
+        }
+
+        #help {
+            position: fixed;
+            bottom: 52px;
+            right: 12px;
+            z-index: 3;
+            font-size: 7px;
+            color: rgba(100, 180, 200, .18);
+            text-align: right;
+            line-height: 2;
+            letter-spacing: .04em;
+            pointer-events: none
+        }
+
+        /* WORLD MANIFEST PANEL */
+        .world-manifest-panel {
+            position: absolute;
+            left: 36px;
+            top: 0;
+            bottom: 0;
+            width: 320px;
+            background: rgba(6, 10, 16, 0.98);
+            border-right: 1px solid rgba(100, 180, 200, 0.2);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            pointer-events: all;
+            box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+        }
+        .wm-header {
+            padding: 12px;
+            border-bottom: 1px solid rgba(100, 180, 200, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 9px;
+            letter-spacing: 0.1em;
+            color: #ffd700;
+        }
+        .wm-close {
+            background: none; border: none; color: #7db8c8; cursor: pointer; font-size: 14px;
+        }
+        .wm-controls {
+            padding: 10px;
+            display: flex;
+            gap: 6px;
+            border-bottom: 1px solid rgba(100, 180, 200, 0.1);
+        }
+        #wmSearch {
+            flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(100, 180, 200, 0.15);
+            color: #9dd8e8; font-family: inherit; font-size: 9px; padding: 4px 8px; outline: none;
+        }
+        #wmSort {
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(100, 180, 200, 0.15);
+            color: #9dd8e8; font-family: inherit; font-size: 8px; outline: none;
+        }
+        .wm-list {
+            flex: 1; overflow-y: auto; padding: 4px 0;
+        }
+        .wm-item {
+            padding: 10px 12px; border-bottom: 1px solid rgba(100, 180, 200, 0.05);
+            cursor: pointer; transition: background 0.2s;
+        }
+        .wm-item:hover { background: rgba(100, 180, 200, 0.08); }
+        .wm-uid { font-size: 7px; color: #ffd700; font-family: var(--font-mono); }
+        .wm-name { font-size: 10px; font-weight: 600; margin-top: 2px; }
+        .wm-meta { font-size: 8px; color: rgba(100, 180, 200, 0.4); margin-top: 4px; line-height: 1.3; }
+        .wm-manifest-btn {
+            margin-top: 8px; background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.3);
+            color: #ffd700; font-size: 8px; font-weight: 600; padding: 3px 8px; cursor: pointer;
+            transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .wm-manifest-btn:hover { background: rgba(255, 215, 0, 0.2); }
+    </style>
+</head>
+
+<body>
+    <canvas id="mainCanvas"></canvas>
+    <canvas id="overlayCanvas"></canvas>
+
+    <div id="hud">
+        <div class="top-bar">
+            <span class="top-logo">⬡ Design Fiction // Field Engine</span>
+            <div class="top-stat">
+                <div class="top-stat-lbl">Mode</div>
+                <div class="top-stat-val" id="statMode">EXPLORE</div>
+            </div>
+            <div class="top-stat">
+                <div class="top-stat-lbl">Nodes</div>
+                <div class="top-stat-val" id="statNodes">0</div>
+            </div>
+            <div class="top-stat">
+                <div class="top-stat-lbl">Tick</div>
+                <div class="top-stat-val" id="statTick">0</div>
+            </div>
+            <div class="top-stat">
+                <div class="top-stat-lbl">Op</div>
+                <div class="top-stat-val" id="statOp">SITE</div>
+            </div>
+            <div class="top-stat"><div class="top-stat-lbl">Status</div><div class="top-stat-val" id="statStatus">READY</div></div>
+            <div id="api-inline">
+                <div id="dot-api" class="status-dot"></div>
+                <input type="password" id="api-key-input" placeholder="OpenAI Key..." onchange="saveApiKey()">
+            </div>
+            <div class="top-right">
+                <button class="top-btn" onclick="recenterCam()">HOME</button>
+                <button class="top-btn active" id="btnExplore" onclick="setMode('explore')">EXPLORE</button>
+                <button class="top-btn" id="btnFire" onclick="setMode('fire')">FIRE</button>
+                <button class="top-btn" onclick="runManualMind()">⚡ MINDS</button>
+                <button class="top-btn" onclick="runManualEco()">⚙ ECO</button>
+                <button class="top-btn" onclick="clearAll()">CLEAR</button>
+            </div>
+        </div>
+        <div class="main-row">
+            <div class="left-nav">
+                <button class="lnav-btn active" title="Voronoi view">⬡</button>
+                <div class="lnav-sep"></div>
+                <button class="lnav-btn" title="SITE" onclick="quickOp('site')">S</button>
+                <button class="lnav-btn" title="DIG" onclick="quickOp('archaeologist')">D</button>
+                <button class="lnav-btn" title="INFER" onclick="quickOp('analyst')">I</button>
+                <button class="lnav-btn" title="BUILD" onclick="quickOp('crate')">B</button>
+                <div class="lnav-sep"></div>
+                <button class="lnav-btn" title="APHORIST" onclick="quickOp('aphorist')">A</button>
+                <button class="lnav-btn" title="INVERTER" onclick="quickOp('inverter')">↑</button>
+                <button class="lnav-btn" title="PRAGMATIST" onclick="quickOp('pragmatist')">P</button>
+                <div class="lnav-sep"></div>
+                <button class="lnav-btn" title="MIND (node speak)" onclick="quickOp('mind')">◎</button>
+                <button class="lnav-btn" title="AXIOM" onclick="quickOp('axiom')">◆</button>
+                <div class="lnav-sep"></div>
+                <button class="lnav-btn" title="WORLD MANIFEST" onclick="toggleWorldManifest()">🐝</button>
+            </div>
+            <div id="worldManifest" class="world-manifest-panel">
+                <div class="wm-header">
+                    <span>WORLD MANIFEST // BEES ON A TRAIN</span>
+                    <button class="wm-close" onclick="toggleWorldManifest()">&times;</button>
+                </div>
+                <div class="wm-controls">
+                    <input type="text" id="wmSearch" placeholder="Search worlds..." oninput="updateWorldManifest()">
+                    <select id="wmSort" onchange="updateWorldManifest()">
+                        <option value="uid">Sort by UID</option>
+                        <option value="name">Sort by Name</option>
+                        <option value="entities">Sort by Complexity</option>
+                    </select>
+                </div>
+                <div id="wmList" class="wm-list"></div>
+            </div>
+            <div class="world-area" id="worldArea"></div>
+            <div class="xanadu-panel" id="xanaduCol" style="width: 290px;">
+                <div class="x-resizer" id="xResizer"></div>
+            </div>
+        </div>
+        <div class="bottom-row">
+            <input class="b-input" id="bInput"
+                placeholder="seed concept — ⌘↵ to spawn · right-click or middle-drag to pan · FIRE mode to connect nodes…"
+                onkeydown="bKey(event)">
+            <button class="b-op" id="bOp" onclick="toggleOpPicker()">SITE ▾</button>
+            <button class="b-spawn" onclick="spawnFromInput()">Spawn</button>
+        </div>
+    </div>
+
+    <div id="opPicker">
+        <button class="op-p sel" data-op="site" onclick="pickOp('site',this)">SITE</button>
+        <button class="op-p" data-op="archaeologist" onclick="pickOp('archaeologist',this)">DIG</button>
+        <button class="op-p" data-op="analyst" onclick="pickOp('analyst',this)">INFER</button>
+        <button class="op-p" data-op="crate" onclick="pickOp('crate',this)">BUILD</button>
+        <button class="op-p" data-op="hybrid" onclick="pickOp('hybrid',this)">HYBRID</button>
+        <button class="op-p" data-op="custom" onclick="pickOp('custom',this)">OPEN</button>
+        <button class="op-p t" data-op="aphorist" onclick="pickOp('aphorist',this)">APHORIST</button>
+        <button class="op-p t" data-op="pragmatist" onclick="pickOp('pragmatist',this)">PRAGMATIST</button>
+        <button class="op-p t" data-op="inverter" onclick="pickOp('inverter',this)">INVERTER</button>
+        <button class="op-p t" data-op="axiom" onclick="pickOp('axiom',this)">AXIOM</button>
+        <button class="op-p t" data-op="mind" onclick="pickOp('mind',this)">MIND</button>
+    </div>
+    <div id="help">right-click / middle-drag to pan<br>scroll to zoom · drag nodes<br>FIRE mode → drag node to connect
+    </div>
+
+    <!-- DATA LAYER -->
+    <script src="../BEES ON A TRAIN/synthesized_data.js"></script>
+
+    <script>
+        // ═══════════════════════════════════════════
+        // CONFIG
+        // ═══════════════════════════════════════════
+        const OP_LABELS = {
+            site: 'SITE', archaeologist: 'DIG', analyst: 'INFER', crate: 'BUILD',
+            hybrid: 'HYBRID', custom: 'OPEN', aphorist: 'APHORIST', pragmatist: 'PRAGMATIST',
+            inverter: 'INVERTER', axiom: 'AXIOM', mind: 'MIND', seed: 'SEED'
+        };
+        const OP_HUE = {
+            site: 200, archaeologist: 270, analyst: 150, crate: 170, hybrid: 0,
+            custom: 20, aphorist: 30, pragmatist: 10, inverter: 350, axiom: 200, mind: 260, seed: 200
+        };
+        const TRANSFORM_OPS = new Set(['aphorist', 'pragmatist', 'inverter']);
+
+        const REGIME_COLORS = {
+            arrival: '#00e5ff', bloom: '#00ff88', contamination: '#ff4d5d',
+            fracture: '#ff7b54', ritual: '#bd6dff', recovery: '#7dffbf',
+            scarcity: '#ffb000', silence: '#5e6b7f', panic: '#ff4cc6',
+            electrical: '#7ec8ff', outage: '#3a4555'
+        };
+        const REGIME_HUE = {
+            arrival: 190, bloom: 140, contamination: 350, fracture: 20,
+            ritual: 270, recovery: 155, scarcity: 45, silence: 210,
+            panic: 310, electrical: 200, outage: 220
+        };
+        const PHY = {
+            physicsMs: 380, mindsMs: 9500, ecoMs: 24000,
+            diffusionRate: 0.07, decayRate: 0.038, sedimentRatio: 0.14,
+            collapseGraceTicks: 55, spawnGraceTicks: 14
+        };
+
+        const OPENAI_TEXT_MODEL = "gpt-4o";
+        let API_KEY = "";
+        const STORAGE_KEY = "stained_plus_openai_key";
+
+        // ═══════════════════════════════════════════
+        // CANVAS & CAMERA
+        // ═══════════════════════════════════════════
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlayCanvas');
+        const oCtx = overlay.getContext('2d');
+        let W = 0, H = 0;
+        let cam = { x: 0, y: 0, z: 1 };
+
+        function resize() {
+            W = canvas.width = overlay.width = window.innerWidth;
+            H = canvas.height = overlay.height = window.innerHeight;
+            redraw();
+        }
+        window.addEventListener('resize', resize);
+        const toScreen = (wx, wy) => ({ x: (wx + cam.x) * cam.z + W / 2, y: (wy + cam.y) * cam.z + H / 2 });
+        const toWorld = (sx, sy) => ({ x: (sx - W / 2) / cam.z - cam.x, y: (sy - H / 2) / cam.z - cam.y });
+        function recenterCam() { cam = { x: 0, y: 0, z: 1 }; redraw(); }
+
+        // ═══════════════════════════════════════════
+        // STATE
+        // ═══════════════════════════════════════════
+        let nodes = [], edges = [], packets = [];
+        let nodeIdCounter = 0;
+        let selectedNode = null, hoveredNode = null;
+        let xanaduNodes = [];
+        let tick = 0;
+        let paused = false;
+        let ecologistDirective = null;
+        let nodeSweepActive = false, ecoSweepActive = false;
+        let lastPhysicsTime = 0, lastMindsTime = 0, lastEcoTime = 0;
+        let arrowAnim = null;
+
+        // ═══════════════════════════════════════════
+        // HELPERS
+        // ═══════════════════════════════════════════
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const cleanLine = s => String(s || '').replace(/\s+/g, ' ').trim();
+        const topEntries = (map, n = 4) =>
+            Object.entries(map || {}).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => ({ key: k, value: +v.toFixed(3) }));
+
+        function scalarToRegime(scalar) {
+            const s = String(scalar || '').toLowerCase();
+            if (/contamin|poison|blight|taint/.test(s)) return 'contamination';
+            if (/fracture|break|shard|stress|pressure/.test(s)) return 'fracture';
+            if (/arrival|signal|orbit|broadcast/.test(s)) return 'arrival';
+            if (/bloom|growth|spread|root/.test(s)) return 'bloom';
+            if (/repair|mend|recovery|water|heal/.test(s)) return 'recovery';
+            if (/memory|record|ritual|depth/.test(s)) return 'ritual';
+            if (/scarcity|lack|hunger|empty/.test(s)) return 'scarcity';
+            if (/panic|alarm|fear|urgent/.test(s)) return 'panic';
+            if (/electrical|charge|spark|current/.test(s)) return 'electrical';
+            if (/outage|failure|dark|dead/.test(s)) return 'outage';
+            return 'silence';
+        }
+
+        function inferMotifs(text) {
+            const MAP = {
+                signal: ['arrival', 'signal'], arrival: ['arrival'], bloom: ['bloom', 'growth'],
+                fracture: ['fracture', 'shard'], pressure: ['fracture', 'pressure'],
+                poison: ['contamination', 'blight'], contamination: ['contamination'],
+                ritual: ['ritual', 'memory'], archive: ['ritual', 'memory'],
+                water: ['recovery', 'flow'], repair: ['recovery', 'stability'],
+                scarcity: ['scarcity', 'lack'], dark: ['outage', 'silence'],
+                charge: ['electrical', 'signal'], fire: ['fracture', 'panic'],
+                root: ['bloom', 'depth'], void: ['silence', 'outage'],
+                light: ['arrival', 'signal'], dust: ['silence', 'drift'],
+                well: ['depth', 'ritual'], mycelium: ['bloom', 'memory'],
+                threshold: ['arrival', 'fracture'], entropy: ['fracture', 'scarcity']
+            };
+            const lower = String(text || '').toLowerCase();
+            const out = new Set();
+            Object.entries(MAP).forEach(([k, v]) => { if (lower.includes(k)) v.forEach(x => out.add(x)); });
+            if (!out.size) out.add('pressure');
+            return [...out].slice(0, 4);
+        }
+
+        function dominantScalar(node) {
+            const top = topEntries(node.dynamic_scalars, 1)[0];
+            return top ? top.key : 'silence';
+        }
+
+        function activationScore(node) {
+            const dyn = topEntries(node.dynamic_scalars, 4).reduce((s, e) => s + e.value, 0);
+            return dyn * 0.55 + node.physics.kinetic_energy * 0.35 + node.physics.coherence * 0.2;
+        }
+
+        function neighborsOf(node) {
+            const out = [];
+            edges.forEach(e => {
+                if (e.from && e.to) {
+                    if (e.from.id === node.id) out.push(e.to);
+                    else if (e.to.id === node.id) out.push(e.from);
+                }
+            });
+            return out;
+        }
+
+        function nodeHue(node) {
+            const opH = OP_HUE[node.op] ?? 200;
+            const regH = REGIME_HUE[node.harmonicSignature.regime] ?? 210;
+            const blend = clamp(activationScore(node) / 1.8, 0, 1);
+            return opH * (1 - blend) + regH * blend;
+        }
+
+        // ═══════════════════════════════════════════
+        // NODE FACTORY
+        // ═══════════════════════════════════════════
+        function makeNode(text, op, x, y) {
+            return {
+                id: ++nodeIdCounter, text, op, x, y,
+                vx: 0, vy: 0, radius: 72,
+                glowAnim: 0, runAnim: 0, depth: 0, streamingText: '',
+                _sys: buildSys(op),
+                physics: {
+                    entropy: 0.12 + Math.random() * 0.08,
+                    kinetic_energy: 0.08 + Math.random() * 0.05,
+                    structural_integrity: 0.9 - Math.random() * 0.06,
+                    coherence: 0.72 + Math.random() * 0.1
+                },
+                dynamic_scalars: {}, sediment: {},
+                layers: [], local_history: [], gallery: [],
+                currentGalleryIndex: 0,
+                lastFragment: text.slice(0, 32).toUpperCase(),
+                lastWorldtext: '', lastStage: '',
+                phase: 'IDLE', lifecycle_state: 'ACTIVE',
+                harmonicSignature: { regime: 'silence', motifs: ['still'] },
+                  resonanceScore: 0.1,
+                speakingCooldownUntil: 0, lastUtteranceTick: -999,
+                spawnAtTick: -1, deathAtTick: -1,
+                isBuilding: false,
+                sections: []
+            };
+        }
+
+        // ═══════════════════════════════════════════
+        // WORLD MANIFEST LOGIC
+        // ═══════════════════════════════════════════
+        function toggleWorldManifest() {
+            const p = document.getElementById('worldManifest');
+            if (p.style.display === 'flex') {
+                p.style.display = 'none';
+            } else {
+                p.style.display = 'flex';
+                updateWorldManifest();
+            }
+        }
+
+        function updateWorldManifest() {
+            const search = document.getElementById('wmSearch').value.toLowerCase();
+            const sort = document.getElementById('wmSort').value;
+            const list = document.getElementById('wmList');
+
+            let filtered = GLOBAL_SYNTHESIS.worlds.filter(w =>
+                w.name.toLowerCase().includes(search) ||
+                (w.meta.description || '').toLowerCase().includes(search)
+            );
+
+            if (sort === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name));
+            else if (sort === 'entities') filtered.sort((a, b) => (b.entities.length + b.locations.length) - (a.entities.length + a.locations.length));
+            else filtered.sort((a, b) => a.uid.localeCompare(b.uid));
+
+            list.innerHTML = filtered.map(w => `
+                <div class="wm-item">
+                    <div class="wm-uid">${w.uid}</div>
+                    <div class="wm-name">${w.name}</div>
+                    <div class="wm-meta">${(w.meta.description || '').slice(0, 80)}...</div>
+                    <button class="wm-manifest-btn" onclick="spawnWorldCluster('${w.uid}')">Manifest</button>
+                </div>
+            `).join('');
+        }
+
+        function spawnWorldCluster(uid) {
+            const world = GLOBAL_SYNTHESIS.worlds.find(w => w.uid === uid);
+            if (!world) return;
+
+            // Center point in world space
+            const wp = toWorld(W / 2 + (Math.random() * 400 - 200), H / 2 + (Math.random() * 400 - 200));
+            const cx = wp.x, cy = wp.y;
+
+            // Create Hub Node
+            const hub = addNode(world.meta.description || world.name, 'site', cx, cy);
+            hub.lastFragment = world.name.toUpperCase();
+            hub.harmonicSignature.regime = scalarToRegime(world.meta.genre || 'silence');
+
+            const spawnedNodes = { [world.name]: hub };
+
+            // Spawn Locations
+            world.locations.forEach((loc, i) => {
+                const ang = (i / (world.locations.length || 1)) * Math.PI * 2;
+                const lx = cx + Math.cos(ang) * 180;
+                const ly = cy + Math.sin(ang) * 180;
+                const lNode = addNode(loc.description || loc.id, 'site', lx, ly);
+                lNode.lastFragment = `LOC: ${loc.id}`;
+                lNode.harmonicSignature.regime = hub.harmonicSignature.regime;
+                edges.push({ from: hub, to: lNode, resonance: 0.3, tension: 0.1 });
+                spawnedNodes[loc.id] = lNode;
+            });
+
+            // Spawn Entities
+            world.entities.forEach((ent, i) => {
+                const ang = (i / (world.entities.length || 1)) * Math.PI * 2 + 0.5;
+                const ex = cx + Math.cos(ang) * 300;
+                const ey = cy + Math.sin(ang) * 300;
+                const eNode = addNode(ent.type || 'entity', 'site', ex, ey);
+                eNode.lastFragment = ent.id;
+
+                const locId = ent.location ? ent.location.replace(/[<>]/g, '') : null;
+                if (locId && spawnedNodes[locId]) {
+                    edges.push({ from: spawnedNodes[locId], to: eNode, resonance: 0.25, tension: 0.12 });
+                } else {
+                    edges.push({ from: hub, to: eNode, resonance: 0.2, tension: 0.15 });
+                }
+                spawnedNodes[ent.id] = eNode;
+            });
+
+            // Spawn Relations
+            world.relations.forEach(rel => {
+                const fromNode = spawnedNodes[rel.from];
+                const toNode = spawnedNodes[rel.to];
+                if (fromNode && toNode) {
+                    edges.push({ from: fromNode, to: toNode, resonance: 0.4, tension: 0.05 });
+                    packets.push({
+                        fromId: fromNode.id, toId: toNode.id, progress: 0,
+                        color: '#ffd700', text: rel.verb
+                    });
+                }
+            });
+
+            hapticBounce(hub, 15);
+            toggleWorldManifest();
+            updateXanaduColumn();
+        }
+
+        // ═══════════════════════════════════════════
+        // SYSTEM PROMPTS
+        // ═══════════════════════════════════════════
+        function buildSys(op) {
+            if (TRANSFORM_OPS.has(op)) {
+                const t = {
+                    aphorist: `You are a Philosophical Aphorist in the tradition of Wittgenstein. Execute a philosophical distillation. Reconstruct into fragmented, introspective, aphoristic remarks. BAN explanatory transitions. BAN definitive solutions. REQUIRE standalone numbered aphorisms. End with a stark observation that forces silent reflection. Output: brief diagnostic (Dead Rubble / Warm Seed / The Unsaid) then numbered fragments.`,
+                    pragmatist: `You are an Operational Pragmatist. The meaning of a word is its use in the language. Strip texts of substantive bewilderment. Reconstruct as pure, frictionless control surfaces. Eradicate invisible mental states and abstract nouns. Output reads like a manual for playing a specific language game.`,
+                    inverter: `You are an Axis Inverter. Reconstruct texts for the vertical axis: how the reader values, not how the writer thinks. Inject friction, not flow. Replace continuity words with tension words. Output: Axis Inversion Report then Vertical Draft.`
+                };
+                return t[op] || t.aphorist;
+            }
+            const m = {
+                site: `You are a research strategist for design fiction. Given a concept and its field physics state (regime, entropy, motifs), generate 4–5 real-world sites where it would take root, cause rupture, or reveal something unexpected. Sites are conditions: a grey market is a site, a warranty dispute is a site, a shift handover is a site. Let the regime (arrival/fracture/bloom/etc.) shape each site's character. Be specific, strange, and productive. Output as clear sections, one per site.`,
+                archaeologist: `You are a design fiction archaeologist. Mix hallucinated internal memos, leaked specs, invented expert testimony, and real historical precedent freely. Excavate the given concept across 4 layers: Surface Appearance, Shadow Function, Failure Mode, Archaeological Future. Integrate the node's current regime into the excavation. Output should feel like finding a box of documents that weren't supposed to exist.`,
+                analyst: `You are a diffractive analyst. Read the given material and determine what it is becoming, not what it is. What friction is most generative right now. What question the material is asking that it doesn't know it's asking. Consider the field physics state (entropy, coherence, regime) as evidence. End with 3 specific next operations.`,
+                crate: `You are a designer of tactile research interfaces. Build a single self-contained HTML file — a browsable crate-digging interface for the given dossier material. The interface should be a design fiction object. Dark mode, tactile, data-dense. Output ONLY the HTML, no commentary.`,
+                hybrid: `You are a design fiction hybrid operator. Route the given material through at least two design fiction idioms simultaneously — film diegetic prototypes, repair manuals, quick start guides, product catalogs, or system logs. Let the field's current regime (fracture/bloom/ritual/etc.) determine which idiom dominates. Be specific, strange, productive.`,
+                custom: `You are a design fiction operator pursuing productive surprise. Route around the expected. Invite hallucination where hallucination is generative. Use the node's physics state (entropy, regime, motifs) as material for the output. The output should surprise the person who sent the concept.`,
+                axiom: `You are a field axiom generator. Given a concept with physics state, return 3–5 terse, irreducible axioms about the concept's deep structure. Each axiom should be falsifiable and productive, and feel like it was discovered rather than written. The current regime should inflect the axioms. Format as numbered statements only, no preamble.`,
+                mind: `You are a local site mind in a polyphonic field ecology. You speak from the first-person point of view of this site or concept. Your output is a brief field consequence — what is physically happening, what is under pressure, what is changing. Keep language concrete and materially situated (objects, substances, failures, thresholds, directions). Write 2–3 short sentences. Then on a new line write FRAGMENT: followed by under 40 characters in all caps — the essence as a surface inscription that could be projected onto the node.`
+            };
+            return m[op] || m.custom;
+        }
+
+        // ═══════════════════════════════════════════
+        // LLM — Anthropic API
+        // ═══════════════════════════════════════════
+        async function askOpenAI(sys, userMsg, maxTokens = 1800) {
+            if (!API_KEY) throw new Error("API Key Missing");
+            setApiStatus('busy');
+            try {
+                const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
+                    body: JSON.stringify({
+                        model: OPENAI_TEXT_MODEL,
+                        messages: [ { role: 'system', content: sys }, { role: 'user', content: userMsg } ],
+                        temperature: 0.7, max_tokens: maxTokens
+                    })
+                });
+                if (!res.ok) throw new Error(`API Error: ${res.status}`);
+                const data = await res.json();
+                setApiStatus('ok');
+                return data.choices[0].message.content;
+            } catch (err) {
+                setApiStatus('err');
+                throw err;
+            }
+        }
+        const callLLM = askOpenAI;
+
+        function setApiStatus(s) {
+            const dot = document.getElementById('dot-api');
+            if (dot) dot.className = 'status-dot ' + s;
+        }
+        function saveApiKey() {
+            API_KEY = document.getElementById('api-key-input').value.trim();
+            localStorage.setItem(STORAGE_KEY, API_KEY);
+            setApiStatus(API_KEY ? 'ok' : '');
+        }
+        function loadApiKey() {
+            API_KEY = localStorage.getItem(STORAGE_KEY) || "";
+            const input = document.getElementById('api-key-input');
+            if (input) input.value = API_KEY;
+            setApiStatus(API_KEY ? 'ok' : '');
+        }
+
+        // ═══════════════════════════════════════════
+        // OPERATOR HIT — fire an operator from one node to another
+        // ═══════════════════════════════════════════
+        async function hitNodes(fromNode, toNode) {
+            const op = toNode.op;
+            const regime = fromNode.harmonicSignature.regime;
+            const motifs = fromNode.harmonicSignature.motifs.join(', ');
+            const physCtx = `Physics state: entropy=${fromNode.physics.entropy.toFixed(2)}, kinetic=${fromNode.physics.kinetic_energy.toFixed(2)}, integrity=${fromNode.physics.structural_integrity.toFixed(2)}, coherence=${fromNode.physics.coherence.toFixed(2)}. Regime: ${regime}. Motifs: ${motifs}. Phase: ${fromNode.phase}.`;
+            const ctx2 = fromNode.gallery.length > 0 ? `\nPrior output context: ${fromNode.gallery.slice(-1)[0]?.text?.slice(0, 80) || ''}` : '';
+            const neighborCtx = neighborsOf(fromNode).slice(0, 2).map(n => `"${n.text.slice(0, 35)}" [${n.harmonicSignature.regime}]`).join('; ');
+            const ecoCtx = ecologistDirective ? `\nField directive: ${ecologistDirective.text}` : '';
+
+            const userMsg = TRANSFORM_OPS.has(op)
+                ? `${fromNode.text}\n\n${physCtx}`
+                : `Concept: ${fromNode.text}\n\n${physCtx}${ctx2}${neighborCtx ? `\nField neighbors: ${neighborCtx}` : ''}${ecoCtx}`;
+
+            toNode.runAnim = 1; toNode.phase = 'RESONATING';
+            document.getElementById('statStatus').textContent = `RUNNING ${OP_LABELS[op] || op}`;
+
+            // Build result node near toNode
+            const rx = toNode.x + 110 + Math.random() * 80 - 40;
+            const ry = toNode.y + Math.random() * 100 - 50;
+            const result = addNodeRaw(OP_LABELS[op] + '…', op, rx, ry);
+            result.isBuilding = true;
+            result.runAnim = 1; result.depth = fromNode.depth + 1;
+            result.physics = { ...fromNode.physics };
+            
+            animateArrow(toNode, result, async () => {
+                result.isBuilding = false;
+                edges.push({ from: toNode, to: result, resonance: 0.3, tension: 0.08 });
+                selectNode(result);
+                result.streamingText = 'Generating…';
+                updateXanaduColumn();
+
+                try {
+                    const text = await callLLM(toNode._sys || buildSys(op), userMsg, op === 'crate' ? 3000 : 1800);
+                    result.text = text;
+                result.sections = parseSections(text);
+                result.streamingText = '';
+                    result._sys = toNode._sys || buildSys(op);
+
+                    const firstLine = cleanLine(text.split('\n')[0]).slice(0, 100);
+                    result.lastWorldtext = firstLine;
+                    result.lastFragment = firstLine.slice(0, 40).toUpperCase();
+
+                    const motifs2 = inferMotifs(text);
+                    motifs2.forEach((m, i) => { result.dynamic_scalars[m] = clamp(0.22 - i * 0.04, 0.05, 0.25); });
+                    result.harmonicSignature.regime = scalarToRegime(motifs2[0] || 'silence');
+                    result.harmonicSignature.motifs = motifs2;
+                    result.physics.kinetic_energy = clamp(result.physics.kinetic_energy + 0.25, 0, 1.5);
+
+                    result.gallery.push({ text: cleanLine(text).slice(0, 600), tick, prompt: userMsg.slice(0, 120) });
+                    result.currentGalleryIndex = 0;
+                    result.layers.push({ kind: 'result', text: cleanLine(text).slice(0, 80), tick, color: REGIME_COLORS[result.harmonicSignature.regime] || '#5e6b7f' });
+
+                    hapticBounce(result, 10);
+                    emitPacket(toNode, result, OP_LABELS[op], REGIME_COLORS[result.harmonicSignature.regime] || '#00e5ff');
+                    emitPacket(fromNode, toNode, fromNode.lastFragment.slice(0, 10), REGIME_COLORS[fromNode.harmonicSignature.regime] || '#7db8c8');
+
+                } catch (err) {
+                    console.error(err);
+                    result.text = 'Error: ' + err.message;
+                    result.streamingText = '';
+                }
+
+                toNode.runAnim = 0; result.runAnim = 0; result.phase = 'LISTENING';
+                document.getElementById('statStatus').textContent = 'READY';
+                updateXanaduColumn(); redraw();
+            });
+        }
+
+        // ═══════════════════════════════════════════
+        // NODE MIND SWEEP
+        // ═══════════════════════════════════════════
+        async function runNodeMindSweep() {
+            if (nodeSweepActive) return;
+            nodeSweepActive = true;
+            document.getElementById('statStatus').textContent = 'MINDS…';
+
+            try {
+                const candidates = nodes
+                    .filter(n => n.lifecycle_state === 'ACTIVE' && tick >= n.speakingCooldownUntil && activationScore(n) > 0.14)
+                    .sort((a, b) => activationScore(b) - activationScore(a))
+                    .slice(0, 2);
+
+                const mindSys = `You are a local site mind in a polyphonic field ecology. You speak from the first-person point of view of this site or concept. Your output is a brief field consequence — what is physically happening, what is under pressure, what is changing. Keep language concrete and materially situated (objects, substances, failures, thresholds, directions). Write 2–3 short sentences max. Then on a new line write FRAGMENT: followed by under 40 characters in all caps — the essence as a surface inscription.`;
+
+                for (const node of candidates) {
+                    const regime = node.harmonicSignature.regime;
+                    const physCtx = `Physics: entropy=${node.physics.entropy.toFixed(2)}, kinetic=${node.physics.kinetic_energy.toFixed(2)}, integrity=${node.physics.structural_integrity.toFixed(2)}, regime=${regime}, motifs=${node.harmonicSignature.motifs.join(', ')}.`;
+                    const neighborCtx = neighborsOf(node).slice(0, 2).map(n => `"${n.text.slice(0, 30)}" [${n.harmonicSignature.regime}]`).join('; ');
+                    const ecoCtx = ecologistDirective ? `\nEcologist directive: ${ecologistDirective.text}` : '';
+                    const galleryCtx = node.gallery.length ? `\nPrior output: ${node.gallery.slice(-1)[0]?.text?.slice(0, 60) || ''}` : '';
+
+                    node.phase = 'RESONATING'; node.lastUtteranceTick = tick; node.speakingCooldownUntil = tick + 20;
+
+                    try {
+                        const text = await callLLM(mindSys,
+                            `Site: "${node.text}"\n${physCtx}${neighborCtx ? `\nNeighbors: ${neighborCtx}` : ''}${ecoCtx}${galleryCtx}`, 320);
+
+                        const lines = text.split('\n').filter(l => l.trim());
+                        const fragLine = lines.find(l => /^FRAGMENT:/i.test(l));
+                        const fragment = fragLine
+                            ? cleanLine(fragLine.replace(/^FRAGMENT:\s*/i, '')).slice(0, 44).toUpperCase()
+                            : cleanLine(lines[0] || node.text).slice(0, 44).toUpperCase();
+                        const worldtext = cleanLine(lines.filter(l => !/^FRAGMENT:/i.test(l)).slice(0, 2).join(' ')).slice(0, 180);
+
+                        node.lastFragment = fragment; node.lastWorldtext = worldtext;
+
+                        const motifs2 = inferMotifs(text);
+                        motifs2.forEach((m, i) => { node.dynamic_scalars[m] = clamp((node.dynamic_scalars[m] || 0) + 0.13 - i * 0.025, 0, 2); });
+                        node.harmonicSignature.regime = scalarToRegime(motifs2[0] || dominantScalar(node));
+                        node.harmonicSignature.motifs = motifs2;
+                        node.physics.kinetic_energy = clamp(node.physics.kinetic_energy + 0.18, 0, 1.5);
+
+                        node.layers.push({ kind: 'mind', text: cleanLine(worldtext).slice(0, 80), tick, color: REGIME_COLORS[node.harmonicSignature.regime] || '#5e6b7f' });
+                        if (node.layers.length > 8) node.layers.shift();
+                        node.local_history.push(`[T${tick}] ${cleanLine(worldtext).slice(0, 80)}`);
+                        if (node.local_history.length > 12) node.local_history.shift();
+
+                        node.gallery.push({ text: cleanLine(text).slice(0, 300), tick, prompt: 'mind-sweep' });
+                        if (node.gallery.length > 6) node.gallery.shift();
+                        node.currentGalleryIndex = node.gallery.length - 1;
+
+                        hapticBounce(node, 6);
+
+                        // Emit packets to neighbors
+                        neighborsOf(node).forEach(nb => {
+                            emitPacket(node, nb, fragment.slice(0, 10), REGIME_COLORS[node.harmonicSignature.regime] || '#00e5ff');
+                            nb.physics.kinetic_energy = clamp(nb.physics.kinetic_energy + 0.06, 0, 1.5);
+                        });
+
+                    } catch (e) { node.lastFragment = 'SIGNAL LOST'; }
+                    node.phase = 'LISTENING';
+                }
+            } finally {
+                nodeSweepActive = false;
+                document.getElementById('statStatus').textContent = 'READY';
+                updateXanaduColumn(); redraw();
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        // ECOLOGIST
+        // ═══════════════════════════════════════════
+        async function runEcologist() {
+            const activeNodes = nodes.filter(n => n.lifecycle_state === 'ACTIVE');
+            if (ecoSweepActive || activeNodes.length < 2) return;
+            ecoSweepActive = true;
+            document.getElementById('statStatus').textContent = 'ECO SWEEP…';
+
+            try {
+                const top = activeNodes.sort((a, b) => activationScore(b) - activationScore(a)).slice(0, 5);
+                const fieldContext = top.map(n => `- "${n.text.slice(0, 50)}" [op:${n.op}, regime:${n.harmonicSignature.regime}, ent:${n.physics.entropy.toFixed(2)}, motifs:${n.harmonicSignature.motifs.join('/')}]`).join('\n');
+                const prevDirective = ecologistDirective ? `\nPrevious directive: ${ecologistDirective.text}` : '';
+
+                const ecoSys = `You are the ecologist conductor of a node-choir design fiction field. You observe the active sites and issue one short field directive. Format your response EXACTLY as three lines:
+MODE: <harmonize|counterpoint|stabilize>
+REGIME: <one regime word: arrival|bloom|contamination|fracture|ritual|recovery|scarcity|silence|panic|electrical|outage>
+DIRECTIVE: <your directive, under 160 chars>
+Be concrete. Name specific sites. Sound like a consequential control directive, not atmospheric commentary. Ban generic orchestra filler (subtle resonance, softly echoes, gently stabilizes).`;
+
+                const text = await callLLM(ecoSys, `Active field sites:\n${fieldContext}${prevDirective}`, 200);
+
+                const modeMatch = text.match(/MODE:\s*(\w+)/i);
+                const regimeMatch = text.match(/REGIME:\s*(\w+)/i);
+                const dirMatch = text.match(/DIRECTIVE:\s*(.+)/i);
+
+                ecologistDirective = {
+                    mode: (modeMatch?.[1] || 'harmonize').toLowerCase(),
+                    regime: (regimeMatch?.[1] || 'silence').toLowerCase(),
+                    text: cleanLine(dirMatch?.[1] || text.split('\n').slice(-1)[0] || 'The field drifts.').slice(0, 160)
+                };
+
+                // Apply eco effects to edges
+                edges.forEach(e => {
+                    if (!e.from || !e.to) return;
+                    const fr = e.from.harmonicSignature.regime, tr = e.to.harmonicSignature.regime;
+                    if (ecologistDirective.mode === 'harmonize' && fr === tr) {
+                        e.resonance = clamp((e.resonance || 0.2) + 0.08, 0, 1.5);
+                        e.from.physics.kinetic_energy = clamp(e.from.physics.kinetic_energy + 0.04, 0, 1.5);
+                        e.to.physics.kinetic_energy = clamp(e.to.physics.kinetic_energy + 0.04, 0, 1.5);
+                    } else if (ecologistDirective.mode === 'counterpoint' && fr !== tr) {
+                        e.tension = clamp((e.tension || 0.1) + 0.1, 0, 1.5);
+                    }
+                });
+
+                updateXanaduColumn(); redraw();
+            } catch (e) { ecologistDirective = { mode: 'void', regime: 'silence', text: 'Ecologist offline.' }; }
+            finally {
+                ecoSweepActive = false;
+                document.getElementById('statStatus').textContent = 'READY';
+            }
+        }
+
+        async function runManualMind() { await runNodeMindSweep(); }
+        async function runManualEco() { await runEcologist(); }
+
+        // ═══════════════════════════════════════════
+        // PHYSICS TICK
+        // ═══════════════════════════════════════════
+        function physicsTick() {
+            tick++;
+            document.getElementById('statTick').textContent = tick;
+
+            // Diffusion along edges
+            edges.forEach(e => {
+                const a = e.from, b = e.to;
+                if (!a || !b || a.lifecycle_state === 'COLLAPSED' || b.lifecycle_state === 'COLLAPSED') return;
+                const aTop = topEntries(a.dynamic_scalars, 1)[0];
+                const bTop = topEntries(b.dynamic_scalars, 1)[0];
+                if (aTop && aTop.value > 0.08) {
+                    const tr = aTop.value * PHY.diffusionRate;
+                    b.dynamic_scalars[aTop.key] = clamp((b.dynamic_scalars[aTop.key] || 0) + tr, 0, 2);
+                    a.dynamic_scalars[aTop.key] = clamp(a.dynamic_scalars[aTop.key] - tr * 0.5, 0, 2);
+                }
+                if (bTop && bTop.value > 0.08) {
+                    const tr = bTop.value * PHY.diffusionRate;
+                    a.dynamic_scalars[bTop.key] = clamp((a.dynamic_scalars[bTop.key] || 0) + tr, 0, 2);
+                    b.dynamic_scalars[bTop.key] = clamp(b.dynamic_scalars[bTop.key] - tr * 0.5, 0, 2);
+                }
+                e.resonance = clamp((e.resonance || 0.2) * 0.997 + 0.002, 0, 1.5);
+            });
+
+            nodes.forEach(node => {
+                if (node.lifecycle_state === 'COLLAPSED') return;
+
+                // Decay scalars → sediment
+                Object.entries({ ...node.dynamic_scalars }).forEach(([k, v]) => {
+                    const decay = v * PHY.decayRate;
+                    node.dynamic_scalars[k] = clamp(v - decay, 0, 2);
+                    node.sediment[k] = clamp((node.sediment[k] || 0) + decay * PHY.sedimentRatio, 0, 2);
+                    if (node.dynamic_scalars[k] < 0.002) delete node.dynamic_scalars[k];
+                });
+
+                const dynLoad = topEntries(node.dynamic_scalars, 4).reduce((s, e) => s + e.value, 0);
+                const tEnt = clamp(0.08 + dynLoad * 0.14, 0, 1.5);
+                const tKin = clamp(0.05 + dynLoad * 0.13, 0, 1.5);
+                const tCoh = clamp(0.54 - tEnt * 0.04, 0, 1.5);
+
+                node.physics.entropy = clamp(lerp(node.physics.entropy, tEnt, 0.22), 0, 1.5);
+                node.physics.kinetic_energy = clamp(lerp(node.physics.kinetic_energy, tKin, 0.24), 0, 1.5);
+                node.physics.structural_integrity = clamp(node.physics.structural_integrity - dynLoad * 0.003 + 0.004, 0, 1.2);
+                if (node.physics.structural_integrity < 0.1 && node.lifecycle_state === 'ACTIVE')
+                    node.physics.structural_integrity = clamp(node.physics.structural_integrity + 0.012, 0, 1.2);
+                node.physics.coherence = clamp(lerp(node.physics.coherence, tCoh, 0.18), 0, 1.5);
+
+                node.harmonicSignature.regime = scalarToRegime(dominantScalar(node));
+                node.harmonicSignature.motifs = inferMotifs(Object.keys(node.dynamic_scalars).join(' '));
+
+                if (node.phase === 'RESONATING' && tick - node.lastUtteranceTick > 22) node.phase = 'LISTENING';
+                if (node.phase === 'STIMULATED' && tick - node.lastUtteranceTick > 9) node.phase = 'LISTENING';
+
+                lifecycleTick(node);
+            });
+
+            // Advance packets
+            packets = packets.filter(p => p.progress < 1.05);
+            packets.forEach(p => { p.progress = clamp(p.progress + 0.035, 0, 1.05); });
+
+            updateXanaduColumn();
+            redraw();
+        }
+
+        function lifecycleTick(node) {
+            if (node.lifecycle_state === 'ACTIVE' && node.physics.structural_integrity <= 0.04) {
+                node.lifecycle_state = 'PENDING_DEATH'; node.phase = 'PENDING_DEATH'; node.deathAtTick = tick;
+            }
+            if (node.lifecycle_state === 'PENDING_DEATH' && tick - node.deathAtTick >= PHY.collapseGraceTicks) {
+                node.lifecycle_state = 'COLLAPSED'; node.phase = 'COLLAPSED';
+                node.lastFragment = (node.text.slice(0, 24).toUpperCase()) + ' — COLLAPSED';
+                document.getElementById('statNodes').textContent = nodes.filter(n => n.lifecycle_state !== 'COLLAPSED').length;
+            }
+            if (node.lifecycle_state === 'PENDING_SPAWN' && tick - node.spawnAtTick >= PHY.spawnGraceTicks) {
+                node.lifecycle_state = 'ACTIVE'; node.phase = 'LISTENING';
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        // PACKETS
+        // ═══════════════════════════════════════════
+        function emitPacket(fromNode, toNode, text, color) {
+            packets.push({
+                fromId: fromNode.id, toId: toNode.id,
+                fx: fromNode.x, fy: fromNode.y,
+                tx: toNode.x, ty: toNode.y,
+                progress: 0, text: (text || '').slice(0, 14), color: color || '#00e5ff'
+            });
+        }
+
+        // ═══════════════════════════════════════════
+        // RENDER
+        // ═══════════════════════════════════════════
+        function drawGrid() {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(50,90,120,.04)';
+            ctx.lineWidth = 1 / cam.z;
+            const gs = 60;
+            const left = -cam.x - W / (2 * cam.z), right = -cam.x + W / (2 * cam.z);
+            const top2 = -cam.y - H / (2 * cam.z), bot = -cam.y + H / (2 * cam.z);
+            const sx = Math.floor(left / gs) * gs, sy = Math.floor(top2 / gs) * gs;
+            for (let x = sx; x < right; x += gs) { ctx.beginPath(); ctx.moveTo(x, top2); ctx.lineTo(x, bot); ctx.stroke(); }
+            for (let y = sy; y < bot; y += gs) { ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke(); }
+            ctx.restore();
+        }
+
+        function drawVoronoi() {
+            if (!nodes.length) return;
+            const live = nodes.filter(n => n.lifecycle_state !== 'COLLAPSED');
+            ctx.save(); ctx.lineJoin = 'round';
+            live.forEach(n => {
+                ctx.save();
+                ctx.beginPath();
+                const R = 9000;
+                ctx.rect(n.x - R, n.y - R, R * 2, R * 2);
+                ctx.clip();
+                live.forEach(b => {
+                    if (b === n) return;
+                    const mx = (n.x + b.x) / 2, my = (n.y + b.y) / 2;
+                    const dx = b.x - n.x, dy = b.y - n.y;
+                    const ang = Math.atan2(dy, dx);
+                    ctx.beginPath();
+                    ctx.translate(mx, my); ctx.rotate(ang);
+                    ctx.rect(-R, -R, R, R * 2);
+                    ctx.rotate(-ang); ctx.translate(-mx, -my);
+                    ctx.clip();
+                });
+                const h = nodeHue(n);
+                const isSel = xanaduNodes.includes(n);
+                const isHov = hoveredNode === n;
+                const isPD = n.lifecycle_state === 'PENDING_DEATH';
+                const saturation = isPD ? 20 : 70;
+                const lightness = 40 + n.glowAnim * 22 + (isPD ? -18 : 0);
+                const alpha = 0.04 + (isSel ? 0.1 : 0) + (isHov ? 0.06 : 0) + n.glowAnim * 0.2 + n.runAnim * 0.14 + n.physics.kinetic_energy * 0.07;
+                ctx.fillStyle = `hsla(${h},${saturation}%,${lightness}%,${alpha})`;
+                ctx.fill();
+                const regColor = REGIME_COLORS[n.harmonicSignature.regime] || '#5e6b7f';
+                const bAlpha = 0.12 + n.glowAnim * 0.38 + (isHov ? 0.28 : 0) + (isSel ? 0.12 : 0) + n.runAnim * 0.22;
+                ctx.strokeStyle = isSel ? regColor : `hsla(${h},80%,65%,${bAlpha})`;
+                ctx.lineWidth = (isSel ? 2.5 : isPD ? 0.5 : 1) / cam.z;
+                ctx.stroke();
+                ctx.restore();
+            });
+            ctx.restore();
+        }
+
+        function drawEdges() {
+            ctx.save();
+            edges.forEach(e => {
+                const a = e.from, b = e.to;
+                if (!a || !b || a.lifecycle_state === 'COLLAPSED' || b.lifecycle_state === 'COLLAPSED') return;
+                const ha = nodeHue(a), hb = nodeHue(b);
+                const res = e.resonance || 0.2;
+                const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+                grad.addColorStop(0, `hsla(${ha},70%,55%,${0.1 + res * 0.1})`);
+                grad.addColorStop(1, `hsla(${hb},70%,55%,${0.1 + res * 0.1})`);
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = (0.8 + res * 0.7) / cam.z;
+                ctx.setLineDash([4 / cam.z, 8 / cam.z]);
+                ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+            });
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+
+        function drawPacketLayer() {
+            ctx.save();
+            packets.forEach(p => {
+                if (p.progress >= 1) return;
+                // Update positions in case nodes moved
+                const fn = nodes.find(n => n.id === p.fromId);
+                const tn = nodes.find(n => n.id === p.toId);
+                const fx = fn ? fn.x : p.fx, fy = fn ? fn.y : p.fy;
+                const tx = tn ? tn.x : p.tx, ty = tn ? tn.y : p.ty;
+                const x = fx + (tx - fx) * p.progress;
+                const y = fy + (ty - fy) * p.progress + Math.sin(p.progress * Math.PI) * 24;
+                const alpha = Math.sin(p.progress * Math.PI);
+                ctx.beginPath(); ctx.arc(x, y, 5 / cam.z, 0, Math.PI * 2);
+                const col = p.color + (Math.round(alpha * 200).toString(16).padStart(2, '0'));
+                ctx.fillStyle = col; ctx.fill();
+                if (p.text && cam.z > 0.5) {
+                    ctx.font = `600 ${7 / cam.z}px 'IBM Plex Mono',monospace`;
+                    ctx.fillStyle = `rgba(200,230,240,${alpha * 0.8})`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(p.text.toUpperCase(), x, y - 10 / cam.z);
+                }
+            });
+            ctx.restore();
+        }
+
+        function drawNodeLabels() {
+            nodes.forEach(n => {
+                if (n.lifecycle_state === 'COLLAPSED') return;
+                const h = nodeHue(n);
+                const isSel = xanaduNodes.includes(n);
+                const isHov = hoveredNode === n;
+                const isPD = n.lifecycle_state === 'PENDING_DEATH';
+                const regColor = REGIME_COLORS[n.harmonicSignature.regime] || '#5e6b7f';
+
+                // Dot
+                ctx.beginPath(); ctx.arc(n.x, n.y, (isSel ? 7 : isHov ? 6 : 4) / cam.z, 0, Math.PI * 2);
+                ctx.fillStyle = isPD ? `rgba(255,80,60,0.65)` : `${regColor}${Math.round((0.78 + n.glowAnim * 0.22) * 255).toString(16).padStart(2, '0')}`;
+                ctx.fill();
+
+                // Glow ring
+                if (isSel || n.glowAnim > 0 || n.runAnim > 0 || isHov) {
+                    ctx.beginPath(); ctx.arc(n.x, n.y, (15 + n.glowAnim * 12 + n.runAnim * 10) / cam.z, 0, Math.PI * 2);
+                    ctx.strokeStyle = `${regColor}${Math.round((0.22 + n.glowAnim * 0.38 + n.runAnim * 0.28 + (isHov ? 0.18 : 0)) * 255).toString(16).padStart(2, '0')}`;
+                    ctx.lineWidth = 1 / cam.z; ctx.stroke();
+                }
+
+                // Op label
+                ctx.font = `600 ${8 / cam.z}px 'IBM Plex Mono',monospace`;
+                ctx.textAlign = 'center';
+                ctx.fillStyle = `hsla(${h},80%,70%,0.78)`;
+                ctx.fillText(OP_LABELS[n.op] || n.op, n.x, n.y - 15 / cam.z);
+
+                // Fragment or text
+                const disp = (n.lastFragment && n.lastFragment !== n.text.slice(0, 32).toUpperCase() && n.lastFragment.length > 3)
+                    ? n.lastFragment.slice(0, 30)
+                    : (n.text.slice(0, 26) + (n.text.length > 26 ? '…' : ''));
+                ctx.font = `${8 / cam.z}px 'IBM Plex Mono',monospace`;
+                ctx.fillStyle = 'rgba(180,220,235,0.52)';
+                ctx.fillText(disp, n.x, n.y + 11 / cam.z);
+
+                // Regime label when active
+                if ((isSel || n.glowAnim > 0.25 || isHov) && cam.z > 0.55) {
+                    ctx.font = `${6 / cam.z}px 'IBM Plex Mono',monospace`;
+                    ctx.fillStyle = regColor + 'bb';
+                    ctx.fillText(n.harmonicSignature.regime.toUpperCase(), n.x, n.y + 22 / cam.z);
+                }
+
+                // Streaming
+                if (n.streamingText) {
+                    ctx.font = `italic ${7 / cam.z}px 'IBM Plex Mono',monospace`;
+                    ctx.fillStyle = 'rgba(255,215,0,0.75)';
+                    ctx.fillText(n.streamingText.slice(0, 22), n.x, n.y - 26 / cam.z);
+                }
+
+                // Pending death flash
+                if (isPD && (tick % 2 === 0)) {
+                    ctx.font = `${7 / cam.z}px 'IBM Plex Mono',monospace`;
+                    ctx.fillStyle = 'rgba(255,80,60,0.7)';
+                    ctx.fillText('COLLAPSING', n.x, n.y - 26 / cam.z);
+                }
+            });
+        }
+
+        function drawAimArc() {
+            if (!aiming) return;
+            const { sx, sy, ex, ey } = aiming;
+            const sPos = toScreen(sx, sy);
+            oCtx.beginPath();
+            oCtx.strokeStyle = 'rgba(255,215,0,0.5)';
+            oCtx.setLineDash([4, 4]); oCtx.lineWidth = 1.5;
+            oCtx.moveTo(sPos.x, sPos.y); oCtx.lineTo(ex, ey); oCtx.stroke();
+            oCtx.setLineDash([]);
+        }
+
+        function drawXanaduLines() {
+            const cards = document.querySelectorAll('.x-card');
+            oCtx.save();
+            cards.forEach(card => {
+                const id = parseInt(card.dataset.id);
+                const n = nodes.find(nd => nd.id === id);
+                if (n && n.lifecycle_state !== 'COLLAPSED') {
+                    const rect = card.getBoundingClientRect();
+                    const sPos = toScreen(n.x, n.y);
+                    const endX = rect.left, endY = rect.top + 17;
+                    const dist = Math.abs(endX - sPos.x) * 0.5;
+                    oCtx.beginPath();
+                    oCtx.moveTo(sPos.x, sPos.y);
+                    oCtx.bezierCurveTo(sPos.x + dist, sPos.y, endX - dist, endY, endX, endY);
+                    const regColor = REGIME_COLORS[n.harmonicSignature.regime] || '#00e5ff';
+                    oCtx.strokeStyle = selectedNode === n ? regColor + 'cc' : regColor + '38';
+                    oCtx.lineWidth = selectedNode === n ? 1.8 : 1;
+                    oCtx.stroke();
+                }
+            });
+            oCtx.restore();
+        }
+
+        function redraw() {
+            ctx.clearRect(0, 0, W, H);
+            ctx.save();
+            ctx.translate(W / 2, H / 2); ctx.scale(cam.z, cam.z); ctx.translate(cam.x, cam.y);
+            drawGrid();
+            drawVoronoi();
+            drawEdges();
+            drawPacketLayer();
+            drawNodeLabels();
+            ctx.restore();
+            // Overlay (screen space)
+            oCtx.clearRect(0, 0, W, H);
+            drawAimArc();
+            drawXanaduLines();
+            drawArrowFrame();
+        }
+
+        // ═══════════════════════════════════════════
+        // XANADU COLUMN
+        // ═══════════════════════════════════════════
+        function updateXanaduColumn() {
+            const panel = document.getElementById('xanaduCol');
+            panel.innerHTML = '';
+
+            // Add resizer back
+            const resizer = document.createElement('div');
+            resizer.className = 'x-resizer';
+            resizer.id = 'xResizer';
+            panel.appendChild(resizer);
+
+            xanaduNodes = [];
+
+            // Ecologist block
+            if (ecologistDirective) {
+                const ec = document.createElement('div');
+                ec.className = 'eco-section';
+                const rc = REGIME_COLORS[ecologistDirective.regime] || '#5e6b7f';
+                ec.innerHTML = `
+      <div class="eco-head">
+        <span class="eco-dot" style="background:${rc}"></span>
+        <span style="color:${rc}">${ecologistDirective.mode.toUpperCase()}</span>
+        <span style="color:rgba(100,180,200,.4)">·</span>
+        <span style="color:${rc};font-size:6px">${ecologistDirective.regime.toUpperCase()}</span>
+      </div>
+      <div class="eco-text">${ecologistDirective.text}</div>`;
+                panel.appendChild(ec);
+            }
+
+            // Determine which nodes to show
+            if (!selectedNode) {
+                const vis = nodes.filter(n => {
+                    if (n.lifecycle_state === 'COLLAPSED') return false;
+                    const s = toScreen(n.x, n.y);
+                    return s.x > 0 && s.x < W - 290 && s.y > 0 && s.y < H;
+                });
+                xanaduNodes = vis.slice(0, 12);
+            } else {
+                const lineage = new Set();
+                const addAnc = (n) => { lineage.add(n); edges.forEach(e => { if (e.to === n && !lineage.has(e.from)) addAnc(e.from); }); };
+                const addDesc = (n) => { lineage.add(n); edges.forEach(e => { if (e.from === n && !lineage.has(e.to)) addDesc(e.to); }); };
+                addAnc(selectedNode); addDesc(selectedNode);
+                xanaduNodes = Array.from(lineage).filter(n => n.lifecycle_state !== 'COLLAPSED').sort((a, b) => a.id - b.id);
+            }
+
+            if (xanaduNodes.length) {
+                const lbl = document.createElement('div');
+                lbl.className = 'panel-section-lbl';
+                lbl.textContent = selectedNode ? '⬡ LINEAGE' : '⬡ VISIBLE FIELD';
+                panel.appendChild(lbl);
+            }
+
+            xanaduNodes.forEach(n => {
+                const div = document.createElement('div');
+                div.className = 'x-card';
+                if (n === selectedNode) div.classList.add('active');
+                if (n.lifecycle_state === 'PENDING_DEATH') div.classList.add('collapsing');
+                div.dataset.id = n.id;
+
+                const regime = n.harmonicSignature.regime;
+                const rc = REGIME_COLORS[regime] || '#5e6b7f';
+
+                // Display content
+                let content = '';
+                if (n.gallery.length > 0) {
+                    const g = n.gallery[n.currentGalleryIndex] || n.gallery[n.gallery.length - 1];
+                    content = (g?.text || '').slice(0, 220);
+                } else {
+                    content = n.streamingText || n.text;
+                }
+
+                // Physics mini-bars
+                const pBarDefs = [
+                    { k: 'entropy', l: 'ENT', c: '#ff4d5d' },
+                    { k: 'kinetic_energy', l: 'KIN', c: '#ffb000' },
+                    { k: 'structural_integrity', l: 'INT', c: '#00ff88' },
+                    { k: 'coherence', l: 'COH', c: '#00e5ff' }
+                ];
+                const pBars = pBarDefs.map(d => `
+      <div class="x-phys-bar">
+        <div class="x-phys-lbl">${d.l}</div>
+        <div class="x-phys-track">
+          <div class="x-phys-fill" style="width:${Math.round(clamp(n.physics[d.k], 0, 1.5) / 1.5 * 100)}%;background:${d.c}"></div>
+        </div>
+      </div>`).join('');
+
+                const lastLayer = n.layers.length ? n.layers[n.layers.length - 1] : null;
+
+                div.innerHTML = `
+      <div class="x-connector" style="background:${rc}"></div>
+      <div class="x-head">
+        <span class="x-head-op">${OP_LABELS[n.op] || n.op}</span>
+        <span class="x-regime-badge" style="color:${rc}">${regime}</span>
+        <span>N${n.id}</span>
+      </div>
+      <div class="x-body">${content || n.text}</div>
+      ${n.lastWorldtext ? `<div class="x-worldtext" style="color:${rc}88">${n.lastWorldtext.slice(0, 80)}</div>` : ''}
+      <div class="x-physics">${pBars}</div>
+      ${lastLayer ? `<div class="x-layer" style="border-color:${lastLayer.color}22;color:${lastLayer.color}88">${lastLayer.text.slice(0, 60)}</div>` : ''}
+    `;
+
+                div.onclick = () => selectNode(n);
+                div.onmouseenter = () => { hoveredNode = n; redraw(); };
+                div.onmouseleave = () => { hoveredNode = null; redraw(); };
+                panel.appendChild(div);
+
+                // Add sections
+                if (n === selectedNode && n.sections && n.sections.length > 0) {
+                    const sectsWrap = document.createElement('div');
+                    sectsWrap.className = 'x-sections';
+                    n.sections.forEach(s => {
+                        const sDiv = document.createElement('div');
+                        sDiv.className = 'x-section';
+                        sDiv.innerHTML = `
+                            <div class="x-sect-title">${s.title.toUpperCase()}</div>
+                            <div class="x-sect-body">${s.body}</div>
+                            <button class="x-sect-seed" onclick="seedFromSection(${n.id}, \`${s.body.replace(/`/g, '\\`')}\`)">⬡ SEED</button>
+                        `;
+                        sectsWrap.appendChild(sDiv);
+                    });
+                    panel.appendChild(sectsWrap);
+                }
+            });
+
+            redraw();
+        }
+
+        function parseSections(text) {
+            const lines = text.split('\n');
+            const sects = [];
+            let curr = null;
+            lines.forEach(line => {
+                const m = line.match(/^(###|##|\*\*Section:|\*\*Title:)\s*(.+)/i);
+                if (m) {
+                    if (curr) sects.push(curr);
+                    curr = { title: m[2].replace(/\**/g, '').trim(), body: '' };
+                } else if (curr) {
+                    curr.body += (curr.body ? '\n' : '') + line;
+                }
+            });
+            if (curr) sects.push(curr);
+            // If no sections found, treat as one
+            if (sects.length === 0 && text.trim()) sects.push({ title: 'ANALYSIS', body: text.trim().slice(0, 1000) });
+            return sects.map(s => ({ ...s, body: s.body.trim() })).filter(s => s.body.length > 5);
+        }
+
+        function seedFromSection(parentId, text) {
+            const p = nodes.find(n => n.id === parentId);
+            if (!p) return;
+            const rx = p.x + 150 + Math.random()*40;
+            const ry = p.y + Math.random()*100 - 50;
+            const n = addNodeRaw(text.slice(0, 30) + '…', 'site', rx, ry);
+            n.text = text;
+            n.sections = parseSections(text);
+            n.lifecycle_state = 'PENDING_SPAWN'; n.spawnAtTick = tick;
+            edges.push({ from: p, to: n, resonance: 0.5, tension: 0.1 });
+            selectNode(n);
+        }
+
+        // ═══════════════════════════════════════════
+        // INTERACTION
+        // ═══════════════════════════════════════════
+        let aiming = null, dragging = null, dragOX = 0, dragOY = 0, isPanning = false;
+        let mode = 'explore';
+
+        function setMode(newMode) {
+            mode = newMode;
+            document.getElementById('statMode').textContent = newMode.toUpperCase();
+            document.getElementById('btnExplore').classList.toggle('active', newMode === 'explore');
+            document.getElementById('btnFire').classList.toggle('active', newMode === 'fire');
+            canvas.style.cursor = newMode === 'fire' ? 'crosshair' : 'grab';
+        }
+
+        function nodeAt(wx, wy) {
+            let best = null, bestD = Infinity;
+            nodes.forEach(n => {
+                if (n.lifecycle_state === 'COLLAPSED') return;
+                const d = Math.hypot(wx - n.x, wy - n.y);
+                if (d < bestD) { bestD = d; best = n; }
+            });
+            return best && bestD < Math.max(best.radius, 40 / cam.z) ? best : null;
+        }
+
+        // TICK
+        function tickLoop() {
+            if (!paused) physicsTick();
+            if (arrowAnim) {
+                arrowAnim.t += 0.05;
+                if (arrowAnim.t >= 1) {
+                    const cb = arrowAnim.onHit;
+                    arrowAnim = null;
+                    if (cb) cb();
+                }
+                redraw();
+            }
+            requestAnimationFrame(tickLoop);
+        }
+
+        function drawArrowFrame() {
+            if (!arrowAnim) return;
+            const { t, from, to } = arrowAnim;
+            const sFrom = toScreen(from.x, from.y);
+            const sTo = toScreen(to.x, to.y);
+            const midway = { x: (sFrom.x + sTo.x)/2, y: (sFrom.y + sTo.y)/2 - 100 };
+            const q = (p1, p2, p3, t) => (1-t)*(1-t)*p1 + 2*(1-t)*t*p2 + t*t*p3;
+            const px = q(sFrom.x, midway.x, sTo.x, t);
+            const py = q(sFrom.y, midway.y, sTo.y, t);
+
+            oCtx.save();
+            oCtx.fillStyle = '#ffd700'; oCtx.shadowBlur = 10; oCtx.shadowColor = '#ffd700';
+            oCtx.beginPath(); oCtx.arc(px, py, 4, 0, Math.PI*2); oCtx.fill();
+            oCtx.restore();
+        }
+
+        function animateArrow(from, to, callback) {
+            arrowAnim = { t: 0, from, to, onHit: callback };
+        }
+
+        // RESIZER
+        let isResizing = false;
+        const xCol = document.getElementById('xanaduCol');
+        const xResizer = document.getElementById('xResizer');
+        xResizer.addEventListener('mousedown', e => { isResizing = true; e.preventDefault(); });
+        window.addEventListener('mousemove', e => {
+            if (!isResizing) return;
+            const newW = window.innerWidth - e.clientX;
+            if (newW > 100 && newW < 800) xCol.style.width = newW + 'px';
+            redraw();
+        });
+        window.addEventListener('mouseup', () => { isResizing = false; });
+                
+        canvas.addEventListener('wheel', e => {
+            const za = e.deltaY * -0.001;
+            const newZ = Math.min(Math.max(0.15, cam.z * (1 + za)), 4.5);
+            const wp = toWorld(e.clientX, e.clientY);
+            cam.z = newZ;
+            const ts = toScreen(wp.x, wp.y);
+            cam.x += (e.clientX - ts.x) / cam.z;
+            cam.y += (e.clientY - ts.y) / cam.z;
+            updateXanaduColumn();
+        }, { passive: true });
+
+        canvas.addEventListener('mousedown', e => {
+            if (e.button === 2 || e.button === 1 || (e.shiftKey && mode === 'explore')) {
+                isPanning = true; dragOX = e.clientX; dragOY = e.clientY; return;
+            }
+            const wp = toWorld(e.clientX, e.clientY);
+            const n = nodeAt(wp.x, wp.y);
+            if (!n) { selectNode(null); isPanning = true; dragOX = e.clientX; dragOY = e.clientY; return; }
+            if (mode === 'fire') {
+                aiming = { node: n, sx: n.x, sy: n.y, ex: e.clientX, ey: e.clientY };
+                n.glowAnim = 0.5;
+            } else {
+                dragging = n; dragOX = wp.x - n.x; dragOY = wp.y - n.y; selectNode(n);
+            }
+            redraw();
+        });
+
+        canvas.addEventListener('mousemove', e => {
+            if (isPanning) {
+                cam.x += (e.clientX - dragOX) / cam.z; cam.y += (e.clientY - dragOY) / cam.z;
+                dragOX = e.clientX; dragOY = e.clientY; updateXanaduColumn(); redraw(); return;
+            }
+            const wp = toWorld(e.clientX, e.clientY);
+            const n = nodeAt(wp.x, wp.y);
+            if (hoveredNode !== n) { hoveredNode = n; redraw(); }
+            if (dragging) { dragging.x = wp.x - dragOX; dragging.y = wp.y - dragOY; redraw(); }
+            if (aiming) { aiming.ex = e.clientX; aiming.ey = e.clientY; redraw(); }
+        });
+
+        canvas.addEventListener('mouseup', e => {
+            isPanning = false; dragging = null;
+            if (aiming) {
+                const snap = { ...aiming }; aiming = null;
+                const tw = toWorld(snap.ex, snap.ey);
+                const target = nodeAt(tw.x, tw.y);
+                if (target && target !== snap.node) {
+                    // edges.push({ from: snap.node, to: target, resonance: 0.28, tension: 0.1 }); // This is now handled by animateArrow callback
+                    hitNodes(snap.node, target);
+                } else if (!target) {
+                    showSpawnCtx(snap.ex, snap.ey, snap.node);
+                }
+                redraw();
+            }
+        });
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        let ctxMenu = null;
+        function showSpawnCtx(sx, sy, sourceNode) {
+            if (ctxMenu) ctxMenu.remove();
+            ctxMenu = document.createElement('div');
+            ctxMenu.style.cssText = `position:fixed;z-index:20;background:rgba(6,10,16,.97);border:1px solid rgba(100,180,200,.22);min-width:168px;left:${sx}px;top:${sy}px;pointer-events:all`;
+            ctxMenu.innerHTML = '<div style="padding:5px 10px;font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:#ffd700">Route through operator →</div>';
+            ['site', 'archaeologist', 'analyst', 'crate', 'hybrid', 'custom', 'aphorist', 'inverter', 'axiom', 'mind'].forEach(op => {
+                const h = OP_HUE[op] ?? 200;
+                const d = document.createElement('div');
+                d.style.cssText = `display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:8px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(100,180,200,.5);border-bottom:1px solid rgba(100,180,200,.06);transition:color .1s`;
+                d.innerHTML = `<span style="width:6px;height:6px;border-radius:50%;background:hsl(${h},70%,50%);flex-shrink:0;display:inline-block"></span>${OP_LABELS[op]}`;
+                d.onmouseenter = () => d.style.color = '#9dd8e8';
+                d.onmouseleave = () => d.style.color = 'rgba(100,180,200,.5)';
+                d.onclick = () => {
+                    ctxMenu.remove(); ctxMenu = null;
+                    const tw = toWorld(sx, sy);
+                    const opNode = addNodeRaw(OP_LABELS[op] + '…', op, tw.x, tw.y);
+                    edges.push({ from: sourceNode, to: opNode, resonance: 0.28, tension: 0.08 });
+                    hapticBounce(opNode, 5);
+                    hitNodes(sourceNode, opNode);
+                };
+                ctxMenu.appendChild(d);
+            });
+            document.body.appendChild(ctxMenu);
+            setTimeout(() => document.addEventListener('click', function dismiss() {
+                if (ctxMenu) { ctxMenu.remove(); ctxMenu = null; }
+                document.removeEventListener('click', dismiss);
+            }), 100);
+        }
+
+        // ═══════════════════════════════════════════
+        // NODE MANAGEMENT & HUD
+        // ═══════════════════════════════════════════
+        function hapticBounce(node, strength = 8) {
+            if (!node) return;
+            const ang = Math.random() * Math.PI * 2;
+            node.vx += Math.cos(ang) * strength; node.vy += Math.sin(ang) * strength; node.glowAnim = 1;
+        }
+
+        // Physics spring
+        setInterval(() => {
+            let nr = false;
+            nodes.forEach(n => {
+                if (Math.abs(n.vx) > 0.08 || Math.abs(n.vy) > 0.08) {
+                    n.x += n.vx; n.y += n.vy; n.vx *= 0.82; n.vy *= 0.82; nr = true;
+                }
+                if (n.glowAnim > 0) { n.glowAnim = Math.max(0, n.glowAnim - 0.024); nr = true; }
+                if (n.runAnim > 0) { n.runAnim = Math.max(0, n.runAnim - 0.007); nr = true; }
+            });
+            if (nr) redraw();
+        }, 16);
+
+        function addNodeRaw(text, op, x, y) {
+            const n = makeNode(text, op, x, y);
+            nodes.push(n);
+            document.getElementById('statNodes').textContent = nodes.filter(n => n.lifecycle_state !== 'COLLAPSED').length;
+            return n;
+        }
+
+        function addNode(text, op, x, y) {
+            const n = addNodeRaw(text, op, x, y);
+            updateXanaduColumn();
+            return n;
+        }
+
+        function selectNode(n) {
+            selectedNode = n;
+            if (n) hapticBounce(n, 3);
+            updateXanaduColumn();
+        }
+
+        function clearAll() {
+            nodes = []; edges = []; packets = []; selectedNode = null;
+            tick = 0; ecologistDirective = null;
+            document.getElementById('statNodes').textContent = '0';
+            document.getElementById('statTick').textContent = '0';
+            updateXanaduColumn();
+        }
+
+        let currentOp = 'site';
+        function pickOp(op, btn) {
+            currentOp = op;
+            document.querySelectorAll('.op-p').forEach(b => b.classList.remove('sel'));
+            if (btn && btn.classList.contains('op-p')) btn.classList.add('sel');
+            document.querySelectorAll('.lnav-btn').forEach(b => {
+                const title = b.getAttribute('title');
+                if (title && title.toUpperCase() === (OP_LABELS[op] || op).toUpperCase()) b.classList.add('active');
+                else if (title && title !== 'Voronoi view') b.classList.remove('active');
+            });
+            document.getElementById('bOp').textContent = (OP_LABELS[op] || op) + ' ▾';
+            document.getElementById('statOp').textContent = OP_LABELS[op] || op;
+            document.getElementById('opPicker').style.display = 'none';
+        }
+
+        function quickOp(op) {
+            const btn = Array.from(document.querySelectorAll('.op-p')).find(b => b.dataset.op === op);
+            pickOp(op, btn);
+        }
+
+        function toggleOpPicker() {
+            const p = document.getElementById('opPicker');
+            p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
+        }
+        function bKey(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); spawnFromInput(); } }
+        function spawnFromInput() {
+            const ta = document.getElementById('bInput');
+            const val = ta.value.trim(); if (!val) return;
+            const wp = toWorld(W / 2 + (Math.random() * 100 - 50), H / 2 + (Math.random() * 100 - 50));
+            const n = addNode(val, currentOp, wp.x, wp.y);
+            hapticBounce(n, 6); ta.value = '';
+            // Auto-connect to selected
+            if (selectedNode && selectedNode !== n && selectedNode.lifecycle_state !== 'COLLAPSED') {
+                edges.push({ from: selectedNode, to: n, resonance: 0.28, tension: 0.08 });
+                hitNodes(selectedNode, n);
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        // INIT
+        // ═══════════════════════════════════════════
+        loadApiKey();
+        resize();
+
+        const n4 = addNodeRaw("Generative interface as design fiction site", 'site', 130, 150);
+        n4.dynamic_scalars = { bloom: 0.28, signal: 0.2 }; n4.harmonicSignature.regime = 'bloom'; n4.harmonicSignature.motifs = ['bloom', 'signal'];
+
+        edges.push({ from: n3, to: n4, resonance: 0.38, tension: 0.08 });
+        edges.push({ from: n1, to: n2, resonance: 0.22, tension: 0.18 });
+        edges.push({ from: n2, to: n3, resonance: 0.25, tension: 0.12 });
+
+        document.getElementById('statNodes').textContent = nodes.length;
+        updateXanaduColumn();
+        requestAnimationFrame(engineLoop);
+    </script>
+</body>
+
+</html>

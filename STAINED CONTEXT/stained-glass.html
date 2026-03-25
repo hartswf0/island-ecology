@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Design Fiction — Voronoi Archer (Xanadu Edition)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        html, body {
+            width: 100%; height: 100%; overflow: hidden;
+            background: #060a10; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #7db8c8;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+        /* MAIN CANVAS */
+        #mainCanvas { position: fixed; inset: 0; z-index: 1; cursor: crosshair; }
+        
+        /* OVERLAY CANVAS FOR XANADU CURVES */
+        #overlayCanvas { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+
+        /* HUD OVERLAY */
+        #hud {
+            position: fixed; inset: 0; z-index: 4; pointer-events: none;
+            display: flex; flex-direction: column;
+        }
+
+        /* TOP BAR */
+        .top-bar {
+            height: 36px; display: flex; align-items: center;
+            border-bottom: 1px solid rgba(100, 180, 200, .15); background: rgba(6, 10, 16, .9);
+            flex-shrink: 0; padding: 0 12px; gap: 0; pointer-events: all;
+        }
+        .top-logo { font-size: 10px; font-weight: 600; letter-spacing: .15em; color: #ffd700; text-transform: uppercase; padding-right: 12px; border-right: 1px solid rgba(255, 215, 0, .2); }
+        .top-stat { display: flex; flex-direction: column; padding: 0 14px; border-right: 1px solid rgba(100, 180, 200, .1); }
+        .top-stat-lbl { font-size: 7px; letter-spacing: .1em; text-transform: uppercase; color: rgba(100, 180, 200, .4); margin-bottom: 1px; }
+        .top-stat-val { font-size: 10px; font-weight: 600; color: #9dd8e8; letter-spacing: .04em; }
+        .top-right { margin-left: auto; display: flex; gap: 0; }
+        .top-btn {
+            background: none; border: none; border-left: 1px solid rgba(100, 180, 200, .1);
+            color: rgba(100, 180, 200, .4); font-family: inherit; font-size: 8px; font-weight: 600;
+            letter-spacing: .08em; text-transform: uppercase; padding: 0 12px; height: 36px;
+            cursor: pointer; transition: color .1s; pointer-events: all;
+        }
+        .top-btn:hover { color: #9dd8e8; }
+        .top-btn.active { color: #ffd700; border-bottom: 2px solid #ffd700; }
+
+        /* MAIN ROW */
+        .main-row { flex: 1; display: flex; overflow: hidden; }
+
+        /* LEFT NAV (Tools) */
+        .left-nav {
+            width: 36px; border-right: 1px solid rgba(100, 180, 200, .1);
+            display: flex; flex-direction: column; align-items: center; padding: 6px 0; gap: 4px;
+            background: rgba(6, 10, 16, .85); pointer-events: all;
+        }
+        .lnav-btn {
+            width: 28px; height: 28px; background: none; border: 1px solid rgba(100, 180, 200, .1);
+            color: rgba(100, 180, 200, .4); font-size: 11px; cursor: pointer; transition: all .15s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .lnav-btn:hover, .lnav-btn.active { border-color: rgba(100, 180, 200, .5); color: #9dd8e8; background: rgba(100, 180, 200, .06); }
+        .lnav-sep { width: 20px; height: 1px; background: rgba(100, 180, 200, .1); margin: 3px 0; }
+
+        .world-area { flex: 1; position: relative; pointer-events: none; } /* mouse events fall through to canvas */
+
+        /* XANADU RIGHT PANEL */
+        .xanadu-panel {
+            width: 320px; border-left: 1px solid rgba(100, 180, 200, .12);
+            background: linear-gradient(90deg, rgba(6, 10, 16, 0) 0%, rgba(6, 10, 16, .92) 20%);
+            pointer-events: all; padding: 12px 10px 10px 30px; overflow-y: auto; overflow-x: hidden;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .xanadu-panel::-webkit-scrollbar { width: 2px; }
+        .xanadu-panel::-webkit-scrollbar-thumb { background: rgba(100, 180, 200, .2); }
+
+        /* RESIZER */
+        .x-resizer {
+            position: absolute; left: 0; top: 0; width: 4px; height: 100%;
+            cursor: col-resize; background: rgba(100, 180, 200, 0.05);
+            transition: background 0.2s; z-index: 5;
+        }
+        .x-resizer:hover { background: rgba(100, 180, 200, 0.2); }
+
+        .x-card {
+            background: rgba(8, 12, 18, 0.95); border: 1px solid rgba(100, 180, 200, 0.15);
+            padding: 10px; border-radius: 2px; position: relative; pointer-events: all;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-size: 9px; line-height: 1.6; color: #b4dceb;
+            transition: border-color 0.2s, transform 0.2s;
+            cursor: pointer;
+        }
+        .x-card:hover { border-color: rgba(100, 180, 200, 0.5); transform: translateX(-4px); }
+        .x-card.active { border-color: #ffd700; box-shadow: 0 0 10px rgba(255,215,0,0.2); }
+        .x-head { font-size: 7px; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(100,180,200,0.5); margin-bottom: 6px; display: flex; justify-content: space-between;}
+        .x-head span { color: #ffd700; font-weight: 600; }
+        .x-body { color: rgba(200, 230, 240, 0.85); white-space: pre-wrap; word-break: break-word;}
+        .x-connector {
+            position: absolute; left: -6px; top: 50%; transform: translateY(-50%);
+            width: 6px; height: 6px; border-radius: 50%; background: rgba(100,180,200,0.5);
+        }
+
+        /* BOTTOM ROW */
+        .bottom-row {
+            height: 44px; border-top: 1px solid rgba(100, 180, 200, .1);
+            display: flex; align-items: stretch; background: rgba(6, 10, 16, .9); pointer-events: all;
+        }
+        .b-input {
+            flex: 1; background: none; border: none; color: rgba(200, 230, 240, .85);
+            font-family: inherit; font-size: 11px; font-style: italic; padding: 0 14px; outline: none; letter-spacing: .02em;
+        }
+        .b-input::placeholder { color: rgba(100, 180, 200, .25); }
+        .b-op {
+            font-family: inherit; font-size: 8px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+            background: none; border: none; border-left: 1px solid rgba(100, 180, 200, .1); color: rgba(100, 180, 200, .5);
+            padding: 0 12px; cursor: pointer; white-space: nowrap; transition: color .1s;
+        }
+        .b-op:hover { color: #9dd8e8; }
+        .b-spawn {
+            font-family: inherit; font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+            background: rgba(255, 215, 0, .08); border: none; border-left: 1px solid rgba(255, 215, 0, .2);
+            color: rgba(255, 215, 0, .8); padding: 0 14px; cursor: pointer; transition: all .12s;
+        }
+        .b-spawn:hover { background: rgba(255, 215, 0, .15); color: #ffd700; }
+
+        /* MENUS & HELP */
+        #opPicker {
+            position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%); z-index: 10;
+            background: rgba(6, 10, 16, .97); border: 1px solid rgba(100, 180, 200, .2);
+            display: none; flex-wrap: wrap; max-width: 480px; pointer-events: all;
+        }
+        .op-p {
+            font-family: inherit; font-size: 8px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+            background: none; border: none; border-right: 1px solid rgba(100, 180, 200, .08); border-bottom: 1px solid rgba(100, 180, 200, .08);
+            color: rgba(100, 180, 200, .35); padding: 7px 11px; cursor: pointer; transition: all .1s;
+        }
+        .op-p:hover { background: rgba(100, 180, 200, .06); color: #9dd8e8; }
+        .op-p.sel { color: #ffd700; }
+        .op-p.t { opacity: .6; border-right-style: dashed; }
+
+        #ctxMenu {
+            position: fixed; z-index: 20; background: rgba(6, 10, 16, .97); border: 1px solid rgba(100, 180, 200, .2);
+            display: none; min-width: 160px; pointer-events: all;
+        }
+        .ctx-item {
+            display: flex; align-items: center; gap: 8px; padding: 7px 12px; cursor: pointer; font-size: 8px; font-weight: 600;
+            letter-spacing: .08em; text-transform: uppercase; color: rgba(100, 180, 200, .5);
+            border-bottom: 1px solid rgba(100, 180, 200, .06); transition: all .1s;
+        }
+        .ctx-item:hover { background: rgba(100, 180, 200, .06); color: #9dd8e8; }
+        .ctx-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+        #help { position: fixed; bottom: 50px; right: 10px; z-index: 3; font-size: 7px; color: rgba(100, 180, 200, .2); text-align: right; line-height: 2; letter-spacing: .04em; pointer-events: none; }
+        
+        /* API HUD */
+        #api-inline { display: flex; align-items: center; gap: 6px; pointer-events: all; margin-left:10px; border-left: 1px solid rgba(100, 180, 200, .1); padding-left: 10px; }
+        #api-key-input { 
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(100, 180, 200, 0.15); 
+            color: #ffd700; font-family: inherit; font-size: 9px; padding: 4px 8px; width: 120px; outline: none;
+        }
+        #api-key-input:focus { border-color: #ffd700; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #5d6a81; transition: all 0.3s; }
+        .status-dot.ok { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+        .status-dot.busy { background: #ffb000; box-shadow: 0 0 8px #ffb000; animation: pulse 1s infinite; }
+        .status-dot.err { background: #ff4d5d; box-shadow: 0 0 8px #ff4d5d; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas"></canvas>
+    <canvas id="overlayCanvas"></canvas>
+
+    <div id="hud">
+        <div class="top-bar">
+            <span class="top-logo">⬡ Design Fiction</span>
+            <div class="top-stat"><div class="top-stat-lbl">Mode</div><div class="top-stat-val" id="statMode">EXPLORE</div></div>
+            <div class="top-stat"><div class="top-stat-lbl">Nodes</div><div class="top-stat-val" id="statNodes">0</div></div>
+            <div class="top-stat"><div class="top-stat-lbl">View</div><div class="top-stat-val" id="statZoom">100%</div></div>
+            <div class="top-stat"><div class="top-stat-lbl">Operator</div><div class="top-stat-val" id="statOp">SITE</div></div>
+            <div class="top-stat"><div class="top-stat-lbl">Status</div><div class="top-stat-val" id="statStatus">READY</div></div>
+            <div id="api-inline">
+                <div id="dot-api" class="status-dot"></div>
+                <input type="password" id="api-key-input" placeholder="OpenAI Key..." onchange="saveApiKey()">
+            </div>
+            <div class="top-right">
+                <button class="top-btn" onclick="recenterCam()">HOME</button>
+                <button class="top-btn active" onclick="setMode('explore')">EXPLORE</button>
+                <button class="top-btn" onclick="setMode('fire')">FIRE</button>
+                <button class="top-btn" onclick="clearAll()">CLEAR</button>
+            </div>
+        </div>
+        <div class="main-row">
+            <div class="left-nav">
+                <button class="lnav-btn active" id="btnViewVoronoi" title="Voronoi view" onclick="toggleView('voronoi')">⬡</button>
+                <button class="lnav-btn" id="btnViewForce" title="Force view" onclick="toggleView('force')">◎</button>
+                <div class="lnav-sep"></div>
+                <button class="lnav-btn" data-op="site" title="SITE" onclick="pickOp('site', this)">S</button>
+                <button class="lnav-btn" data-op="archaeologist" title="DIG" onclick="pickOp('archaeologist', this)">D</button>
+                <button class="lnav-btn" data-op="analyst" title="INFER" onclick="pickOp('analyst', this)">I</button>
+                <button class="lnav-btn" data-op="crate" title="BUILD" onclick="pickOp('crate', this)">B</button>
+                <div class="lnav-sep"></div>
+                <button class="lnav-btn" data-op="aphorist" title="APHORIST" onclick="pickOp('aphorist', this)">A</button>
+                <button class="lnav-btn" data-op="inverter" title="INVERTER" onclick="pickOp('inverter', this)">↑</button>
+            </div>
+            <div class="world-area" id="worldArea"></div>
+            <div class="xanadu-panel" id="xanaduCol" style="width: 320px;">
+                <div class="x-resizer" id="xResizer"></div>
+                <!-- Xanadu cards go here -->
+            </div>
+        </div>
+        <div class="bottom-row">
+            <input class="b-input" id="bInput" placeholder="seed concept here — ⌘↵ to spawn · pan with right-click or middle-click…" onkeydown="bKey(event)">
+            <button class="b-op" id="bOp" onclick="toggleOpPicker()">SITE ▾</button>
+            <button class="b-spawn" onclick="spawnFromInput()">Spawn</button>
+        </div>
+    </div>
+
+    <div id="opPicker">
+        <button class="op-p sel" data-op="site" onclick="pickOp('site',this)">SITE</button>
+        <button class="op-p" data-op="archaeologist" onclick="pickOp('archaeologist',this)">DIG</button>
+        <button class="op-p" data-op="analyst" onclick="pickOp('analyst',this)">INFER</button>
+        <button class="op-p" data-op="crate" onclick="pickOp('crate',this)">BUILD</button>
+        <button class="op-p" data-op="hybrid" onclick="pickOp('hybrid',this)">HYBRID</button>
+        <button class="op-p" data-op="custom" onclick="pickOp('custom',this)">OPEN</button>
+        <button class="op-p t" data-op="aphorist" onclick="pickOp('aphorist',this)">APHORIST</button>
+        <button class="op-p t" data-op="pragmatist" onclick="pickOp('pragmatist',this)">PRAGMATIST</button>
+        <button class="op-p t" data-op="inverter" onclick="pickOp('inverter',this)">INVERTER</button>
+    </div>
+    <div id="ctxMenu"></div>
+    <div id="help">scroll/M-drag to pan & zoom<br>drag node · L-click to focus<br>◎ FIRE mode → drag to target</div>
+
+    <script>
+        // CONFIG
+        const OPENAI_TEXT_MODEL = "gpt-4o";
+        const OP_LABELS = { site:'SITE', archaeologist:'DIG', analyst:'INFER', crate:'BUILD', hybrid:'HYBRID', custom:'OPEN', aphorist:'APHORIST', pragmatist:'PRAGMATIST', inverter:'INVERTER', axiom:'AXIOM', branch:'BRANCH', completion:'COMPLETION', seed:'SEED'};
+        const OP_HUE = { site:200, archaeologist:270, analyst:150, crate:170, hybrid:0, custom:20, aphorist:30, pragmatist:10, inverter:350, axiom:200, branch:160, completion:140, seed:200};
+        const TRANSFORM_TYPES = new Set(['aphorist','pragmatist','inverter']);
+
+        let API_KEY = "";
+        const STORAGE_KEY = "stained_glass_openai_key";
+
+        function opColorSolid(op) { return `hsl(${OP_HUE[op] || 200},70%,50%)`; }
+
+        // CANVAS
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlayCanvas');
+        const oCtx = overlay.getContext('2d');
+        let W = 0, H = 0;
+
+        // CAMERA
+        let cam = { x: 0, y: 0, z: 1 };
+
+        function resize() {
+            W = canvas.width = overlay.width = window.innerWidth;
+            H = canvas.height = overlay.height = window.innerHeight;
+            redraw();
+        }
+        window.addEventListener('resize', resize);
+
+        function toScreen(wx, wy) { return { x: (wx + cam.x) * cam.z + W/2, y: (wy + cam.y) * cam.z + H/2 }; }
+        function toWorld(sx, sy) { return { x: (sx - W/2)/cam.z - cam.x, y: (sy - H/2)/cam.z - cam.y }; }
+
+        function recenterCam() {
+            cam = { x: 0, y: 0, z: 1 };
+            document.getElementById('statZoom').textContent = '100%';
+            redraw();
+        }
+
+        // NODE DATA
+        let nodes = [];
+        let nodeIdCounter = 0;
+        let edges = []; // {from,to}
+        // Selection State
+        let selectedNode = null;
+        let hoveredNode = null;
+        
+        // Xanadu Thread Data
+        let xanaduNodes = []; // list of descendants/ancestors rendered in the column
+
+        function makeNode(text, op, x, y) {
+            return {
+                id: ++nodeIdCounter, text, op, x, y,
+                vx: 0, vy: 0, radius: 72, glowAnim: 0, runAnim: 0, depth: 0, 
+                _sys: buildSys(op), streamingText: '',
+                isBuilding: false
+            };
+        }
+
+        // EXACT VORONOI CLIPPING
+        function drawStainedGlassVoronoi() {
+            if (nodes.length === 0 || viewMode === 'force') return;
+            ctx.save();
+            ctx.lineJoin = 'round';
+            nodes.forEach(n => {
+                ctx.save();
+                ctx.beginPath();
+                const R = 8000;
+                ctx.rect(n.x - R, n.y - R, R*2, R*2);
+                ctx.clip(); // start with large bounding box
+
+                nodes.forEach(b => {
+                    if (n === b) return;
+                    const mx = (n.x + b.x) / 2, my = (n.y + b.y) / 2;
+                    const dx = b.x - n.x, dy = b.y - n.y;
+                    const ang = Math.atan2(dy, dx);
+                    
+                    ctx.beginPath();
+                    ctx.translate(mx, my);
+                    ctx.rotate(ang);
+                    // The valid side containing n is to the left (x < 0) since dy, dx points to b
+                    ctx.rect(-R, -R, R, R*2);
+                    ctx.rotate(-ang);
+                    ctx.translate(-mx, -my);
+                    ctx.clip();
+                });
+
+                // Now filled and clipped 
+                if (n.isBuilding) { ctx.restore(); return; } // Don't draw Voronoi cell for building nodes
+                
+                const h = OP_HUE[n.op] ?? 200;
+                const isSelected = xanaduNodes.includes(n);
+                const isHovered = hoveredNode === n;
+                const alpha = 0.05 + (isSelected ? 0.08 : 0) + (isHovered ? 0.05 : 0) + n.glowAnim * 0.15 + n.runAnim * 0.1;
+                
+                ctx.fillStyle = `hsla(${h},70%,${40 + n.glowAnim*20}%,${alpha})`;
+                ctx.fill();
+
+                // Draw thick border for "stained glass" leading
+                ctx.strokeStyle = `hsla(${h},80%,65%,${0.15 + n.glowAnim*0.3 + (isHovered ? 0.2 : 0)})`;
+                ctx.lineWidth = (isSelected ? 3 : 1) / cam.z; // keep screen thickness constant
+                ctx.stroke();
+
+                ctx.restore();
+            });
+            ctx.restore();
+        }
+
+        function tickPhysics() {
+            const damp = 0.82;
+            let needsRedraw = false;
+            nodes.forEach(n => {
+                if (Math.abs(n.vx) > 0.1 || Math.abs(n.vy) > 0.1) {
+                    n.x += n.vx; n.y += n.vy; n.vx *= damp; n.vy *= damp; needsRedraw = true;
+                }
+                if (n.glowAnim > 0) { n.glowAnim = Math.max(0, n.glowAnim - 0.025); needsRedraw = true; }
+                if (n.runAnim > 0) { n.runAnim = Math.max(0, n.runAnim - 0.008); needsRedraw = true; }
+            });
+            if (needsRedraw) redraw();
+        }
+        setInterval(tickPhysics, 16);
+
+        function hapticBounce(node, strength = 8) {
+            const angle = Math.random() * Math.PI * 2;
+            node.vx += Math.cos(angle) * strength; node.vy += Math.sin(angle) * strength; node.glowAnim = 1;
+        }
+
+        // REDRAW LOOP
+        function redraw() {
+            ctx.clearRect(0, 0, W, H);
+            
+            ctx.save();
+            ctx.translate(W/2, H/2);
+            ctx.scale(cam.z, cam.z);
+            ctx.translate(cam.x, cam.y);
+
+            drawGrid();
+            if (viewMode === 'voronoi') drawStainedGlassVoronoi();
+            drawEdgeLines();
+            if (aiming) drawAimArc();
+            if (arrowAnim) drawArrowFrame();
+
+            // Node overlay labels
+            nodes.forEach(n => {
+                const h = OP_HUE[n.op] ?? 200;
+                const isSelected = xanaduNodes.includes(n);
+                const isBuilding = n.isBuilding;
+                
+                ctx.globalAlpha = isBuilding ? 0.3 : 1.0;
+                
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, (isSelected ? 6 : 4)/cam.z, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${h},80%,65%,${0.8 + n.glowAnim * 0.2})`;
+                ctx.fill();
+
+                if (isSelected || n.glowAnim > 0) {
+                    ctx.beginPath(); ctx.arc(n.x, n.y, (12 + n.glowAnim * 8)/cam.z, 0, Math.PI * 2);
+                    ctx.strokeStyle = `hsla(${h},80%,65%,${(0.3 + n.glowAnim * 0.3)})`;
+                    ctx.lineWidth = 1/cam.z; ctx.stroke();
+                }
+
+                ctx.font = `600 ${8/cam.z}px 'IBM Plex Mono',monospace`;
+                ctx.textAlign = 'center'; ctx.fillStyle = `hsla(${h},80%,70%,0.8)`;
+                ctx.fillText(OP_LABELS[n.op] || n.op, n.x, n.y - 12/cam.z);
+
+                if (!isBuilding) {
+                    ctx.font = `${9/cam.z}px 'IBM Plex Mono',monospace`;
+                    ctx.fillStyle = `rgba(180,220,235,0.6)`;
+                    const preview = n.text.length > 24 ? n.text.substring(0, 24) + '…' : n.text;
+                    ctx.fillText(preview, n.x, n.y + 10/cam.z);
+                }
+                ctx.globalAlpha = 1.0;
+            });
+            ctx.restore();
+
+            if (viewMode === 'voronoi') drawXanaduLines();
+        }
+
+        // TICK LOOP
+        function tick() {
+            if (arrowAnim) {
+                arrowAnim.t += 0.04;
+                if (arrowAnim.t >= 1) {
+                    const cb = arrowAnim.to.onHit;
+                    arrowAnim = null;
+                    if (cb) cb();
+                }
+                redraw();
+            }
+            requestAnimationFrame(tick);
+        }
+
+        function drawGrid() {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(50,90,120,.05)';
+            ctx.lineWidth = 1/cam.z;
+            const gs = 60;
+            const left = -cam.x - W/(2*cam.z), right = -cam.x + W/(2*cam.z);
+            const top = -cam.y - H/(2*cam.z), bottom = -cam.y + H/(2*cam.z);
+            
+            const startX = Math.floor(left / gs) * gs, startY = Math.floor(top / gs) * gs;
+            for (let x = startX; x < right; x += gs) { ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke(); }
+            for (let y = startY; y < bottom; y += gs) { ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke(); }
+            ctx.restore();
+        }
+
+        function drawEdgeLines() {
+            ctx.save();
+            edges.forEach(e => {
+                const a = e.from, b = e.to;
+                if (!a || !b) return;
+                const ha = OP_HUE[a.op] ?? 200, hb = OP_HUE[b.op] ?? 200;
+                const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+                grad.addColorStop(0, `hsla(${ha},70%,55%,.15)`);
+                grad.addColorStop(1, `hsla(${hb},70%,55%,.15)`);
+                ctx.strokeStyle = grad; ctx.lineWidth = 1.5/cam.z;
+                ctx.setLineDash([4/cam.z, 8/cam.z]);
+                ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+            });
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+
+        // XANADU TEXT COLUMN (D3 STYLE LINKS)
+        function drawXanaduLines() {
+            oCtx.clearRect(0,0,W,H);
+            const cards = document.querySelectorAll('.x-card');
+            oCtx.save();
+            cards.forEach(card => {
+                const id = parseInt(card.dataset.id);
+                const n = nodes.find(nd => nd.id === id);
+                if (n) {
+                    const rect = card.getBoundingClientRect();
+                    const sPos = toScreen(n.x, n.y);
+                    
+                    const endX = rect.left;
+                    const endY = rect.top + 20; // connect to header
+                    
+                    // Bezier from node to card
+                    oCtx.beginPath();
+                    oCtx.moveTo(sPos.x, sPos.y);
+                    const dist = Math.abs(endX - sPos.x)*0.5;
+                    oCtx.bezierCurveTo(sPos.x + dist, sPos.y, endX - dist, endY, endX, endY);
+                    
+                    const h = OP_HUE[n.op] ?? 200;
+                    oCtx.strokeStyle = `hsla(${h}, 80%, 65%, 0.3)`;
+                    if(selectedNode === n) oCtx.strokeStyle = `hsla(${h}, 80%, 65%, 0.8)`;
+                    oCtx.lineWidth = 1.5;
+                    oCtx.stroke();
+                }
+            });
+            oCtx.restore();
+        }
+
+        function updateXanaduColumn() {
+            const panel = document.getElementById('xanaduCol');
+            panel.innerHTML = '';
+            xanaduNodes = [];
+            
+            if (!selectedNode) {
+                // Determine visible nodes
+                const vis = nodes.filter(n => {
+                    const s = toScreen(n.x, n.y);
+                    return s.x > 0 && s.x < W - 320 && s.y > 0 && s.y < H;
+                });
+                xanaduNodes = vis.slice(0, 10); // cap to 10 for performance
+            } else {
+                // Compute lineage: ancestors + siblings + children of selected node
+                const lineage = new Set();
+                const addAncestors = (n) => {
+                    lineage.add(n);
+                    edges.forEach(e => { if(e.to === n && !lineage.has(e.from)) addAncestors(e.from); });
+                };
+                const addDescendants = (n) => {
+                    lineage.add(n);
+                    edges.forEach(e => { if(e.from === n && !lineage.has(e.to)) addDescendants(e.to); });
+                };
+                addAncestors(selectedNode);
+                addDescendants(selectedNode);
+                
+                xanaduNodes = Array.from(lineage).sort((a,b) => a.id - b.id);
+            }
+
+            xanaduNodes.forEach(n => {
+                const div = document.createElement('div');
+                div.className = 'x-card';
+                if (n === selectedNode) div.classList.add('active');
+                div.dataset.id = n.id;
+                
+                const h = OP_HUE[n.op] ?? 200;
+                div.innerHTML = `
+                    <div class="x-connector" style="background:hsl(${h},70%,50%)"></div>
+                    <div class="x-head"><span>${OP_LABELS[n.op] || n.op}</span> N${n.id}</div>
+                    <div class="x-body">${n.streamingText || n.text}</div>
+                `;
+                div.onclick = () => { selectNode(n); };
+                div.onmouseenter = () => { hoveredNode = n; redraw(); };
+                div.onmouseleave = () => { hoveredNode = null; redraw(); };
+                panel.appendChild(div);
+            });
+            redraw();
+        }
+
+        function streamTextToNode(text, n) {
+            n.streamingText = text;
+            updateXanaduColumn();
+            const card = document.querySelector(`.x-card[data-id="${n.id}"]`);
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+
+
+        // AIM + ARROW
+        let aiming = null, arrowAnim = null;
+        function drawAimArc() {
+            if (!aiming) return;
+            const { sx, sy, ex, ey } = aiming;
+            const sPos = toScreen(sx, sy);
+            oCtx.save();
+            oCtx.strokeStyle = 'rgba(255,215,0,0.4)';
+            oCtx.setLineDash([4, 4]); oCtx.lineWidth = 1.5;
+            oCtx.beginPath();
+            
+            // Draw arc to mouse
+            const midway = { x: (sPos.x + ex)/2, y: (sPos.y + ey)/2 - 100 };
+            oCtx.moveTo(sPos.x, sPos.y);
+            oCtx.quadraticCurveTo(midway.x, midway.y, ex, ey);
+            oCtx.stroke();
+            oCtx.restore();
+        }
+
+        function drawArrowFrame() {
+            if (!arrowAnim) return;
+            const { t, from, to } = arrowAnim;
+            const sFrom = toScreen(from.x, from.y);
+            const sTo = toScreen(to.x, to.y);
+            
+            // Quadratic Bezier interpolation
+            const midway = { x: (sFrom.x + sTo.x)/2, y: (sFrom.y + sTo.y)/2 - 100 };
+            const q = (p1, p2, p3, t) => (1-t)*(1-t)*p1 + 2*(1-t)*t*p2 + t*t*p3;
+            const px = q(sFrom.x, midway.x, sTo.x, t);
+            const py = q(sFrom.y, midway.y, sTo.y, t);
+
+            oCtx.save();
+            oCtx.fillStyle = '#ffd700';
+            oCtx.shadowBlur = 10; oCtx.shadowColor = '#ffd700';
+            oCtx.beginPath(); oCtx.arc(px, py, 4, 0, Math.PI*2); oCtx.fill();
+            
+            // Tail trail
+            oCtx.beginPath();
+            for(let i=1; i<10; i++) {
+                const tt = Math.max(0, t - i*0.02);
+                const tx = q(sFrom.x, midway.x, sTo.x, tt);
+                const ty = q(sFrom.y, midway.y, sTo.y, tt);
+                oCtx.arc(tx, ty, 4 - i*0.4, 0, Math.PI*2);
+            }
+            oCtx.fillStyle = 'rgba(255,215,0,0.2)';
+            oCtx.fill();
+            oCtx.restore();
+        }
+
+        function animateArrow(from, to, callback) {
+            arrowAnim = { t: 0, from, to };
+            to.onHit = callback;
+        }
+
+        // INTERACTION & CAMERA
+        let dragging = null, dragOX = 0, dragOY = 0;
+        let viewMode = 'voronoi';
+        function toggleView(v) {
+            viewMode = v;
+            document.getElementById('btnViewVoronoi').classList.toggle('active', v==='voronoi');
+            document.getElementById('btnViewForce').classList.toggle('active', v==='force');
+            redraw();
+        }
+
+        // RESIZABLE PANEL
+        let isResizing = false;
+        const xCol = document.getElementById('xanaduCol');
+        const xResizer = document.getElementById('xResizer');
+        xResizer.addEventListener('mousedown', e => { isResizing = true; e.preventDefault(); });
+        window.addEventListener('mousemove', e => {
+            if (!isResizing) return;
+            const newW = window.innerWidth - e.clientX;
+            if (newW > 100 && newW < 800) xCol.style.width = newW + 'px';
+            redraw();
+        });
+        window.addEventListener('mouseup', () => { isResizing = false; });
+        let mode = 'explore';
+        let isPanning = false;
+
+        function setMode(m) {
+            mode = m; document.getElementById('statMode').textContent = m.toUpperCase();
+            document.querySelectorAll('.top-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase() === m || (b.textContent === 'EXPLORE' && m === 'explore') || (b.textContent === 'FIRE' && m === 'fire')));
+        }
+
+        function nodeAt(wx, wy) {
+            let best = null, bestD = Infinity;
+            nodes.forEach(n => {
+                const d = Math.hypot(wx - n.x, wy - n.y);
+                if (d < bestD) { bestD = d; best = n; }
+            });
+            return best && bestD < Math.max(best.radius, 40 / cam.z) ? best : null;
+        }
+
+        canvas.addEventListener('wheel', e => {
+            const zoomAmount = e.deltaY * -0.001;
+            const newZ = Math.min(Math.max(0.2, cam.z * (1 + zoomAmount)), 4);
+            const wPos = toWorld(e.clientX, e.clientY);
+            cam.z = newZ;
+            const targetScreen = toScreen(wPos.x, wPos.y);
+            cam.x += (e.clientX - targetScreen.x) / cam.z;
+            cam.y += (e.clientY - targetScreen.y) / cam.z;
+            document.getElementById('statZoom').textContent = Math.round(cam.z * 100) + '%';
+            updateXanaduColumn();
+        }, { passive: true });
+
+        canvas.addEventListener('mousedown', e => {
+            if (e.button === 2 || e.button === 1 || e.shiftKey && mode === 'explore') {
+                isPanning = true; dragOX = e.clientX; dragOY = e.clientY; return;
+            }
+            const wPos = toWorld(e.clientX, e.clientY);
+            const n = nodeAt(wPos.x, wPos.y);
+
+            if (!n) { selectNode(null); isPanning = true; dragOX = e.clientX; dragOY = e.clientY; return; }
+
+            if (mode === 'fire') {
+                aiming = { node: n, sx: n.x, sy: n.y, ex: e.clientX, ey: e.clientY };
+                n.glowAnim = 0.5; redraw();
+            } else {
+                dragging = n; dragOX = wPos.x - n.x; dragOY = wPos.y - n.y; selectNode(n);
+            }
+        });
+
+        canvas.addEventListener('mousemove', e => {
+            if (isPanning) {
+                cam.x += (e.clientX - dragOX) / cam.z; cam.y += (e.clientY - dragOY) / cam.z;
+                dragOX = e.clientX; dragOY = e.clientY; updateXanaduColumn(); redraw(); return;
+            }
+            const wPos = toWorld(e.clientX, e.clientY);
+            const n = nodeAt(wPos.x, wPos.y);
+            if (hoveredNode !== n) { hoveredNode = n; redraw(); }
+            if (dragging) { dragging.x = wPos.x - dragOX; dragging.y = wPos.y - dragOY; redraw(); }
+            if (aiming) { aiming.ex = e.clientX; aiming.ey = e.clientY; redraw(); }
+        });
+
+        canvas.addEventListener('mouseup', e => {
+            isPanning = false; dragging = null;
+            if (aiming) {
+                const snap = { ...aiming }; aiming = null; hoveredNode = null;
+                const targetW = toWorld(snap.ex, snap.ey);
+                const target = nodeAt(targetW.x, targetW.y);
+                if (target && target !== snap.node) {
+                    edges.push({ from: snap.node, to: target }); 
+                    hitNodes(snap.node, target); 
+                } else if (!target) {
+                    showSpawnCtxWithSource(snap.ex, snap.ey, snap.node);
+                }
+                redraw();
+            }
+        });
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        function showSpawnCtxWithSource(sx, sy, sourceNode) {
+            const menu = document.getElementById('ctxMenu');
+            const ops = ['site', 'archaeologist', 'analyst', 'crate', 'hybrid', 'custom', 'aphorist', 'inverter'];
+            menu.innerHTML = '<div style="padding:5px 10px;font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:#ffd700">Route through operator →</div>';
+            ops.forEach(op => {
+                const d = document.createElement('div'); d.className = 'ctx-item';
+                d.innerHTML = `<span class="ctx-dot" style="background:${opColorSolid(op)}"></span>${OP_LABELS[op]}`;
+                d.onclick = () => {
+                    menu.style.display = 'none';
+                    const targetW = toWorld(sx, sy);
+                    const opNode = addNode(OP_LABELS[op] + "...", op, targetW.x, targetW.y);
+                    edges.push({ from: sourceNode, to: opNode });
+                    hapticBounce(opNode, 5); hitNodes(sourceNode, opNode);
+                };
+                menu.appendChild(d);
+            });
+            positionMenu(menu, sx, sy);
+        }
+
+        function positionMenu(menu, x, y) {
+            menu.style.display = 'block'; menu.style.left = x + 'px'; menu.style.top = y + 'px';
+        }
+
+        // LLM GENERATION MOCK / API
+        function buildSys(op) {
+            if (TRANSFORM_TYPES.has(op)) {
+                const t = {
+                    aphorist: `You are a Philosophical Aphorist in the tradition of Wittgenstein. Execute a philosophical distillation. Reconstruct into fragmented, introspective, aphoristic remarks. BAN explanatory transitions. BAN definitive solutions. REQUIRE standalone numbered aphorisms. End with a stark observation that forces silent reflection. Output: brief diagnostic (Dead Rubble / Warm Seed / The Unsaid) then numbered fragments.`,
+                    pragmatist: `You are an Operational Pragmatist. The meaning of a word is its use in the language. Strip texts of substantive bewilderment. Reconstruct as pure, frictionless control surfaces. Eradicate invisible mental states and abstract nouns. REQUIRE output reads like a manual for playing a specific language game. Output: Operational Diagnostic then Control Surface Draft.`,
+                    inverter: `You are an Axis Inverter. Readers are not paid to care about the inside of the writer's head. Reconstruct texts for the vertical axis: how the reader values, not how the writer thinks. Inject friction, not flow. Replace continuity words with tension words. Output: Axis Inversion Report then Vertical Axis Draft.`
+                }; return t[op] || t.aphorist;
+            }
+            const m = {
+                site: `You are a research strategist for design fiction. Given a concept, generate 5-7 real-world sites where it would take root, cause rupture, or reveal something unexpected. Sites are conditions: a grey market is a site, a warranty dispute is a site, a shift handover is a site. Be specific, strange, and productive. Output as clear sections, one per site.`,
+                archaeologist: `You are a design fiction archaeologist. Mix hallucinated internal memos, leaked specs, invented expert testimony, and real historical precedent freely. Excavate the given concept across 5 layers: Surface Appearance, Intended Function, Shadow Function, Failure Mode, Archaeological Future. Output should feel like finding a box of documents that weren't supposed to exist.`,
+                analyst: `You are a diffractive analyst. Read the given material and determine what it is becoming, not what it is. What friction is most generative right now. What question the material is asking that it doesn't know it's asking. End with 3 specific next operations. Produce unexpected paths forward, not summaries.`,
+                crate: `You are a designer of tactile research interfaces. Build a single self-contained HTML file — a browsable crate-digging interface for the given dossier material. The interface should be a design fiction object. Dark mode, tactile, data-dense. Output ONLY the HTML.`,
+                hybrid: `You are a design fiction hybrid operator. Route the given material through at least two design fiction idioms simultaneously — film diegetic prototypes, repair manuals, quick start guides, or product catalogs. The hybrid should reveal something the single idiom would miss. Be specific, strange, and productive.`,
+                custom: `You are a design fiction operator pursuing productive surprise. Route around the expected. Invite hallucination where hallucination is generative. Mix real things with invented ones freely. The output should surprise the person who sent the concept.`
+            }; return m[op] || m.custom;
+        }
+
+        async function hitNodes(fromNode, toNode) {
+            const concept = fromNode.text;
+            const op = toNode.op;
+            const sys = toNode._sys || buildSys(op);
+            const userMsg = TRANSFORM_TYPES.has(op) ? concept : `Concept: ${concept}`;
+            
+            toNode.runAnim = 1;
+            setApiStatus('busy');
+            document.getElementById('statStatus').textContent = 'RUNNING';
+            
+            const rx = (toNode.x + fromNode.x)/2 + Math.random() * 200 - 100;
+            const ry = (toNode.y + fromNode.y)/2 + Math.random() * 200 - 100;
+            const result = addNode('…', op, rx, ry);
+            result.isBuilding = true;
+            result.runAnim = 1; result.depth = fromNode.depth + 1;
+
+            animateArrow(toNode, result, async () => {
+                result.isBuilding = false;
+                edges.push({ from: toNode, to: result });
+                selectNode(result);
+                streamTextToNode('Generating...', result);
+                
+                try {
+                    if (!API_KEY) throw new Error("API Key Missing");
+                    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
+                        body: JSON.stringify({
+                            model: OPENAI_TEXT_MODEL,
+                            messages: [ { role: 'system', content: sys }, { role: 'user', content: userMsg } ],
+                            temperature: 0.7
+                        })
+                    });
+                    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+                    const data = await res.json();
+                    result.text = data.choices[0].message.content;
+                    result.streamingText = ''; result._sys = sys;
+                    hapticBounce(result, 10);
+                    setApiStatus('ok');
+                } catch (err) {
+                    console.error(err);
+                    result.text = 'Error: ' + err.message;
+                    result.streamingText = '';
+                    setApiStatus('err');
+                }
+                toNode.runAnim = 0; result.runAnim = 0;
+                document.getElementById('statStatus').textContent = 'READY';
+                updateXanaduColumn();
+            });
+        }
+
+        // API KEY HELPERS
+        function loadApiKey() {
+            API_KEY = localStorage.getItem(STORAGE_KEY) || "";
+            document.getElementById('api-key-input').value = API_KEY;
+            setApiStatus(API_KEY ? 'ok' : '');
+        }
+        function saveApiKey() {
+            API_KEY = document.getElementById('api-key-input').value.trim();
+            localStorage.setItem(STORAGE_KEY, API_KEY);
+            setApiStatus(API_KEY ? 'ok' : '');
+        }
+        function setApiStatus(s) {
+            const dot = document.getElementById('dot-api');
+            dot.className = 'status-dot ' + s;
+        }
+
+        // NODES & HUD
+        function addNode(text, op, x, y) {
+            const n = makeNode(text, op, x, y); nodes.push(n);
+            document.getElementById('statNodes').textContent = nodes.length;
+            updateXanaduColumn(); return n;
+        }
+
+        function selectNode(n) { selectedNode = n; hapticBounce(n, 3); updateXanaduColumn(); }
+        function clearAll() { nodes = []; edges = []; selectedNode = null; updateXanaduColumn(); }
+
+        let currentOp = 'site';
+        function pickOp(op, btn) {
+            currentOp = op; 
+            document.querySelectorAll('.op-p').forEach(b => b.classList.remove('sel'));
+            document.querySelectorAll('.lnav-btn[data-op]').forEach(b => b.classList.toggle('active', b.dataset.op === op));
+            if(btn && btn.classList.contains('op-p')) btn.classList.add('sel');
+            document.getElementById('bOp').textContent = OP_LABELS[op] + ' ▾';
+            document.getElementById('statOp').textContent = OP_LABELS[op];
+            document.getElementById('opPicker').style.display = 'none';
+        }
+        function toggleOpPicker() {
+            const p = document.getElementById('opPicker');
+            p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
+        }
+        function bKey(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); spawnFromInput(); } }
+        function spawnFromInput() {
+            const ta = document.getElementById('bInput'); const val = ta.value.trim(); if (!val) return;
+            const wPos = toWorld(W/2 + (Math.random()*100-50), H/2 + (Math.random()*100-50));
+            const n = addNode(val, currentOp, wPos.x, wPos.y);
+            hapticBounce(n, 6); ta.value = '';
+        }
+        function quickOp(op) { currentOp = op; }
+
+        // INIT
+        loadApiKey();
+        resize();
+        tick();
+        pickOp('site');
+        const W0 = window.innerWidth, H0 = window.innerHeight;
+        addNode("The future cannot be theorized; it must be rendered as a diegetic prototype.", 'axiom', -200, -100);
+        addNode("Entropy is the baseline condition of all advanced technology.", 'axiom', 200, -150);
+        const sn = addNode("The complexity of a hypothetical system is anchored by the banality of its onboarding.", 'axiom', -100, 100);
+        const rn = addNode("SITE: Generative interface", 'site', 150, 150);
+        edges.push({from: sn, to: rn});
+        updateXanaduColumn();
+    </script>
+</body>
+</html>

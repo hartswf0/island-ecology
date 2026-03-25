@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>Clinic Autonomic Label — Unified</title>
+    <style>
+        :root {
+            --ink: #0b0c0d;
+            --edge: #0b0c0d;
+            --paper: #fff;
+            --muted: #444;
+            color-scheme: light;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            color: var(--ink);
+            background: var(--paper);
+            min-height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            padding: 8px env(safe-area-inset-right) 8px env(safe-area-inset-left);
+            border-bottom: 2px solid var(--edge);
+            background: #fff;
+        }
+
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center
+        }
+
+        .tab {
+            appearance: none;
+            border: 2px solid var(--edge);
+            background: #fff;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-weight: 900;
+            font-size: 0.96rem;
+            min-height: 42px;
+            cursor: pointer;
+        }
+
+        .tab[aria-pressed="true"] {
+            outline: 2px solid var(--edge);
+            background: #f2f2f2
+        }
+
+        .spacer {
+            flex: 1
+        }
+
+        .link {
+            appearance: none;
+            border: 2px solid var(--edge);
+            background: #fff;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-weight: 900;
+            font-size: 0.9rem;
+            min-height: 42px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .icon {
+            display: none
+        }
+
+        #stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .view {
+            display: none;
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+        }
+
+        .view.on {
+            display: block
+        }
+
+        /* mobile icon collapse */
+        @media (max-width:480px) {
+
+            .tab .txt,
+            .link .txt {
+                display: none
+            }
+
+            .tab .icon,
+            .link .icon {
+                display: inline;
+                font-size: 1.1rem
+            }
+
+            .tab,
+            .link {
+                padding: 8px 10px;
+                min-width: 44px
+            }
+        }
+
+        /* layout blocks */
+        .wrap {
+            max-width: 1060px;
+            margin: 0 auto;
+            padding: 0 8px
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1.25fr .75fr;
+            gap: 10px;
+            align-items: start;
+        }
+
+        @media (max-width:900px) {
+            .grid {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .box {
+            border: 2px solid var(--edge);
+            border-radius: 12px;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        .bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-bottom: 2px solid var(--edge);
+            font-weight: 900;
+        }
+
+        .bar small {
+            font-weight: 800;
+            color: #333
+        }
+
+        .pad {
+            padding: 10px
+        }
+
+        .muted {
+            color: var(--muted)
+        }
+
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace
+        }
+
+        /* nutrition label look */
+        .label {
+            border: 3px solid var(--edge);
+            border-radius: 12px;
+            padding: 10px;
+        }
+
+        .label .title {
+            font-weight: 1000;
+            font-size: 1.7rem;
+            line-height: 1.05;
+            letter-spacing: -0.02em;
+        }
+
+        .label .subtitle {
+            margin-top: 2px;
+            font-weight: 900;
+            color: #111;
+        }
+
+        .rule {
+            border-top: 2px solid var(--edge);
+            margin: 10px 0
+        }
+
+        .thick {
+            border-top: 8px solid var(--edge);
+            margin: 10px 0
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: baseline
+        }
+
+        .row b {
+            font-weight: 1000
+        }
+
+        .row .right {
+            font-weight: 900
+        }
+
+        .small {
+            font-size: .92rem
+        }
+
+        .tiny {
+            font-size: .82rem
+        }
+
+        .kvs {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 6px 10px
+        }
+
+        .kvs div {
+            padding: 2px 0
+        }
+
+        .kvs .k {
+            font-weight: 900
+        }
+
+        .kvs .v {
+            font-weight: 900
+        }
+
+        .pill {
+            display: inline-block;
+            border: 2px solid var(--edge);
+            padding: 6px 8px;
+            border-radius: 999px;
+            font-weight: 900;
+            font-size: .86rem;
+            background: #fff;
+        }
+
+        .ok {
+            background: #eafff4
+        }
+
+        .warn {
+            background: #fff1f1
+        }
+
+        /* protocol cards */
+        .stack {
+            display: grid;
+            gap: 10px
+        }
+
+        .step {
+            border: 2px solid var(--edge);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .step .hd {
+            padding: 8px 10px;
+            border-bottom: 2px solid var(--edge);
+            font-weight: 1000;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .step .bd {
+            padding: 10px
+        }
+
+        .check {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            margin: 6px 0;
+        }
+
+        .check input {
+            margin-top: 3px
+        }
+
+        .fine {
+            border-top: 2px solid var(--edge);
+            padding-top: 10px;
+            margin-top: 10px;
+            font-size: .86rem;
+            color: #333;
+        }
+
+        /* cards */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px
+        }
+
+        @media (max-width:800px) {
+            .cards {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .card {
+            border: 2px solid var(--edge);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .card .hd {
+            padding: 8px 10px;
+            border-bottom: 2px solid var(--edge);
+            font-weight: 1000;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .card .bd {
+            padding: 10px
+        }
+
+        .twoCol {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        @media (max-width:700px) {
+            .twoCol {
+                grid-template-columns: 1fr
+            }
+        }
+
+        ul {
+            margin: 8px 0 0 18px
+        }
+
+        li {
+            margin: 4px 0
+        }
+
+        /* modal */
+        .backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .45)
+        }
+
+        .backdrop.open {
+            display: block
+        }
+
+        .modal {
+            position: fixed;
+            inset: auto 10px 10px 10px;
+            margin: auto;
+            max-width: min(720px, 96vw);
+            max-height: 80vh;
+            overflow: auto;
+            background: #fff;
+            border: 2px solid var(--edge);
+            border-radius: 12px;
+            padding: 12px;
+            display: none;
+        }
+
+        .modal.on {
+            display: block
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="tabs" role="tablist" aria-label="Views">
+            <button class="tab" id="tLabel" aria-pressed="true" title="Label" aria-label="Label">
+                <span class="icon" aria-hidden="true">𓉗</span><span class="txt">LABEL</span>
+            </button>
+            <button class="tab" id="tProtocol" aria-pressed="false" title="Protocol" aria-label="Protocol">
+                <span class="icon" aria-hidden="true">⟠</span><span class="txt">PROTOCOL</span>
+            </button>
+            <button class="tab" id="tAgents" aria-pressed="false" title="Agents" aria-label="Agents">
+                <span class="icon" aria-hidden="true">❐</span><span class="txt">AGENTS</span>
+            </button>
+            <button class="tab" id="tRisk" aria-pressed="false" title="Warnings" aria-label="Warnings">
+                <span class="icon" aria-hidden="true">⚠</span><span class="txt">WARNINGS</span>
+            </button>
+        </div>
+
+        <span class="spacer"></span>
+
+        <button class="link" id="printBtn" title="Print" aria-label="Print">
+            <span class="icon" aria-hidden="true">⎙</span><span class="txt">PRINT</span>
+        </button>
+        <button class="link" id="aboutBtn" title="About" aria-label="About">
+            <span class="icon" aria-hidden="true">𓈌</span><span class="txt">ABOUT</span>
+        </button>
+    </header>
+
+    <div id="stage">
+        <!-- LABEL VIEW -->
+        <section class="view on" id="vLabel">
+            <div class="wrap">
+                <div class="grid">
+                    <div class="label" aria-label="Clinic Autonomic Facts label">
+                        <div class="title">Clinic Autonomic Facts</div>
+                        <div class="subtitle">Digital Autonomic Nervous System (ANS) — for outpatient + hospital
+                            workflows</div>
+
+                        <div class="thick"></div>
+
+                        <div class="row small"><b>Serving size</b><span class="right">1 patient encounter</span></div>
+                        <div class="row tiny muted"><span>Frequency</span><span class="right">continuous</span></div>
+
+                        <div class="rule"></div>
+
+                        <div class="kvs small">
+                            <div class="k">Primary effect</div>
+                            <div class="v">removes manual clerical respiration</div>
+                            <div class="k">Mechanism</div>
+                            <div class="v">listen → digest → stage → route</div>
+                            <div class="k">Human gates</div>
+                            <div class="v">required (sign-off)</div>
+                            <div class="k">Evidence trails</div>
+                            <div class="v">required (source attached)</div>
+                        </div>
+
+                        <div class="thick"></div>
+
+                        <div class="row"><b>Active Agents</b><span class="right">4</span></div>
+                        <div class="rule"></div>
+
+                        <div class="kvs small">
+                            <div class="k">Scribe (Audio→Note)</div>
+                            <div class="v">drafts structured note</div>
+                            <div class="k">Digestion (Labs→Insight)</div>
+                            <div class="v">surfaces care gaps + codes</div>
+                            <div class="k">Conductor (Speech→Orders)</div>
+                            <div class="v">stages draft orders/codes</div>
+                            <div class="k">Front Desk (SMS→Slots)</div>
+                            <div class="v">schedules + triages</div>
+                        </div>
+
+                        <div class="rule"></div>
+
+                        <div class="row"><b>Indications</b><span class="right">when clinic is drowning</span></div>
+                        <ul class="small">
+                            <li>Clinician documentation overload</li>
+                            <li>Fragmented inbound labs / faxes / CCD-A</li>
+                            <li>Orders buried in dropdown menus</li>
+                            <li>Scheduling + portal work clogging staff</li>
+                        </ul>
+
+                        <div class="rule"></div>
+
+                        <div class="row"><b>Directions</b><span class="right">pull levers</span></div>
+                        <div class="kvs small">
+                            <div class="k">Speak</div>
+                            <div class="v">in the room</div>
+                            <div class="k">Review</div>
+                            <div class="v">on desktop</div>
+                            <div class="k">Approve</div>
+                            <div class="v">with one click</div>
+                        </div>
+
+                        <div class="rule"></div>
+
+                        <div class="row"><b>Results timeline</b><span class="right">days → weeks</span></div>
+                        <div class="kvs small">
+                            <div class="k">Day 1</div>
+                            <div class="v">notes drafted automatically</div>
+                            <div class="k">Week 1</div>
+                            <div class="v">inbox triage + batch sign</div>
+                            <div class="k">Week 2</div>
+                            <div class="v">orders staged from speech</div>
+                            <div class="k">Week 4</div>
+                            <div class="v">scheduling automation stabilized</div>
+                        </div>
+
+                        <div class="thick"></div>
+
+                        <div class="tiny muted">
+                            *This label describes an architecture/pattern. Clinician approval remains mandatory for
+                            notes, orders, and outbound patient messages.
+                        </div>
+                    </div>
+
+                    <aside class="stack">
+                        <div class="box">
+                            <div class="bar">Prescription Summary <small class="mono">RX: AUTONOMIC</small></div>
+                            <div class="pad">
+                                <div class="row"><b>Patient</b><span class="right mono">CLINIC OPS</span></div>
+                                <div class="row"><b>Diagnosis</b><span class="right mono">ADMIN BLOAT</span></div>
+                                <div class="row"><b>Treatment</b><span class="right mono">AGENT LAYER</span></div>
+                                <div style="height:8px"></div>
+
+                                <div class="pill ok">✅ Sign-offs required</div>
+                                <div style="height:6px"></div>
+                                <div class="pill ok">✅ Evidence attached</div>
+                                <div style="height:6px"></div>
+                                <div class="pill warn">⚠ Emergency words halt automation</div>
+
+                                <div class="fine">
+                                    <b>Takeaway (one line):</b><br />
+                                    Stop optimizing the keyboard. Install an autonomic layer that does the involuntary
+                                    work.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="box">
+                            <div class="bar">Quick Start <small class="mono">3 steps</small></div>
+                            <div class="pad">
+                                <ol class="small">
+                                    <li><b>Ambient scribe:</b> capture → draft note → sign</li>
+                                    <li><b>Digest labs:</b> surface gaps → add with evidence</li>
+                                    <li><b>Stage actions:</b> speak orders → export → approve</li>
+                                </ol>
+                                <div class="fine tiny muted">
+                                    Tip: if users can’t explain it in 10 seconds, it’s not a control surface yet.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="box">
+                            <div class="bar">One Rule <small class="mono">NON-NEGOTIABLE</small></div>
+                            <div class="pad">
+                                <div class="small"><b>No green checkmarks without sources.</b></div>
+                                <div class="tiny muted">Every staged action must show what it’s based on.</div>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+        </section>
+
+        <!-- PROTOCOL VIEW -->
+        <section class="view" id="vProtocol">
+            <div class="wrap">
+                <div class="box">
+                    <div class="bar">Operating Protocol <small class="mono">Speak → Read → Approve</small></div>
+                    <div class="pad muted small">
+                        Stop explaining invisible mechanics. Users only care about the lever.
+                    </div>
+                </div>
+
+                <div style="height:10px"></div>
+
+                <div class="stack">
+                    <div class="step">
+                        <div class="hd">
+                            <span>0.0 TERMINAL DIRECTIVE</span>
+                            <span class="pill">Replace typing with control surfaces</span>
+                        </div>
+                        <div class="bd">
+                            <div class="check"><input type="checkbox" />
+                                <div><b>Old operation:</b> humans type into passive database fields.</div>
+                            </div>
+                            <div class="check"><input type="checkbox" />
+                                <div><b>New operation:</b> agents execute typing/retrieval/scheduling rules.</div>
+                            </div>
+                            <div class="check"><input type="checkbox" />
+                                <div><b>Clinician role:</b> read output + press button (sign/approve/export).</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="hd">
+                            <span>1.0 SCRIBE LEVER (Audio → Note)</span>
+                            <span class="mono tiny">Control: in-room device</span>
+                        </div>
+                        <div class="bd">
+                            <div class="check"><input type="checkbox" /> Place device in exam room.</div>
+                            <div class="check"><input type="checkbox" /> Speak normally (no keyboard).</div>
+                            <div class="check"><input type="checkbox" /> Review structured draft on desktop.</div>
+                            <div class="check"><input type="checkbox" /> Click <b>Sign</b>.</div>
+                            <div class="fine">
+                                <b>Output:</b> SOAP/structured note draft. <b>Gate:</b> clinician sign-off.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="hd">
+                            <span>2.0 DIGESTION LEVER (Data → Insight)</span>
+                            <span class="mono tiny">Control: purple indicator</span>
+                        </div>
+                        <div class="bd">
+                            <div class="check"><input type="checkbox" /> Open schedule panel; look for <b>purple</b>
+                                indicator.</div>
+                            <div class="check"><input type="checkbox" /> Click to view evidence-backed suggestions.
+                            </div>
+                            <div class="check"><input type="checkbox" /> Click <b>Add to chart</b> (after review).</div>
+                            <div class="check"><input type="checkbox" /> In inbox: batch-sign green-coded routine items.
+                            </div>
+                            <div class="fine">
+                                <b>Output:</b> care gaps/codes/refill drafts. <b>Gate:</b> clinician review.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="hd">
+                            <span>3.0 CONDUCTOR LEVER (Speech → Orders)</span>
+                            <span class="mono tiny">Control: mic button</span>
+                        </div>
+                        <div class="bd">
+                            <div class="check"><input type="checkbox" /> Press mic.</div>
+                            <div class="check"><input type="checkbox" /> Say: “Order ___.”</div>
+                            <div class="check"><input type="checkbox" /> Confirm staged card matches intent.</div>
+                            <div class="check"><input type="checkbox" /> Click <b>Export</b> to EHR queue.</div>
+                            <div class="fine">
+                                <b>Rule:</b> if ambiguous, ask one question—do not guess meds.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="hd">
+                            <span>4.0 FRONT DOOR LEVER (SMS → Scheduling)</span>
+                            <span class="mono tiny">Control: text thread</span>
+                        </div>
+                        <div class="bd">
+                            <div class="check"><input type="checkbox" /> Patient texts day (“Tuesday”).</div>
+                            <div class="check"><input type="checkbox" /> System offers 3 real slots.</div>
+                            <div class="check"><input type="checkbox" /> Patient picks (“10 AM”).</div>
+                            <div class="check"><input type="checkbox" /> System locks slot + confirms.</div>
+                            <div class="fine">
+                                <b>Hard stop:</b> emergency keywords → halt + “Dial 911.”
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="height:10px"></div>
+
+                <div class="box">
+                    <div class="bar">Protocol Output <small class="mono">what success looks like</small></div>
+                    <div class="pad">
+                        <div class="twoCol small">
+                            <div>
+                                <b>Clinicians</b>
+                                <ul>
+                                    <li>look at patients, not keyboards</li>
+                                    <li>sign drafts instead of authoring from scratch</li>
+                                    <li>approve staged actions with evidence</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <b>Ops</b>
+                                <ul>
+                                    <li>inbox noise reduced by classification</li>
+                                    <li>orders staged without menu hunting</li>
+                                    <li>scheduling load shifted to automation with guardrails</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="fine tiny muted">
+                            If adoption fails: you shipped “features” instead of levers.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AGENTS VIEW -->
+        <section class="view" id="vAgents">
+            <div class="wrap">
+                <div class="box">
+                    <div class="bar">Agent Deck <small class="mono">4 roles</small></div>
+                    <div class="pad small muted">
+                        Names below are role labels (scribe / digestion / conductor / front desk). If you use vendor
+                        names publicly, treat them as trademarks and avoid implying affiliation unless true.
+                    </div>
+                </div>
+
+                <div style="height:10px"></div>
+
+                <div class="cards">
+                    <div class="card">
+                        <div class="hd">
+                            <span>SCRIBE</span>
+                            <span class="pill">Audio → Note</span>
+                        </div>
+                        <div class="bd small">
+                            <div class="kvs">
+                                <div class="k"><b>Input</b></div>
+                                <div class="v mono">room audio</div>
+                                <div class="k"><b>Output</b></div>
+                                <div class="v mono">structured note draft</div>
+                                <div class="k"><b>Control</b></div>
+                                <div class="v mono">device + sign button</div>
+                                <div class="k"><b>Gate</b></div>
+                                <div class="v mono">clinician signs</div>
+                            </div>
+                            <div class="fine">
+                                <b>Non-negotiables:</b> no invented findings • highlight uncertainty • link to
+                                transcript evidence.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="hd">
+                            <span>DIGESTION</span>
+                            <span class="pill">Labs → Insight</span>
+                        </div>
+                        <div class="bd small">
+                            <div class="kvs">
+                                <div class="k"><b>Input</b></div>
+                                <div class="v mono">labs/docs/faxes</div>
+                                <div class="k"><b>Output</b></div>
+                                <div class="v mono">care gaps + code nudges</div>
+                                <div class="k"><b>Control</b></div>
+                                <div class="v mono">purple indicator</div>
+                                <div class="k"><b>Gate</b></div>
+                                <div class="v mono">review + add</div>
+                            </div>
+                            <div class="fine">
+                                <b>Non-negotiables:</b> show evidence/source • split inbox noise • never finalize
+                                clinical orders.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="hd">
+                            <span>CONDUCTOR</span>
+                            <span class="pill">Speech → Orders</span>
+                        </div>
+                        <div class="bd small">
+                            <div class="kvs">
+                                <div class="k"><b>Input</b></div>
+                                <div class="v mono">spoken intent</div>
+                                <div class="k"><b>Output</b></div>
+                                <div class="v mono">staged order cards</div>
+                                <div class="k"><b>Control</b></div>
+                                <div class="v mono">mic + export</div>
+                                <div class="k"><b>Gate</b></div>
+                                <div class="v mono">approve/export</div>
+                            </div>
+                            <div class="fine">
+                                <b>Non-negotiables:</b> ask on ambiguity • attach evidence • stage less, not more (avoid
+                                fatigue).
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="hd">
+                            <span>FRONT DESK</span>
+                            <span class="pill">SMS → Slots</span>
+                        </div>
+                        <div class="bd small">
+                            <div class="kvs">
+                                <div class="k"><b>Input</b></div>
+                                <div class="v mono">patient text</div>
+                                <div class="k"><b>Output</b></div>
+                                <div class="v mono">confirmed slot / routed request</div>
+                                <div class="k"><b>Control</b></div>
+                                <div class="v mono">text thread</div>
+                                <div class="k"><b>Gate</b></div>
+                                <div class="v mono">handoff rules</div>
+                            </div>
+                            <div class="fine">
+                                <b>Non-negotiables:</b> no fake availability • emergency words halt • clear staff
+                                handoff.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="height:10px"></div>
+
+                <div class="box">
+                    <div class="bar">ANS Mapping <small class="mono">body metaphor</small></div>
+                    <div class="pad small">
+                        <div class="kvs">
+                            <div class="k"><b>Auditory nerves</b></div>
+                            <div class="v">scribe drafts memory</div>
+                            <div class="k"><b>Metabolic layer</b></div>
+                            <div class="v">digestion extracts nutrients (insight)</div>
+                            <div class="k"><b>Motor reflex</b></div>
+                            <div class="v">conductor stages movement (orders)</div>
+                            <div class="k"><b>Skin/triage</b></div>
+                            <div class="v">front desk routes touches (requests)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- WARNINGS VIEW -->
+        <section class="view" id="vRisk">
+            <div class="wrap">
+                <div class="label">
+                    <div class="title">Warnings & Contraindications</div>
+                    <div class="subtitle">How this system fails (and how you prevent it)</div>
+
+                    <div class="thick"></div>
+
+                    <div class="row"><b>BLACK BOX RISK</b><span class="right">HIGH (if unmanaged)</span></div>
+                    <div class="rule"></div>
+
+                    <div class="row"><b>Warnings</b><span class="right">do not skip</span></div>
+                    <ul class="small">
+                        <li><b>Transcript-as-law:</b> if the UI treats drafts as truth, clinicians will comply to avoid
+                            audits.</li>
+                        <li><b>Automation overreach:</b> never send patient messages or finalize orders without explicit
+                            approval.</li>
+                        <li><b>Ambiguity gambling:</b> medication name confusion must trigger a question, not a guess.
+                        </li>
+                        <li><b>Alert fatigue:</b> staging too much creates blindness. Stage only what matters.</li>
+                    </ul>
+
+                    <div class="rule"></div>
+
+                    <div class="row"><b>Contraindications</b><span class="right">do not deploy like this</span></div>
+                    <ul class="small">
+                        <li>No evidence trails (no “why” for each staged action).</li>
+                        <li>No human gates (auto-finalizing notes/orders/messages).</li>
+                        <li>No emergency stop words (front door keeps scheduling during red flags).</li>
+                    </ul>
+
+                    <div class="rule"></div>
+
+                    <div class="row"><b>Required Safety Label</b><span class="right">print this</span></div>
+                    <div class="kvs small">
+                        <div class="k">Every staged action</div>
+                        <div class="v">shows source</div>
+                        <div class="k">Every high-impact action</div>
+                        <div class="v">requires approval</div>
+                        <div class="k">Every ambiguous item</div>
+                        <div class="v">asks a question</div>
+                        <div class="k">Every emergency signal</div>
+                        <div class="v">halts automation</div>
+                    </div>
+
+                    <div class="thick"></div>
+
+                    <div class="tiny muted">
+                        Fiction & stress-tests (optional): keep speculative vignettes clearly labeled as fiction. Do not
+                        mix them with product claims.
+                    </div>
+                </div>
+
+                <div style="height:10px"></div>
+
+                <div class="box">
+                    <div class="bar">Pinned Links <small class="mono">research</small></div>
+                    <div class="pad small">
+                        <div class="monoish">https://gemini.google.com/share/19e13130cf4a</div>
+                        <div class="monoish">https://gemini.google.com/share/bec16159237b</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- About modal -->
+    <div id="aboutBackdrop" class="backdrop" aria-hidden="true"></div>
+    <div id="aboutModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+        <h2 id="aboutTitle" style="margin:0 0 6px; font-weight:1000">About this Label</h2>
+        <p style="margin:6px 0 10px" class="muted">
+            This is a <b>nutrition-label style</b> interface for an architectural shift in healthcare software:
+            <b>System of Record → System of Intelligence</b>.
+            The label makes the product readable in under a minute.
+        </p>
+
+        <div class="box" style="border-radius:12px">
+            <div class="bar">What this is <small class="mono">scope</small></div>
+            <div class="pad small">
+                <ul>
+                    <li>A compact spec for deploying an <b>autonomic agent layer</b> that runs routine clinic functions.
+                    </li>
+                    <li>Four levers: <b>scribe</b>, <b>digestion</b>, <b>conductor</b>, <b>front desk</b>.</li>
+                    <li>A strict stance: <b>evidence trails + human gates</b> are mandatory.</li>
+                </ul>
+            </div>
+        </div>
+
+        <p class="fineprint" style="margin:10px 0 12px">
+            Disclaimer: Not medical advice. This describes interaction patterns and governance requirements.
+            If you reference vendor names externally, treat them as trademarks and avoid implying affiliation unless
+            true.
+        </p>
+
+        <button id="aboutClose" class="link" aria-label="Close about dialog">Close</button>
+    </div>
+
+    <script>
+        (function () {
+            const $ = id => document.getElementById(id);
+
+            const tabs = {
+                label: { btn: $('tLabel'), view: $('vLabel') },
+                protocol: { btn: $('tProtocol'), view: $('vProtocol') },
+                agents: { btn: $('tAgents'), view: $('vAgents') },
+                risk: { btn: $('tRisk'), view: $('vRisk') }
+            };
+
+            function setTab(which) {
+                Object.entries(tabs).forEach(([k, t]) => {
+                    const on = (k === which);
+                    t.btn.setAttribute('aria-pressed', String(on));
+                    t.view.classList.toggle('on', on);
+                });
+                location.hash = 'view=' + encodeURIComponent(which);
+            }
+
+            function parseHash() {
+                const h = location.hash.replace(/^#/, '');
+                const m = h.match(/(?:^|&)view=([^&]+)/);
+                return m ? decodeURIComponent(m[1]) : '';
+            }
+
+            $('tLabel').addEventListener('click', () => setTab('label'));
+            $('tProtocol').addEventListener('click', () => setTab('protocol'));
+            $('tAgents').addEventListener('click', () => setTab('agents'));
+            $('tRisk').addEventListener('click', () => setTab('risk'));
+
+            window.addEventListener('hashchange', () => {
+                const v = parseHash();
+                if (tabs[v]) setTab(v);
+            });
+
+            // initial route
+            const init = parseHash();
+            if (tabs[init]) setTab(init);
+
+            // print
+            $('printBtn').addEventListener('click', () => window.print());
+
+            // about modal
+            const aboutBtn = $('aboutBtn');
+            const aboutBackdrop = $('aboutBackdrop');
+            const aboutModal = $('aboutModal');
+            const aboutClose = $('aboutClose');
+
+            function showAbout(show) {
+                aboutModal.classList.toggle('on', !!show);
+                aboutBackdrop.classList.toggle('open', !!show);
+                aboutBackdrop.setAttribute('aria-hidden', String(!show));
+            }
+            aboutBtn.addEventListener('click', () => showAbout(true));
+            aboutClose.addEventListener('click', () => showAbout(false));
+            aboutBackdrop.addEventListener('click', () => showAbout(false));
+        })();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,18 @@
+# Videos
+*.mp4
+*.webm
+*.mov
+*.avi
+*.mkv
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Editor
+.vscode/
+*.swp
+*.swo

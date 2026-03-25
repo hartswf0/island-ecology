@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>TRAIN HIVE FIELD — Context Window Locomotive</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}
+        body{font-family:'IBM Plex Mono',monospace;font-size:11px;user-select:none;background:#020408;color:#8ab0c4}
+        :root{--bg:#020408;--bg2:#060a14;--bg3:#0a0e18;--ink:#8ab0c4;--ink2:#c0d8e8;--ink3:rgba(140,180,210,.25);--gold:#d4a84b;--gold2:rgba(212,168,75,.25);--cyan:#22d3ee;--cyan2:rgba(34,211,238,.1);--red:#ef4444;--green:#4af626;--amber:#f59e0b;--rule:rgba(140,180,210,.06);--rule2:rgba(140,180,210,.03)}
+        #app{display:flex;flex-direction:column;height:100vh}
+
+        .topbar{height:38px;background:var(--bg2);border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;z-index:50}
+        .logo{font-size:9px;font-weight:600;letter-spacing:.25em;color:var(--amber);text-transform:uppercase;text-shadow:0 0 10px rgba(245,158,11,.3)}
+        .stat{font-size:8px;color:var(--ink3)}.stat b{color:var(--ink2)}
+        .topbar-spacer{flex:1}
+        .t-btn{background:none;border:1px solid var(--rule);color:var(--ink3);font-family:inherit;font-size:7px;padding:4px 10px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .2s}
+        .t-btn:hover{border-color:var(--amber);color:var(--amber)}
+        .t-btn.active{border-color:var(--amber);color:var(--amber);background:rgba(245,158,11,.08)}
+        .speed-ctrl{display:flex;align-items:center;gap:4px}
+        .speed-ctrl input{width:60px;accent-color:var(--amber)}
+        .speed-label{font-size:7px;color:var(--ink3)}
+
+        .main{flex:1;display:flex;overflow:hidden;min-height:0}
+
+        /* FIELD CANVAS */
+        .field-wrap{flex:1;position:relative;overflow:hidden;cursor:crosshair}
+        #field{position:absolute;inset:0}
+
+        /* TRAIN STATUS STRIP */
+        .train-strip{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;padding:6px 12px;gap:12px;background:linear-gradient(to bottom,rgba(6,10,20,.9),transparent);pointer-events:none}
+        .ts-lbl{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+        .ts-val{font-size:9px;color:var(--ink2);font-weight:600}
+        .ts-tokens{display:flex;gap:2px;margin-top:2px;flex-wrap:wrap;max-width:400px}
+        .ts-token{font-size:7px;padding:1px 4px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.15);border-radius:1px;color:var(--amber);white-space:nowrap}
+
+        /* RIGHT PANEL */
+        .panel{width:340px;background:var(--bg2);border-left:1px solid var(--rule);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+        .p-header{height:26px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 10px;flex-shrink:0}
+        .p-title{font-size:7px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+        .p-body{flex:1;overflow-y:auto;scrollbar-width:thin;padding:0}
+        .p-body::-webkit-scrollbar{width:2px}.p-body::-webkit-scrollbar-thumb{background:var(--rule)}
+
+        .cell-hdr{padding:10px 12px 4px;border-bottom:1px solid var(--rule2)}
+        .cell-name{font-size:12px;font-weight:600;color:var(--amber);margin-bottom:1px}
+        .cell-meta{font-size:7px;color:var(--ink3);letter-spacing:.06em}
+        .cell-desc{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--ink2);line-height:1.55;padding:6px 12px;border-bottom:1px solid var(--rule2)}
+
+        .sec-hd{font-size:6px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);padding:6px 12px 2px}
+
+        /* CELL CONTEXT WINDOW */
+        .ctx-window{border:1px solid var(--rule);margin:6px 8px;border-radius:2px;background:var(--bg);max-height:250px;overflow-y:auto;scrollbar-width:thin}
+        .ctx-window::-webkit-scrollbar{width:2px}.ctx-window::-webkit-scrollbar-thumb{background:var(--rule)}
+        .ctx-hdr{font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);padding:4px 8px;border-bottom:1px solid var(--rule2);background:rgba(245,158,11,.03);position:sticky;top:0}
+        .ctx-msg{padding:4px 8px;border-bottom:1px solid var(--rule2);font-size:9px;line-height:1.4}
+        .ctx-msg.sys{color:var(--ink3);font-style:italic}
+        .ctx-msg.train{color:var(--amber)}
+        .ctx-msg.honey{color:var(--gold);font-family:'Cormorant Garamond',serif;font-size:12px;font-style:italic}
+        .ctx-msg .msg-role{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:1px}
+        .ctx-empty{padding:8px;font-size:8px;color:var(--ink3);font-style:italic;text-align:center}
+        .ctx-honey{padding:6px 8px;background:linear-gradient(180deg,rgba(212,168,75,.04),transparent);border-bottom:1px solid var(--rule2)}
+        .ctx-honey-hd{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+        .ctx-honey-text{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--ink2);line-height:1.5}
+        .ctx-honey-copy{background:none;border:1px solid rgba(212,168,75,.15);color:var(--gold);font-family:inherit;font-size:6px;padding:2px 5px;cursor:pointer;opacity:.3;transition:opacity .15s}
+        .ctx-honey-copy:hover{opacity:.8}
+        .cell-click{cursor:pointer;transition:all .12s}
+        .cell-click:hover{color:var(--cyan);text-shadow:0 0 6px rgba(34,211,238,.3)}
+
+        /* FIELD DATA */
+        .fd-row{display:flex;justify-content:space-between;padding:2px 12px;font-size:9px}
+        .fd-label{color:var(--ink3)}.fd-val{color:var(--ink2);font-weight:600}
+
+        /* EMIT BAR */
+        .emit-bar{height:38px;border-top:1px solid var(--rule);display:flex;background:var(--bg);flex-shrink:0}
+        .emit-input{flex:1;background:transparent;border:none;color:var(--ink2);font-family:inherit;font-size:11px;padding:0 12px;outline:none;caret-color:var(--amber)}
+        .emit-input::placeholder{color:rgba(245,158,11,.12)}
+        .emit-send{background:rgba(245,158,11,.06);border:none;border-left:1px solid var(--rule);color:var(--amber);font-family:inherit;font-size:7px;font-weight:600;letter-spacing:.12em;padding:0 14px;cursor:pointer;text-transform:uppercase;transition:all .2s}
+
+        /* OP */
+        .op-overlay{position:fixed;inset:0;background:rgba(2,4,8,.92);z-index:200;display:none;justify-content:center;align-items:center}
+        .op-overlay.show{display:flex}
+        .op-box{background:var(--bg2);border:1px solid var(--rule);padding:20px;width:300px}
+        .op-title{font-size:7px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+        .op-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+        .op-lbl{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);width:40px;flex-shrink:0}
+        .op-inp{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:inherit;font-size:9px;padding:4px 6px;flex:1;outline:none}
+        .op-close{background:none;border:1px solid var(--amber);color:var(--amber);font-family:inherit;font-size:8px;padding:4px 12px;cursor:pointer;margin-top:8px}
+    </style>
+    <script src="data.js"></script>
+    <script src="route-engine.js"></script>
+    <script src="hive-logger.js"></script>
+</head>
+<body>
+<div id="app">
+    <div class="topbar">
+        <span class="logo">🚂 TRAIN_HIVE_FIELD</span>
+        <span class="stat">Cells: <b id="sN">0</b></span>
+        <span class="stat">Visited: <b id="sV">0</b></span>
+        <span class="stat">Tokens: <b id="sT">0</b></span>
+        <span class="stat">Ripples: <b id="sR">0</b></span>
+        <span class="stat">Honey: <b id="sH">0</b></span>
+        <div class="topbar-spacer"></div>
+        <div class="speed-ctrl"><span class="speed-label">Speed</span><input type="range" id="speedSlider" min="1" max="20" value="5"><span class="speed-label" id="speedVal">5</span></div>
+        <button class="t-btn" id="btnRun" onclick="toggleTrain()">▶ RUN TRAIN</button>
+        <button class="t-btn" id="btnDiff" onclick="toggleDiffusion()">DIFFUSE: OFF</button>
+        <button class="t-btn" onclick="el('opOverlay').classList.toggle('show')">⚙ API</button>
+    </div>
+    <div class="main">
+        <div class="field-wrap" id="fieldWrap">
+            <canvas id="field"></canvas>
+            <div class="train-strip" id="trainStrip">
+                <div><div class="ts-lbl">Train Context</div><div class="ts-val" id="trainCtxCount">0 msgs</div></div>
+                <div><div class="ts-lbl">Current Cell</div><div class="ts-val" id="trainCell">—</div></div>
+                <div><div class="ts-lbl">Tokens Plowed</div><div class="ts-tokens" id="trainTokens"></div></div>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="p-header"><span class="p-title">Cell Context Window</span></div>
+            <div class="p-body" id="pBody">
+                <div style="padding:24px 12px;font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--ink3);line-height:1.7">
+                    <strong style="color:var(--amber);font-style:normal">The Train Writes Context</strong><br><br>
+                    Each cell is an independent LLM context window. The train carries a rolling context — as it visits cells, it:<br><br>
+                    1. <em>Reads</em> the cell's POML data (pollen)<br>
+                    2. <em>Writes</em> tokens into the cell's context<br>
+                    3. <em>Refracts</em> through the stained-glass filter<br>
+                    4. <em>Ripples</em> outward — new context windows propagating<br><br>
+                    Click any cell to view its context window.<br>
+                    Press <strong>▶ RUN TRAIN</strong> to start the locomotive.<br><br>
+                    <em>"The train is the context. The cells are the memory."</em>
+                </div>
+            </div>
+            <div class="emit-bar">
+                <input class="emit-input" id="emitInput" placeholder="inject tokens into train context..." onkeydown="if(event.key==='Enter')injectTokens()">
+                <button class="emit-send" onclick="injectTokens()">▸ INJECT</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="op-overlay" id="opOverlay">
+    <div class="op-box">
+        <div class="op-title">API Configuration</div>
+        <div class="op-row"><span class="op-lbl">Key</span><input type="password" class="op-inp" id="opKey" placeholder="sk-..." oninput="saveCfg()"></div>
+        <div class="op-row"><span class="op-lbl">Model</span><input class="op-inp" id="opModel" value="gpt-4o-mini" oninput="saveCfg()"></div>
+        <div class="op-row"><span class="op-lbl">Base</span><input class="op-inp" id="opBase" value="https://api.openai.com/v1" oninput="saveCfg()"></div>
+        <button class="op-close" onclick="el('opOverlay').classList.remove('show')">Close</button>
+    </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+// TRAIN HIVE FIELD
+//
+// The Train = a moving LLM context window
+// Each Cell = independent chat context (messages[])
+// Ripples   = new context windows propagating outward
+// Stained Glass = ontological filter on incoming tokens
+//
+// As the train visits each cell:
+//   1. POLLEN EXTRACTION — reads cell's POML data
+//   2. CONTEXT DEPOSIT — writes tokens into cell's context window
+//   3. STAINED GLASS REFRACTION — filters by genre/entity overlap
+//   4. RIPPLE EMISSION — propagates field outward
+//   5. HONEY SYNTHESIS — LLM processes cell's accumulated context
+// ════════════════════════════════════════════════════
+
+let worlds=[],routes=[];
+let canvas,ctx,dpr;
+let nodes=[];
+let selectedCell=-1;
+let waves=[];
+let waveCount=0,honeyCount=0,totalTokens=0;
+let diffusionOn=false;
+const HEX_R=38,AT=15,C=100;
+
+// ── Train State ──
+let trainRunning=false;
+let trainPos={x:0,y:0};
+let trainTarget=-1;
+let trainCurrent=-1;
+let trainProgress=0;
+let trainSpeed=5;
+let trainRoute=[];  // planned route indices
+let trainRouteIdx=0;
+let trainContext=[];  // rolling context window (messages)
+const TRAIN_CTX_MAX=30; // max messages in train context
+let trainTokenList=[];  // visible token stream
+
+function assemblyIndex(w){return(w.entities.length*2)+(w.relations.length*3)+(w.events.length*4)+w.states.length}
+
+// concept matching
+function conceptVec(text){const w=text.toLowerCase().split(/\W+/).filter(w=>w.length>2);const v={};w.forEach(x=>{v[x]=(v[x]||0)+1;});return v;}
+function cosSim(a,b){const keys=new Set([...Object.keys(a),...Object.keys(b)]);let d=0,ma=0,mb=0;keys.forEach(k=>{const av=a[k]||0,bv=b[k]||0;d+=av*bv;ma+=av*av;mb+=bv*bv;});return ma&&mb?d/Math.sqrt(ma*mb):0;}
+function worldVec(w){return conceptVec([w.name.replace(/([A-Z])/g,' $1'),w.genre,w.description,...w.entities.map(e=>e.name),...w.events.map(e=>e.name)].join(' '));}
+
+// ═══════════════════
+// BUILD NODES
+// ═══════════════════
+function buildNodes(){
+    nodes=[];
+    const cols=Math.ceil(Math.sqrt(worlds.length*1.35));
+    worlds.forEach((w,i)=>{
+        const row=Math.floor(i/cols),col=i%cols;
+        const off=(row%2)?HEX_R*.87:0;
+        const ai=assemblyIndex(w);
+        nodes.push({
+            x:col*HEX_R*1.76+off+HEX_R*1.5,
+            y:row*(HEX_R*1.52)+HEX_R*1.5,
+            world:w, idx:i, ai, alive:ai>AT,
+            // Cell's independent context window
+            context:[{role:'system',content:`You are cell #${i}: "${w.name.replace(/([A-Z])/g,' $1').trim()}" (${w.genre}). ${w.description.slice(0,120)}`}],
+            energy:0, fieldE:0, splat:false,
+            visited:false, visitCount:0,
+            _sx:0,_sy:0
+        });
+    });
+}
+
+// ═══════════════════
+// STAINED GLASS FILTER
+// ═══════════════════
+// Refracts incoming tokens through cell's ontological filter
+function stainedGlassRefract(cell, incomingTokens){
+    const cellVec=worldVec(cell.world);
+    const tokenVec=conceptVec(incomingTokens);
+    const sim=cosSim(cellVec,tokenVec);
+    // Refraction: keep tokens above coherence threshold
+    // Below threshold = filtered out (no-fly zone / semantic contamination prevention)
+    const coherent = sim > 0.01;
+    return {
+        coherent,
+        similarity: sim,
+        refractionIndex: sim > 0.1 ? 'HIGH' : sim > 0.03 ? 'MEDIUM' : sim > 0.01 ? 'LOW' : 'BLOCKED',
+        // Amplified tokens (classifier-free guidance analog)
+        amplifiedContent: coherent
+            ? `[REFRACTED sim:${sim.toFixed(3)}] ${incomingTokens}`
+            : null
+    };
+}
+
+// ═══════════════════
+// TRAIN ROUTE PLANNING
+// ═══════════════════
+function planRoute(){
+    // Plan route through alive cells, prioritizing high-AI unvisited
+    const candidates=[...nodes].filter(n=>n.alive)
+        .sort((a,b)=>{
+            const aScore=(a.visited?0:10)+a.ai;
+            const bScore=(b.visited?0:10)+b.ai;
+            return bScore-aScore;
+        });
+    // Build nearest-neighbor tour
+    trainRoute=[];
+    const used=new Set();
+    let current=trainCurrent>=0?trainCurrent:0;
+    for(let step=0;step<Math.min(candidates.length,50);step++){
+        let nearest=-1,nearDist=Infinity;
+        candidates.forEach(c=>{
+            if(used.has(c.idx))return;
+            const d=Math.hypot(nodes[current].x-c.x,nodes[current].y-c.y);
+            if(d<nearDist){nearDist=d;nearest=c.idx;}
+        });
+        if(nearest>=0){trainRoute.push(nearest);used.add(nearest);current=nearest;}
+    }
+    trainRouteIdx=0;
+}
+
+// ═══════════════════
+// TRAIN TICK
+// ═══════════════════
+function trainTick(){
+    if(!trainRunning||!trainRoute.length) return;
+
+    trainProgress += trainSpeed * 0.005;
+
+    if(trainProgress >= 1){
+        // Arrived at target cell
+        trainProgress=0;
+        trainCurrent=trainTarget;
+        visitCell(trainCurrent);
+
+        // Next target
+        trainRouteIdx++;
+        if(trainRouteIdx >= trainRoute.length){
+            planRoute(); // re-plan
+            if(!trainRoute.length){trainRunning=false;return;}
+        }
+        trainTarget=trainRoute[trainRouteIdx];
+    }
+
+    // Interpolate position
+    if(trainCurrent>=0 && trainTarget>=0){
+        const from=nodes[trainCurrent], to=nodes[trainTarget];
+        trainPos.x=from._sx+(to._sx-from._sx)*trainProgress;
+        trainPos.y=from._sy+(to._sy-from._sy)*trainProgress;
+    }
+}
+
+// ═══════════════════
+// VISIT CELL — the core train action
+// ═══════════════════
+function visitCell(idx){
+    const cell=nodes[idx];
+    cell.visited=true;
+    cell.visitCount++;
+    const w=cell.world;
+    const name=w.name.replace(/([A-Z])/g,' $1').trim();
+
+    // 1. POLLEN EXTRACTION — read cell data
+    const pollen=`${name} [${w.genre}] AI:${cell.ai}. ${w.description.slice(0,100)}. Entities: ${w.entities.map(e=>e.name).join(', ')}`;
+
+    // 2. Add pollen to train's rolling context
+    trainContext.push({role:'assistant',content:`[CELL #${idx}: ${name}] ${pollen}`});
+    if(trainContext.length>TRAIN_CTX_MAX) trainContext.shift();
+
+    // 3. CONTEXT DEPOSIT — write train's accumulated knowledge into cell
+    const trainSummary=trainContext.slice(-3).map(m=>m.content.slice(0,60)).join(' | ');
+    const refraction=stainedGlassRefract(cell, trainSummary);
+
+    if(refraction.coherent){
+        cell.context.push({
+            role:'user',
+            content:`[TRAIN DEPOSIT visit#${cell.visitCount}] ${refraction.amplifiedContent}`
+        });
+    }
+
+    // Token tracking
+    const tokens=pollen.split(/\s+/);
+    tokens.slice(0,5).forEach(t=>{
+        trainTokenList.push(t);
+        totalTokens++;
+    });
+    if(trainTokenList.length>20) trainTokenList=trainTokenList.slice(-20);
+
+    // 4. RIPPLE EMISSION — propagate field
+    emitRipple(idx, cell.ai/10, name);
+
+    // 5. ENERGY deposit
+    cell.energy+=cell.ai*.1;
+    cell.fieldE+=1;
+    if(cell.energy>8&&!cell.splat){cell.splat=true;}
+
+    // 6. HONEY — if LLM configured, synthesize for alive cells or high-context cells
+    if(el('opKey').value.trim() && (cell.alive || cell.context.length > 5)){
+        honeyForCell(idx);
+    }
+
+    // Update UI
+    updateStats();
+    updateTrainStrip();
+    if(selectedCell===idx) renderCellPanel(idx);
+}
+
+// ═══════════════════
+// RIPPLE (Wave Propagation)
+// ═══════════════════
+function emitRipple(sourceIdx, strength, label){
+    waveCount++;
+    const src=nodes[sourceIdx];
+    waves.push({
+        sourceIdx, cx:src._sx||src.x*.3, cy:src._sy||src.y*.3,
+        radius:0, maxRadius:500, speed:C/60,
+        strength, label:label||'',
+        conceptVecData:worldVec(src.world),
+        deposited:new Set(), time:Date.now()
+    });
+}
+
+function rippleTick(){
+    waves=waves.filter(wave=>{
+        wave.radius+=wave.speed;
+        if(wave.radius>wave.maxRadius)return false;
+
+        nodes.forEach(node=>{
+            if(wave.deposited.has(node.idx)||node.idx===wave.sourceIdx)return;
+            const dist=Math.hypot((node._sx||node.x*.3)-wave.cx,(node._sy||node.y*.3)-wave.cy);
+            if(Math.abs(dist-wave.radius)<12){
+                wave.deposited.add(node.idx);
+                const r=Math.max(1,dist);
+                const falloff=wave.strength/(r*.015);
+                const sim=cosSim(wave.conceptVecData,worldVec(node.world));
+                const field=falloff*(1+sim*4);
+                node.fieldE+=field;
+                node.energy+=field*.2;
+
+                // Ripple writes a context fragment to the cell
+                if(sim>.02){
+                    node.context.push({
+                        role:'system',
+                        content:`[RIPPLE from #${wave.sourceIdx} sim:${sim.toFixed(3)} E:${field.toFixed(1)}] ${wave.label}`
+                    });
+                    // Cap context
+                    if(node.context.length>20) node.context.splice(1,1);
+                }
+            }
+        });
+        return true;
+    });
+}
+
+// ═══════════════════
+// HONEY SYNTHESIS
+// ═══════════════════
+async function honeyForCell(idx){
+    const key=el('opKey').value.trim();if(!key)return;
+    const cell=nodes[idx],w=cell.world;
+    const base=el('opBase').value.trim(),model=el('opModel').value.trim();
+    const name=w.name.replace(/([A-Z])/g,' $1').trim();
+
+    // Use the cell's own accumulated context window + diegetic prompt
+    const messages=[
+        ...cell.context.slice(0,12),
+        {role:'user',content:`You are ${name}. The train just passed through you for the ${cell.visitCount}${cell.visitCount===1?'st':cell.visitCount===2?'nd':'th'} time — depositing ${cell.context.length} context fragments. Speak as this place. What do your accumulated memories reveal? Name your entities: ${w.entities.slice(0,4).map(e=>e.name).join(', ')}. 2 sentences, first person. No meta-commentary.`}
+    ];
+
+    try{
+        const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages,max_tokens:120,temperature:.85})});
+        const data=await resp.json();
+        if(data.choices?.[0]){
+            const honey=data.choices[0].message.content;
+            if(typeof HiveLogger!=='undefined'){HiveLogger.logLLM(JSON.stringify(messages.slice(-2)),honey,model,{cellIdx:idx,type:'cell_honey',visitCount:cell.visitCount});}
+            cell.context.push({role:'assistant',content:`[HONEY v${cell.visitCount}] ${honey}`});
+            honeyCount++; updateStats();
+            if(selectedCell===idx) renderCellPanel(idx);
+        }
+    }catch(e){}
+}
+
+// Click-to-synthesize: LLM reads the cell's accumulated context
+async function synthFromClick(idx){
+    const key=el('opKey').value.trim();if(!key)return;
+    const cell=nodes[idx],w=cell.world;
+    const base=el('opBase').value.trim(),model=el('opModel').value.trim();
+    const name=w.name.replace(/([A-Z])/g,' $1').trim();
+
+    const messages=[
+        ...cell.context.slice(0,12),
+        {role:'user',content:`An operator is probing ${name}. You are the cell's memory itself — what patterns have you accumulated from train deposits and ripple fragments? What narrative emerges from this convergence? Name specific entities: ${w.entities.slice(0,5).map(e=>e.name).join(', ')}. 2 sentences.`}
+    ];
+
+    try{
+        const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages,max_tokens:120,temperature:.8})});
+        const data=await resp.json();
+        if(data.choices?.[0]){
+            const honey=data.choices[0].message.content;
+            if(typeof HiveLogger!=='undefined') HiveLogger.logLLM('probe:'+name,honey,model,{cellIdx:idx,type:'cell_probe'});
+            cell.context.push({role:'assistant',content:`[PROBE] ${honey}`});
+            honeyCount++; updateStats();
+            renderCellPanel(idx);
+        }
+    }catch(e){}
+}
+
+// Inject-to-synthesize: user types tokens that get processed through the cell
+async function synthFromInject(text){
+    if(trainCurrent<0) return;
+    const key=el('opKey').value.trim();if(!key)return;
+    const cell=nodes[trainCurrent],w=cell.world;
+    const base=el('opBase').value.trim(),model=el('opModel').value.trim();
+    const name=w.name.replace(/([A-Z])/g,' $1').trim();
+
+    const messages=[
+        ...cell.context.slice(-6),
+        {role:'user',content:`The train carries this injected concept: "${text}". You are ${name}. How does this concept refract through your stained glass? What does it illuminate about ${w.entities.slice(0,3).map(e=>e.name).join(', ')}? 1-2 sentences. First person.`}
+    ];
+
+    try{
+        const resp=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},body:JSON.stringify({model,messages,max_tokens:100,temperature:.85})});
+        const data=await resp.json();
+        if(data.choices?.[0]){
+            const honey=data.choices[0].message.content;
+            if(typeof HiveLogger!=='undefined') HiveLogger.logLLM('inject:'+text,honey,model,{cellIdx:trainCurrent,type:'inject_synth'});
+            cell.context.push({role:'assistant',content:`[INJECT-HONEY] ${honey}`});
+            honeyCount++; updateStats();
+            if(selectedCell===trainCurrent) renderCellPanel(trainCurrent);
+        }
+    }catch(e){}
+}
+
+// ═══════════════════
+// INJECT TOKENS (user)
+// ═══════════════════
+function injectTokens(){
+    const input=el('emitInput'),text=input.value.trim();
+    if(!text)return;
+    input.value='';
+    // Add to train context
+    trainContext.push({role:'user',content:`[BEEKEEPER] ${text}`});
+    if(trainContext.length>TRAIN_CTX_MAX) trainContext.shift();
+    // Also ripple from current position
+    if(trainCurrent>=0){
+        const cell=nodes[trainCurrent];
+        cell.context.push({role:'user',content:`[INJECTED] ${text}`});
+        emitRipple(trainCurrent,2,text.slice(0,30));
+        // LLM synthesis on inject
+        if(el('opKey').value.trim()) synthFromInject(text);
+    }
+    text.split(/\s+/).slice(0,4).forEach(t=>{trainTokenList.push(t);totalTokens++;});
+    if(trainTokenList.length>20) trainTokenList=trainTokenList.slice(-20);
+    updateTrainStrip(); updateStats();
+}
+
+// ═══════════════════
+// TOGGLE TRAIN
+// ═══════════════════
+function toggleTrain(){
+    trainRunning=!trainRunning;
+    el('btnRun').textContent=trainRunning?'⏸ STOP':'▶ RUN TRAIN';
+    el('btnRun').classList.toggle('active',trainRunning);
+    if(trainRunning){
+        if(trainCurrent<0) trainCurrent=0;
+        trainPos.x=nodes[trainCurrent]._sx||100;
+        trainPos.y=nodes[trainCurrent]._sy||100;
+        planRoute();
+        if(trainRoute.length) trainTarget=trainRoute[0];
+    }
+}
+
+function toggleDiffusion(){
+    diffusionOn=!diffusionOn;
+    el('btnDiff').textContent=`DIFFUSE: ${diffusionOn?'ON':'OFF'}`;
+    el('btnDiff').classList.toggle('active',diffusionOn);
+}
+
+// ═══════════════════
+// RENDERING
+// ═══════════════════
+let drawT=0;
+function drawLoop(){
+    drawT++;
+    trainTick();
+    rippleTick();
+    physicsTick();
+    drawField();
+    requestAnimationFrame(drawLoop);
+}
+
+function physicsTick(){
+    if(diffusionOn){
+        const cols=Math.ceil(Math.sqrt(worlds.length*1.35));
+        const snap=nodes.map(n=>n.energy);
+        nodes.forEach((n,i)=>{
+            const nbrs=[i-1,i+1,i-cols,i+cols].filter(j=>j>=0&&j<nodes.length);
+            let avg=0;nbrs.forEach(j=>{avg+=snap[j];});
+            if(nbrs.length) avg/=nbrs.length;
+            n.energy+=(avg-n.energy)*.015;
+        });
+    }
+    nodes.forEach(n=>{n.fieldE*=.9;n.energy*=.999;});
+}
+
+function drawField(){
+    const W=canvas.width,H=canvas.height;
+    ctx.fillStyle='rgba(2,4,8,.18)';ctx.fillRect(0,0,W,H);
+    if(!nodes.length)return;
+
+    const totalW=Math.max(...nodes.map(c=>c.x))+HEX_R*2;
+    const totalH=Math.max(...nodes.map(c=>c.y))+HEX_R*2;
+    const scale=Math.min(W/totalW,H/totalH)*.86;
+    const offX=(W-totalW*scale)/2,offY=(H-totalH*scale)/2;
+    ctx.save();ctx.translate(offX,offY);ctx.scale(scale,scale);
+
+    // Ripple rings
+    waves.forEach(wave=>{
+        const scx=(wave.cx-offX)/scale,scy=(wave.cy-offY)/scale;
+        ctx.beginPath();ctx.arc(scx,scy,wave.radius/scale,0,Math.PI*2);
+        const alpha=Math.max(0,.35*(1-wave.radius/wave.maxRadius));
+        ctx.strokeStyle=`rgba(245,158,11,${alpha})`;ctx.lineWidth=1.5;ctx.stroke();
+    });
+
+    // Train route preview
+    if(trainRunning&&trainRoute.length>1){
+        ctx.beginPath();
+        const start=trainRouteIdx<trainRoute.length?trainRouteIdx:0;
+        for(let i=start;i<Math.min(trainRoute.length,start+8);i++){
+            const n=nodes[trainRoute[i]];
+            if(i===start)ctx.moveTo(n.x,n.y);else ctx.lineTo(n.x,n.y);
+        }
+        ctx.strokeStyle='rgba(245,158,11,.08)';ctx.lineWidth=2;ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);
+    }
+
+    // Nodes
+    nodes.forEach((node,i)=>{
+        const isSel=i===selectedCell;
+        const r=HEX_R;
+
+        // Splat glow
+        if(node.splat||node.energy>3){
+            const gr=r*(1.2+node.energy*.06);
+            const grd=ctx.createRadialGradient(node.x,node.y,0,node.x,node.y,gr);
+            grd.addColorStop(0,`rgba(245,158,11,${Math.min(.12,node.energy*.008)})`);grd.addColorStop(1,'transparent');
+            ctx.fillStyle=grd;ctx.fillRect(node.x-gr,node.y-gr,gr*2,gr*2);
+        }
+
+        // Hex
+        ctx.beginPath();
+        for(let k=0;k<6;k++){const a=Math.PI/3*k+Math.PI/6;ctx.lineTo(node.x+r*Math.cos(a),node.y+r*Math.sin(a));}
+        ctx.closePath();
+
+        const eA=Math.min(.1,node.fieldE*.015+node.energy*.004);
+        ctx.fillStyle=isSel?'rgba(245,158,11,.08)':`rgba(245,158,11,${eA})`;ctx.fill();
+
+        let sc=node.alive?'rgba(212,168,75,.08)':'rgba(58,62,72,.04)';
+        if(isSel){sc='#f59e0b';ctx.shadowBlur=8;ctx.shadowColor=sc;}
+        else if(node.visited) sc=`rgba(245,158,11,${Math.min(.5,.1+node.energy*.02)})`;
+        ctx.strokeStyle=sc;ctx.lineWidth=isSel?2:node.visited?.8:.3;
+        ctx.stroke();ctx.shadowBlur=0;
+
+        // Context count badge
+        if(node.context.length>1){
+            ctx.font='bold 6px IBM Plex Mono';ctx.textAlign='center';ctx.textBaseline='middle';
+            ctx.fillStyle=node.context.length>5?'rgba(245,158,11,.7)':'rgba(245,158,11,.3)';
+            ctx.fillText(node.context.length+'msg',node.x,node.y+8);
+        }
+
+        // Name
+        const name=node.world.name.replace(/([A-Z])/g,' $1').trim();
+        const short=name.length>10?name.slice(0,8)+'…':name;
+        ctx.font=isSel?'bold 6px IBM Plex Mono':'500 4.5px IBM Plex Mono';
+        ctx.fillStyle=isSel?'#f59e0b':node.visited?'rgba(245,158,11,.4)':'rgba(140,180,210,.12)';
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(short,node.x,node.y-5);
+
+        node._sx=node.x*scale+offX;node._sy=node.y*scale+offY;
+    });
+
+    // TRAIN — draw the locomotive
+    if(trainRunning||trainCurrent>=0){
+        const tx=(trainPos.x-offX)/scale,ty=(trainPos.y-offY)/scale;
+        // Engine glow
+        ctx.beginPath();ctx.arc(tx,ty,14,0,Math.PI*2);
+        const tg=ctx.createRadialGradient(tx,ty,0,tx,ty,14);
+        tg.addColorStop(0,'rgba(245,158,11,.3)');tg.addColorStop(1,'transparent');
+        ctx.fillStyle=tg;ctx.fill();
+        // Train body
+        ctx.beginPath();ctx.arc(tx,ty,5,0,Math.PI*2);
+        ctx.fillStyle='#f59e0b';ctx.shadowBlur=12;ctx.shadowColor='#f59e0b';ctx.fill();ctx.shadowBlur=0;
+        // Smoke trail
+        for(let s=1;s<=4;s++){
+            const sx=tx-s*3*(trainTarget>=0&&trainCurrent>=0?(nodes[trainTarget].x-nodes[trainCurrent].x)*.02:0);
+            const sy=ty-s*3*(trainTarget>=0&&trainCurrent>=0?(nodes[trainTarget].y-nodes[trainCurrent].y)*.02:0)-s*2;
+            ctx.beginPath();ctx.arc(sx,sy,2+s,0,Math.PI*2);
+            ctx.fillStyle=`rgba(245,158,11,${.15-s*.03})`;ctx.fill();
+        }
+        // Label
+        ctx.font='bold 7px IBM Plex Mono';ctx.textAlign='center';ctx.fillStyle='#f59e0b';
+        ctx.fillText('🚂',tx,ty-14);
+    }
+
+    ctx.restore();
+}
+
+function resize(){const vp=el('fieldWrap');const w=vp.clientWidth,h=vp.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+
+// ═══════════════════
+// CLICK → SELECT CELL or SET TRAIN DESTINATION
+// ═══════════════════
+function onFieldClick(e){
+    const rect=canvas.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*dpr,my=(e.clientY-rect.top)*dpr;
+    let closest=-1,dMin=Infinity;
+    nodes.forEach((n,i)=>{const d=Math.hypot(n._sx*dpr-mx,n._sy*dpr-my);if(d<HEX_R*2.5&&d<dMin){dMin=d;closest=i;}});
+    if(closest>=0){
+        selectedCell=closest;
+        renderCellPanel(closest);
+        // Click-to-synthesize if API key configured
+        if(el('opKey').value.trim() && nodes[closest].context.length > 1){
+            synthFromClick(closest);
+        }
+        // If train running, reroute to this cell
+        if(trainRunning){
+            trainRoute=[closest,...trainRoute.slice(trainRouteIdx+1)];
+            trainRouteIdx=0;
+            trainTarget=closest;
+            trainProgress=0;
+        }
+    }
+}
+
+// ═══════════════════
+// CELL PANEL — show independent context window
+// ═══════════════════
+function renderCellPanel(idx){
+    const cell=nodes[idx],w=cell.world;
+    const name=w.name.replace(/([A-Z])/g,' $1').trim();
+    let html=`<div class="cell-hdr"><div class="cell-name">${esc(name)}</div><div class="cell-meta">POML.${w.uid.slice(0,8)} // ${w.genre} // AI:${cell.ai} ${cell.alive?'◆ ALIVE':'○ ABIOTIC'} // Visits: ${cell.visitCount}</div></div>`;
+    html+=`<div class="cell-desc">${esc(w.description.slice(0,180))}</div>`;
+
+    html+=`<div class="fd-row"><span class="fd-label">Energy</span><span class="fd-val">${cell.energy.toFixed(2)}</span></div>`;
+    html+=`<div class="fd-row"><span class="fd-label">Context Messages</span><span class="fd-val">${cell.context.length}</span></div>`;
+    html+=`<div class="fd-row"><span class="fd-label">Splat</span><span class="fd-val">${cell.splat?'◉ ANCHORED':'—'}</span></div>`;
+
+    // Cell's context window — the key feature
+    html+=`<div class="sec-hd">Cell Context Window</div><div class="ctx-window">`;
+    html+=`<div class="ctx-hdr">📬 ${cell.context.length} messages — independent context</div>`;
+    if(cell.context.length<=1) html+=`<div class="ctx-empty">No train deposits yet. Awaiting locomotive.</div>`;
+    else cell.context.forEach(m=>{
+        if(m.content.startsWith('[HONEY')||m.content.startsWith('[PROBE]')||m.content.startsWith('[INJECT-HONEY]')){
+            const label=m.content.startsWith('[PROBE]')?'🔍 Probe':m.content.startsWith('[INJECT')?'💉 Inject Honey':'🍯 Honey';
+            const text=m.content.replace(/^\[(?:HONEY[^\]]*|PROBE|INJECT-HONEY)\]\s*/,'');
+            html+=`<div class="ctx-honey"><div class="ctx-honey-hd"><span>${label}</span><button class="ctx-honey-copy" onclick="navigator.clipboard.writeText(this.closest('.ctx-honey').querySelector('.ctx-honey-text').textContent);this.textContent='✓';setTimeout(()=>this.textContent='COPY',1200)">COPY</button></div><div class="ctx-honey-text">${esc(text)}</div></div>`;
+        } else {
+            const cls=m.role==='system'?'sys':m.content.includes('[TRAIN')?'train':'sys';
+            html+=`<div class="ctx-msg ${cls}"><div class="msg-role">${m.role}</div>${esc(m.content.slice(0,200))}</div>`;
+        }
+    });
+    html+=`</div>`;
+
+    // Entities summary
+    if(w.entities.length){
+        html+=`<div class="sec-hd">Entities</div>`;
+        w.entities.slice(0,6).forEach(e=>{html+=`<div class="fd-row"><span class="fd-label cell-click" onclick="document.getElementById('emitInput').value='${esc(e.name)}';injectTokens()" style="color:var(--cyan);cursor:pointer">◆ ${esc(e.name)}</span><span class="fd-val">${e.type}</span></div>`;});
+    }
+
+    el('pBody').innerHTML=html;
+}
+
+// ═══════════════════
+// TRAIN STRIP
+// ═══════════════════
+function updateTrainStrip(){
+    el('trainCtxCount').textContent=trainContext.length+' msgs';
+    el('trainCell').textContent=trainCurrent>=0?nodes[trainCurrent].world.name.replace(/([A-Z])/g,' $1').trim().slice(0,20):'—';
+    el('trainTokens').innerHTML=trainTokenList.slice(-12).map(t=>`<span class="ts-token">${esc(t.slice(0,12))}</span>`).join('');
+}
+
+// ═══════════════════
+// UTIL
+// ═══════════════════
+function el(id){return document.getElementById(id)}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+function updateStats(){el('sN').textContent=nodes.length;el('sV').textContent=nodes.filter(n=>n.visited).length;el('sT').textContent=totalTokens;el('sR').textContent=waveCount;el('sH').textContent=honeyCount;}
+function saveCfg(){['opKey','opModel','opBase'].forEach(id=>localStorage.setItem('trainfield_'+id,el(id).value));}
+function loadCfg(){['opKey','opModel','opBase'].forEach(id=>{const v=localStorage.getItem('trainfield_'+id);if(v)el(id).value=v;});}
+
+el('speedSlider').addEventListener('input',e=>{trainSpeed=parseInt(e.target.value);el('speedVal').textContent=trainSpeed;});
+
+// ═══════════════════
+// INIT
+// ═══════════════════
+function init(){
+    canvas=el('field');ctx=canvas.getContext('2d');dpr=devicePixelRatio;
+    worlds=RouteEngine.parseAll(WORLDS_DATA);
+    routes=RouteEngine.computeRoutes(worlds);
+    buildNodes();loadCfg();
+    window.addEventListener('resize',resize);
+    canvas.addEventListener('click',onFieldClick);
+    resize();updateStats();
+    requestAnimationFrame(drawLoop);
+}
+init();
+if(typeof HiveLogger!=='undefined')HiveLogger.init('train-hive-field');
+</script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+    <title>HIVE LIBRARY — Agentic Apiary</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}
+        body{font-family:'IBM Plex Mono',monospace;font-size:11px;user-select:none;background:#07090f;color:#8ab0c4}
+        ::selection{background:rgba(212,168,75,.35);color:#c0d8e8}
+        :root{--bg:#07090f;--bg2:#0a0d16;--bg3:#0d1020;--ink:#8ab0c4;--ink2:#c0d8e8;--ink3:rgba(140,180,210,.32);--ink4:rgba(140,180,210,.1);--gold:#d4a84b;--gold2:rgba(212,168,75,.35);--gold3:rgba(212,168,75,.6);--rule:rgba(140,180,210,.09);--rule2:rgba(140,180,210,.05);--halo:rgba(212,168,75,.08);--halo2:rgba(212,168,75,.15);--alive:#d4a84b;--abiotic:#3a3e48;--honey:#e8a832;--red:rgba(220,80,60,.6);--green:#4af626}
+        #app{display:flex;flex-direction:column;height:100vh}
+        .topbar{height:36px;background:var(--bg2);border-bottom:1px solid var(--rule);display:flex;align-items:center;flex-shrink:0;z-index:50}
+        .logo{font-size:8px;font-weight:600;letter-spacing:.22em;color:var(--gold);text-transform:uppercase;padding:0 14px;border-right:1px solid var(--rule);white-space:nowrap}
+        .stat{padding:0 10px;border-right:1px solid var(--rule2)}.stat-lbl{font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:1px}.stat-val{font-size:9px;font-weight:600;color:var(--ink2);white-space:nowrap}
+        .topbar-spacer{flex:1}
+        .mode-toggle{display:flex;align-items:center;gap:0;margin-right:8px;border:1px solid var(--rule);border-radius:2px;overflow:hidden}
+        .mode-btn{background:none;border:none;color:var(--ink3);font-family:inherit;font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;cursor:pointer;transition:all .2s}
+        .mode-btn.on{color:var(--gold);background:var(--halo)}
+        .genome-btn{background:var(--halo);border:1px solid var(--gold2);color:var(--gold);font-family:inherit;font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;cursor:pointer;border-radius:2px;margin-right:10px;transition:all .2s}
+        .genome-btn:hover{background:var(--gold2);color:#fff}
+        .main{flex:1;display:flex;overflow:hidden;min-height:0}
+        /* QUEEN STRIP */
+        .queen-strip{width:60px;background:var(--bg2);border-right:1px solid var(--rule);overflow-y:auto;flex-shrink:0;scrollbar-width:none}
+        .queen-strip::-webkit-scrollbar{display:none}
+        .qcell{padding:6px 4px;text-align:center;cursor:pointer;border-bottom:1px solid var(--rule2);transition:background .2s}
+        .qcell:hover{background:var(--halo)}.qcell.on{background:var(--halo);border-left:2px solid var(--gold)}
+        .qcell-num{font-size:9px;font-weight:600;color:var(--ink2)}.qcell-name{font-size:5px;letter-spacing:.06em;color:var(--ink3);text-transform:uppercase;margin-top:2px}
+        .qcell-bar{height:3px;margin:4px 6px 0;border-radius:1px;background:var(--rule2)}.qcell-fill{height:100%;border-radius:1px;transition:width .3s}
+        /* HIVE CANVAS */
+        .hive-wrap{flex:1;position:relative;overflow:hidden;min-width:0}
+        #hive{display:block;position:absolute;inset:0}
+        /* PHEROMONES */
+        .phero-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
+        @keyframes pDrift{0%{opacity:0;transform:translateY(0)}15%{opacity:.6}100%{opacity:0;transform:translateY(-100px);filter:blur(2px)}}
+        .phero{position:absolute;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(52,211,153,.4);text-shadow:0 0 6px rgba(52,211,153,.2);white-space:nowrap;animation:pDrift 7s cubic-bezier(.2,.8,.2,1) forwards;pointer-events:none}
+        /* DIVIDER */
+        .divider{width:3px;background:var(--rule2);cursor:col-resize;flex-shrink:0;transition:background .15s}.divider:hover{background:var(--rule)}
+        /* BROOD CHAMBER */
+        .brood{width:420px;min-width:240px;display:flex;flex-direction:column;background:var(--bg);border-left:1px solid var(--rule);z-index:10}
+        .brood-header{height:32px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 10px;flex-shrink:0;background:var(--bg2)}
+        .brood-title{font-size:7px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);flex:1}
+        .brood-body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+        .brood-body::-webkit-scrollbar{width:2px}.brood-body::-webkit-scrollbar-thumb{background:var(--rule)}
+        /* OP CONFIG */
+        .op-config{border-bottom:1px solid var(--rule);background:var(--bg2);overflow:hidden;transition:max-height .3s}
+        .op-config.collapsed{max-height:28px}.op-config.expanded{max-height:400px}
+        .op-toggle{display:flex;align-items:center;height:28px;padding:0 12px;cursor:pointer;justify-content:space-between}
+        .op-toggle-label{font-size:7px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+        .op-toggle-arrow{font-size:8px;color:var(--ink3);transition:transform .2s}
+        .op-body{padding:8px 12px 12px}
+        .op-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+        .op-label{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);width:50px;flex-shrink:0}
+        .op-select,.op-input{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:inherit;font-size:9px;padding:4px 6px;border-radius:2px;flex:1;outline:none}
+        .op-select:focus,.op-input:focus{border-color:var(--gold2)}
+        .op-textarea{background:var(--bg);border:1px solid var(--rule);color:var(--ink2);font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;padding:8px;border-radius:2px;width:100%;height:80px;resize:vertical;outline:none;line-height:1.5}
+        .op-textarea:focus{border-color:var(--gold2)}
+        /* WORLD CARD */
+        .ai-block{padding:14px 20px;border-bottom:1px solid var(--rule2);display:flex;align-items:center;gap:14px}
+        .ai-score{font-size:28px;font-weight:600;font-family:'Cormorant Garamond',serif;min-width:50px}
+        .ai-score.alive{color:var(--alive);text-shadow:0 0 20px var(--halo2)}.ai-score.abiotic{color:var(--abiotic)}
+        .ai-meta{flex:1}.ai-label{font-size:6px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:3px}
+        .ai-label.alive{color:var(--gold)}.ai-label.abiotic{color:var(--abiotic)}
+        .ai-bar{height:4px;background:var(--rule2);border-radius:2px;overflow:hidden}.ai-fill{height:100%;border-radius:2px;transition:width .4s}
+        .wcard{padding:18px 20px 12px;border-bottom:1px solid var(--rule2)}
+        .wc-name{font-size:15px;font-weight:600;color:var(--gold);letter-spacing:.06em;margin-bottom:4px;text-shadow:0 0 20px var(--halo)}
+        .wc-uid{font-size:7px;color:var(--ink3);letter-spacing:.1em;margin-bottom:6px}
+        .wc-genre{font-size:7px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink3);padding:3px 8px;background:var(--halo);border-radius:2px;display:inline-block;margin-bottom:12px}
+        .wc-desc{font-family:'Cormorant Garamond',serif;font-size:17px;font-style:italic;color:var(--ink2);line-height:1.7;word-break:break-word}
+        .sec-hd{font-size:7px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);padding:10px 20px 5px;border-top:1px solid var(--rule2)}
+        .ent-list,.rel-list,.state-list,.event-list{padding:0 12px 6px}
+        .ent{display:flex;align-items:baseline;gap:8px;padding:5px 8px;margin:1px 0;border-radius:3px;transition:background .2s}.ent:hover{background:var(--halo)}
+        .ent-icon{color:var(--gold);font-size:8px;flex-shrink:0}.ent-name{font-size:10px;font-weight:600;color:var(--ink2)}.ent-type{font-size:8px;color:var(--ink3)}
+        .rel{display:flex;align-items:center;gap:6px;padding:4px 8px;margin:1px 0;font-size:9px;color:var(--ink);border-left:2px solid var(--halo2);transition:border-color .3s}.rel:hover{border-color:var(--gold)}
+        .rel-from,.rel-to{color:var(--ink2);font-weight:600}.rel-verb{color:var(--gold);font-style:italic;font-family:'Cormorant Garamond',serif;font-size:13px}.rel-arrow{color:var(--ink4);font-size:8px}
+        .state-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 8px;margin:1px 0;font-size:9px;border-bottom:1px solid var(--rule2)}.state-key{color:var(--ink)}.state-val{color:var(--gold);font-weight:600;font-size:8px}
+        .evt{padding:6px 8px;margin:2px 0;border:1px solid var(--rule2);border-radius:3px}.evt-name{font-size:10px;font-weight:600;color:var(--gold);margin-bottom:3px}.evt-detail{font-size:8px;color:var(--ink3);line-height:1.4}
+        /* HONEY */
+        .honey-block{padding:16px 20px;border-top:1px solid var(--rule);background:linear-gradient(180deg,rgba(232,168,50,.03),transparent)}
+        .honey-hd{font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:var(--honey);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+        .honey-hd::before{content:'🍯';font-size:10px}
+        .honey-text{font-family:'Cormorant Garamond',serif;font-size:16px;font-style:italic;color:var(--ink2);line-height:1.75;white-space:pre-wrap}
+        .honey-loading{color:var(--ink3);font-size:9px;font-style:italic}
+        .honey-loading::after{content:'';animation:dots 1.5s infinite}
+        @keyframes dots{0%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}
+        .honey-error{color:var(--red);font-size:9px}
+        /* WAGGLE DANCE */
+        .waggle{padding:4px 0 10px;border-top:1px solid var(--rule2)}
+        .waggle-hd{font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:4px;padding:8px 20px 0;display:flex;align-items:center;gap:6px}.waggle-hd::before{content:'🐝';font-size:11px}
+        .wdance{background:none;border:none;border-top:1px solid var(--rule2);color:var(--ink2);font-family:'Cormorant Garamond',serif;font-size:15px;font-style:italic;width:100%;padding:8px 20px;text-align:left;cursor:pointer;transition:all .25s;display:flex;justify-content:space-between;align-items:center;gap:8px}
+        .wdance::before{content:'[[';color:var(--ink4);font-family:'IBM Plex Mono',monospace;font-size:10px;flex-shrink:0}
+        .wdance::after{content:'→]]';color:var(--ink4);font-family:'IBM Plex Mono',monospace;font-size:10px;flex-shrink:0}
+        .wdance:hover{color:var(--gold);background:var(--halo);padding-left:24px}.wdance:hover::before,.wdance:hover::after{color:var(--gold)}
+        .wd-reason{font-family:'IBM Plex Mono',monospace;font-size:7px;opacity:.5;text-transform:uppercase;letter-spacing:.08em;flex-shrink:0}
+        /* FLIGHT LOG */
+        .flight-log{border-top:1px solid var(--rule);padding:8px 12px;max-height:120px;overflow-y:auto;font-size:8px;color:var(--ink3);line-height:1.7}
+        .flight-log .fl-entry{border-bottom:1px solid var(--rule2);padding:3px 0}
+        .fl-idx{color:var(--gold);font-weight:600}.fl-cell{color:var(--ink2)}
+        /* CHAT BAR */
+        .chat-bar{height:40px;border-top:1px solid var(--rule);display:flex;background:var(--bg2);flex-shrink:0}
+        .chat-input{flex:1;background:transparent;border:none;color:var(--ink2);font-family:inherit;font-size:12px;padding:0 14px;outline:none;letter-spacing:.03em}
+        .chat-input::placeholder{color:var(--ink4)}
+        .chat-send{background:var(--halo);border:none;border-left:1px solid var(--rule);color:var(--gold);font-family:inherit;font-size:7px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;padding:0 16px;cursor:pointer;transition:all .2s}
+        .chat-send:hover{background:var(--gold2)}
+        /* TOKEN JAR */
+        .token-jar{display:flex;align-items:center;gap:4px;padding:0 10px;border-right:1px solid var(--rule2)}
+        .jar-bar{width:40px;height:8px;background:var(--rule2);border-radius:4px;overflow:hidden}.jar-fill{height:100%;background:var(--honey);border-radius:4px;transition:width .3s}
+        .jar-text{font-size:6px;color:var(--ink3);letter-spacing:.05em}
+        .empty-state{padding:40px 24px;font-family:'Cormorant Garamond',serif;font-size:17px;font-style:italic;color:var(--ink3);line-height:1.8}
+        .empty-state strong{color:var(--ink2);font-weight:600;font-style:normal}
+        /* GENOME MODAL */
+        .genome-overlay{position:fixed;inset:0;background:rgba(7,9,15,.92);z-index:200;display:none;justify-content:center;align-items:center}
+        .genome-overlay.show{display:flex}.genome-box{background:var(--bg2);border:1px solid var(--rule);border-radius:4px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;padding:24px;position:relative}
+        .genome-close{position:absolute;top:8px;right:12px;background:none;border:none;color:var(--ink3);font-size:16px;cursor:pointer}.genome-close:hover{color:var(--gold)}
+        .genome-yaml{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--ink2);white-space:pre-wrap;line-height:1.7}
+        .genome-title{font-size:8px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
+        @keyframes agitate{0%,100%{transform:translate(0,0)}25%{transform:translate(-1px,1px)}50%{transform:translate(1px,-1px)}75%{transform:translate(-1px,-1px)}}
+        .agitated{animation:agitate .15s ease 3}
+    </style>
+    <script src="data.js"></script>
+    <script src="route-engine.js"></script>
+    <script src="hive-logger.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="topbar">
+            <span class="logo">The Hive Library</span>
+            <div class="stat"><div class="stat-lbl">Cells</div><div class="stat-val" id="sCells">—</div></div>
+            <div class="stat"><div class="stat-lbl">Scene</div><div class="stat-val" id="sScene">—</div></div>
+            <div class="stat"><div class="stat-lbl">Read</div><div class="stat-val" id="sRead">0</div></div>
+            <div class="stat"><div class="stat-lbl">Honey</div><div class="stat-val" id="sHoney">0</div></div>
+            <div class="stat"><div class="stat-lbl">Flight</div><div class="stat-val" id="sFlight">0</div></div>
+            <div class="token-jar"><div class="jar-bar"><div class="jar-fill" id="jarFill" style="width:100%"></div></div><div class="jar-text" id="jarText">50k</div></div>
+            <div class="topbar-spacer"></div>
+            <div class="mode-toggle">
+                <button class="mode-btn on" id="modeManual" onclick="setMode('manual')">Manual</button>
+                <button class="mode-btn" id="modeAgentic" onclick="setMode('agentic')">🐝 Agentic</button>
+            </div>
+            <button class="genome-btn" onclick="showGenome()">Reading Genome</button>
+        </div>
+        <div class="main">
+            <div class="queen-strip" id="queenStrip"></div>
+            <div class="hive-wrap" id="hiveWrap">
+                <canvas id="hive"></canvas>
+                <div class="phero-layer" id="pheroLayer"></div>
+            </div>
+            <div class="divider" id="divider"></div>
+            <div class="brood" id="brood">
+                <div class="op-config collapsed" id="opConfig">
+                    <div class="op-toggle" onclick="toggleOp()"><span class="op-toggle-label">🐝 Operator Configuration</span><span class="op-toggle-arrow" id="opArrow">▸</span></div>
+                    <div class="op-body">
+                        <div class="op-row"><span class="op-label">Smoke</span><select class="op-select" id="opTemplate" onchange="applyTemplate()"><option value="director">🎬 The Director</option><option value="forensic">🔬 Forensic Analyst</option><option value="cartographer">🌍 Cartographer</option><option value="beekeeper">🐝 Beekeeper</option><option value="dialectician">🎭 Dialectician</option><option value="custom">✏️ Custom</option></select></div>
+                        <textarea class="op-textarea" id="opPrompt">You are a documentary filmmaker analyzing POML world data. For each world, describe the cinematic potential — what would this scene look like on screen? What films does it echo? What is the emotional temperature? Keep responses under 150 words.</textarea>
+                        <div class="op-row"><span class="op-label">API Key</span><input type="password" class="op-input" id="opKey" placeholder="sk-... (stored locally)" oninput="saveConfig()"></div>
+                        <div class="op-row"><span class="op-label">Model</span><input class="op-input" id="opModel" value="gpt-4o-mini" oninput="saveConfig()"></div>
+                        <div class="op-row"><span class="op-label">Base URL</span><input class="op-input" id="opBase" value="https://api.openai.com/v1" oninput="saveConfig()"></div>
+                        <div class="op-row"><span class="op-label">Budget</span><input type="number" class="op-input" id="opBudget" value="50000" style="width:70px" oninput="saveConfig()"><span style="font-size:7px;color:var(--ink3)">max tokens</span></div>
+                    </div>
+                </div>
+                <div class="brood-header"><span class="brood-title">Brood Chamber</span></div>
+                <div class="brood-body" id="broodBody">
+                    <div class="empty-state"><strong>The Hive Library</strong><br><br>Each cell is a context window. Each bee is an operator. Pollen becomes honey.<br><br>Click any honeycomb cell to read its world.<br>Toggle <strong>🐝 Agentic</strong> to deploy autonomous bees.<br>Follow the <strong>Waggle Dance</strong> — causal, sequential, or dialectic.<br><br><em>"You don't read 228 worlds. You keep bees, and the bees make the film."</em></div>
+                </div>
+                <div class="chat-bar">
+                    <input class="chat-input" id="chatInput" placeholder="speak to the hive..." onkeydown="if(event.key==='Enter')sendPollen()">
+                    <button class="chat-send" onclick="sendPollen()">▸ POLLEN</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="genome-overlay" id="genomeOverlay"><div class="genome-box"><button class="genome-close" onclick="hideGenome()">✕</button><div class="genome-title">Your Reading Genome</div><pre class="genome-yaml" id="genomeYaml">Navigate at least 3 worlds to generate.</pre></div></div>
+    <script src="library-engine.js"></script>
+</body>
+</html>
