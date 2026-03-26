@@ -2746,8 +2746,16 @@
             highlightCards(n.id); scrollToCard(n.id); 
             if (typeof renderTimeline === 'function') renderTimeline();
             
-            // === NODE INSPECTOR: show text for ANY selected node ===
-            const hasExistingCard = ops.some(o => o.resNode === n || o.srcNode === n);
+            // === NODE INSPECTOR: ALWAYS show text when selecting ===
+            // Remove any previous inspector card
+            ops.filter(o => o.isInspector).forEach(o => {
+                const oldCard = document.querySelector('.ocard[data-oid="' + o.id + '"]');
+                if (oldCard) oldCard.remove();
+            });
+            ops = ops.filter(o => !o.isInspector);
+            
+            // Check if this node already has a card from an operation
+            const existingCard = document.querySelector('.ocard[data-nid="' + n.id + '"]');
             
             if (n.ctxHtml) {
                 // POML node — inject structured context card
@@ -2756,8 +2764,10 @@
                     const rec = { id: ++oid, srcNode: n, opNode: n, resNode: n, opKey: n.op, nb: 0, text: n.ctx || '', ts: Date.now(), html: n.ctxHtml, isContextDump: true };
                     ops.push(rec); addCard(rec); updateCard(rec.id, n.ctx || '', true);
                 }
-            } else if (n.text && !hasExistingCard) {
-                // Fork/user node without a card — create a readable text card
+            }
+            
+            // ALWAYS create inspector card with full text + navigation
+            if (n.text) {
                 const title = (n.fullTitle || n.text || opLbl(n.op)).replace(/<[^>]*>?/gm, '').slice(0, 60);
                 const bodyText = (n.text || '').replace(/<[^>]*>?/gm, '');
                 const nbs = getNbs(n);
@@ -3129,13 +3139,22 @@
         function scrollToCard(nid) { const el = document.querySelector(`.ocard[data-nid="${nid}"]`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
 
         function highlightCards(nid) {
+            let found = null;
             document.querySelectorAll('.ocard').forEach(el => {
                 const isActive = nid != null && el.dataset.nid == nid;
                 const isRelated = nid != null && el.dataset.fid == nid;
                 el.classList.toggle('active', isActive);
                 el.classList.toggle('related', !isActive && isRelated);
                 el.classList.toggle('muted', nid != null && !isActive && !isRelated);
+                // Expand collapsed active cards
+                if (isActive) {
+                    const secs = el.querySelector('.wsecs');
+                    if (secs && secs.style.display === 'none') { secs.style.display = ''; const btn = el.querySelector('.oa:last-child'); if (btn) btn.textContent = '−'; }
+                    if (!found) found = el;
+                }
             });
+            // Scroll to the first matching card
+            if (found) found.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             redrawV();
         }
 
@@ -3334,6 +3353,10 @@
                     replEmit('  <span class="repl-entity">/honey</span> [id]     LLM narrative analysis of node');
                     replEmit('  <span class="repl-entity">/compile</span> [text]  Natural language → command');
                     replEmit('  <span class="repl-entity">/drill</span> [id]     Chain honey across node + children');
+                    replEmit('  <span class="repl-entity">/push</span> [text]    Plant text as a new node (child of selected)');
+                    replEmit('  <span class="repl-entity">/ripple</span> [id]    Visual ripple from node to neighbors');
+                    replEmit('  <span class="repl-entity">/connect</span> [a] [b] Link two nodes by ID');
+                    replEmit('  <span class="repl-entity">/ops</span>            List all operators (clickable to select)');
                     replEmit('  <span class="repl-entity">/clear</span>          Clear REPL output');
                     replEmit('');
                     replEmit('  <span class="repl-entity" onclick="replCmd(\'quickstart\')">/quickstart</span>     Step-by-step getting started');
@@ -3594,6 +3617,58 @@
                     
                 case 'clear': case 'cls':
                     document.getElementById('replOut').innerHTML = '';
+                    break;
+                    
+                case 'push': case 'add': case 'insert':
+                    if (!args) { replEmit('Usage: /push [text] — create a node from text and add to scene', 'repl-err'); break; }
+                    const pushParent = selNode;
+                    const pushX = pushParent ? pushParent.x + 100 + Math.random() * 50 : VW/2 + (Math.random()-0.5)*200;
+                    const pushY = pushParent ? pushParent.y + (Math.random()-0.5) * 100 : VH/2 + (Math.random()-0.5)*200;
+                    const pushTitle = args.slice(0, 50);
+                    const pushNode = addNode(pushTitle, 'root', pushX, pushY);
+                    pushNode.text = args;
+                    pushNode.fullTitle = pushTitle;
+                    if (pushParent) edges.push({ from: pushParent, to: pushNode });
+                    hapSpawnNode(pushNode, 3);
+                    computeV(); selectNode(pushNode);
+                    camX = VW * 0.35 - pushNode.x * camZ;
+                    camY = VH * 0.5 - pushNode.y * camZ;
+                    fireRipple(nodes.indexOf(pushNode), .6);
+                    computeV(); redrawV();
+                    replEmit(`<strong>Pushed</strong> <span class="repl-entity" onclick="replFly(${pushNode.id})">N${pushNode.id}</span> "${pushTitle}"${pushParent ? ' ← N' + pushParent.id : ''}`);
+                    break;
+                    
+                case 'ripple': case 'emit':
+                    const rippleNode = args ? nodes.find(n => n.id === parseInt(args)) : selNode;
+                    if (!rippleNode) { replEmit('Select a node or /ripple [id].', 'repl-err'); break; }
+                    fireRipple(nodes.indexOf(rippleNode), 1.0);
+                    const ripNbs = getNbs(rippleNode);
+                    ripNbs.forEach(({node: nb}, i) => {
+                        setTimeout(() => fireRipple(nodes.indexOf(nb), .5), (i+1) * 200);
+                    });
+                    replEmit(`Ripple from <span class="repl-entity" onclick="replFly(${rippleNode.id})">N${rippleNode.id}</span> → ${ripNbs.length} neighbors`);
+                    redrawV();
+                    break;
+                    
+                case 'connect': case 'link':
+                    if (!args) { replEmit('Usage: /connect [id1] [id2] — create edge between two nodes', 'repl-err'); break; }
+                    const cIds = args.split(/\s+/).map(s => parseInt(s));
+                    if (cIds.length < 2 || !cIds[0] || !cIds[1]) { replEmit('Usage: /connect [id1] [id2]', 'repl-err'); break; }
+                    const cn1 = nodes.find(n => n.id === cIds[0]), cn2 = nodes.find(n => n.id === cIds[1]);
+                    if (!cn1 || !cn2) { replEmit('Node not found.', 'repl-err'); break; }
+                    edges.push({ from: cn1, to: cn2 });
+                    computeV(); redrawV();
+                    const cn1Name = (cn1.fullTitle || opLbl(cn1.op)).replace(/<[^>]*>?/gm,'').slice(0,25);
+                    const cn2Name = (cn2.fullTitle || opLbl(cn2.op)).replace(/<[^>]*>?/gm,'').slice(0,25);
+                    replEmit(`Linked <span class="repl-entity" onclick="replFly(${cn1.id})">${cn1Name}</span> → <span class="repl-entity" onclick="replFly(${cn2.id})">${cn2Name}</span>`);
+                    break;
+
+                case 'ops': case 'operators':
+                    replEmit('<strong>OPERATORS</strong>', 'repl-info');
+                    Object.entries(OPS).forEach(([key, op]) => {
+                        replEmit(`  <span class="repl-entity" onclick="curOp='${key}';document.querySelectorAll('.qrow').forEach(r=>r.classList.toggle('sel',r.dataset.op==='${key}'));replEmit('Selected: ${op.lbl}','repl-info')">${op.lbl}</span> <span class="repl-dim">${op.verb}</span>`);
+                    });
+                    replEmit('<span class="repl-dim">Click an operator, then shift+drag between nodes to fire it.</span>');
                     break;
                     
                 case 'cd': case 'nav':
