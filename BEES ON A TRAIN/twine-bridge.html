@@ -2736,7 +2736,12 @@
         // ══════════════════════════════
         // NODES
         // ══════════════════════════════
-        function mkNode(text, op, x, y, draft = false) { return { id: ++nid, text, op, x, y, vx: 0, vy: 0, glow: 0, run: 0, depth: 0, draft }; }
+        function mkNode(text, op, x, y, draft = false) {
+            const opCatMap = { 'site':'site','inverter':'inverter','aphorist':'aphorist','analyst':'analyst',
+                'fork':'site','surface':'site','holistic':'site','manip':'site',
+                'zoom':'aphorist','play':'inverter','root':'site','limits':'analyst','modes':'inverter' };
+            return { id: ++nid, text, op, x, y, vx: 0, vy: 0, glow: 0, run: 0, depth: 0, draft, cat: opCatMap[op] || 'site' };
+        }
         function addNode(text, op, x, y, draft = false) { const n = mkNode(text, op, x, y, draft); nodes.push(n); document.getElementById('sN').textContent = nodes.length; computeV(); redrawV(); return n; }
         function removeNode(n) { edges = edges.filter(e => e.from !== n && e.to !== n); nodes = nodes.filter(x => x !== n); ops = ops.filter(o => o.srcNode !== n && o.opNode !== n && o.resNode !== n); if (selNode === n) selNode = null; document.getElementById('sN').textContent = nodes.length; computeV(); redrawV(); renderWT(); }
         function selectNode(n) { 
