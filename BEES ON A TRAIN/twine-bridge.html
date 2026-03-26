@@ -2279,10 +2279,12 @@
             drawEdges(); drawRips();
             if (aiming) drawAim();
             if (arrowAnims.length) drawArrF();
-            drawTransclusionBeam();
             drawLabels();
             
             ctx.restore();
+            
+            // Draw transclusion beam in screen space (outside camera transform)
+            drawTransclusionBeam();
         }
 
         function drawGrid() {
@@ -2394,35 +2396,49 @@
             ctx.save();
             connections.forEach(({ n, targetY, isSource, active }) => {
                 const h = opH(n.op);
+                // Convert node world coords to screen coords
+                const sx = n.x * camZ + camX;
+                const sy = n.y * camZ + camY;
                 const endX = VW;
+                
+                // Skip if node is off-screen
+                if (sx < -50 || sx > VW + 50 || sy < -50 || sy > VH + 50) return;
 
                 ctx.beginPath();
-                ctx.moveTo(n.x, n.y);
-                const cpDist = Math.max(100, (endX - n.x) * 0.6);
-                ctx.bezierCurveTo(n.x + cpDist, n.y, endX - cpDist, targetY, endX, targetY);
+                ctx.moveTo(sx, sy);
+                const cpDist = Math.max(80, (endX - sx) * 0.5);
+                ctx.bezierCurveTo(sx + cpDist, sy, endX - cpDist, targetY, endX, targetY);
 
                 if (isSource) {
                     ctx.strokeStyle = hsl(h, 60, 50, active ? 0.6 : 0.2);
                     ctx.lineWidth = active ? 2 : 1;
                     ctx.setLineDash([4, 4]);
                 } else {
-                    const grad = ctx.createLinearGradient(n.x, 0, endX, 0);
+                    const grad = ctx.createLinearGradient(sx, 0, endX, 0);
                     grad.addColorStop(0, hsl(h, 80, 60, 0.05));
                     grad.addColorStop(1, hsl(h, 80, 60, active ? 0.8 : 0.3));
                     ctx.strokeStyle = grad;
-                    ctx.lineWidth = active ? 4 : 2;
+                    ctx.lineWidth = active ? 3 : 1.5;
                     ctx.setLineDash([]);
                     if (active) {
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = hsl(h, 80, 60, 0.8);
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = hsl(h, 80, 60, 0.6);
                     }
                 }
                 ctx.stroke();
                 ctx.shadowBlur = 0;
+                ctx.setLineDash([]);
 
+                // Draw endpoint dot at the card
                 ctx.beginPath();
                 ctx.arc(endX - 3, targetY, isSource ? 2 : 4, 0, Math.PI * 2);
                 ctx.fillStyle = hsl(h, 80, 60, active ? 1 : 0.4);
+                ctx.fill();
+                
+                // Draw origin dot on the node
+                ctx.beginPath();
+                ctx.arc(sx, sy, active ? 5 : 3, 0, Math.PI * 2);
+                ctx.fillStyle = hsl(h, 80, 60, active ? 0.8 : 0.3);
                 ctx.fill();
             });
             ctx.restore();
