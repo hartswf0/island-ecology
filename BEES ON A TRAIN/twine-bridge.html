@@ -1259,6 +1259,104 @@
         }
         .light .chem-raw { background: rgba(255,255,255,0.4); color: rgba(0,0,0,0.6); }
 
+        
+        /* ── SECTION STYLING ── */
+        .wsec { 
+            position: relative;
+            border-bottom: 1px solid var(--rule2);
+            padding: 2px 0;
+            transition: background .15s;
+            cursor: default;
+        }
+        .wsec:hover {
+            background: var(--bg3);
+        }
+        .wsec:hover .sfbtn {
+            opacity: 1;
+        }
+        .sbody strong {
+            color: var(--gold);
+            font-weight: 700;
+            font-style: normal;
+        }
+        .sbody em {
+            color: var(--ink2);
+            font-style: italic;
+        }
+        .sp {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 13px;
+            line-height: 1.65;
+            color: var(--ink2);
+            margin: 4px 0;
+            user-select: text;
+        }
+        .snum {
+            display: flex;
+            gap: 8px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--ink2);
+            margin: 4px 0;
+            user-select: text;
+        }
+        .snum > div, .snum > span:last-child {
+            flex: 1;
+        }
+        .snum .sn {
+            color: var(--gold);
+            font-weight: 600;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            flex-shrink: 0;
+            min-width: 18px;
+        }
+        .sh {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--ink2);
+            margin: 6px 0 2px;
+            border-bottom: 1px solid var(--rule);
+            padding-bottom: 3px;
+        }
+        .sq {
+            border-left: 2px solid var(--gold2);
+            padding-left: 10px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 12px;
+            font-style: italic;
+            color: var(--ink);
+            margin: 4px 0;
+        }
+        .sc {
+            background: var(--bg3);
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-size: 10px;
+        }
+        .sfbtn {
+            position: absolute;
+            left: -16px;
+            top: 4px;
+            width: 14px;
+            height: 14px;
+            font-size: 8px;
+            border: 1px solid var(--rule);
+            background: var(--bg2);
+            color: var(--gold);
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity .15s;
+            border-radius: 50%;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sfbtn:hover { opacity: 1; background: var(--gold); color: var(--bg); }
+
         /* ═══ FULLSCREEN MODE ═══ */
         .fullscreen .top,
         .fullscreen .bot,
@@ -3016,7 +3114,16 @@
         // ══════════════════════════════
         function parseSections(raw) {
             const secs = [];
-            const blocks = raw.split(/\n{2,}/);
+            
+            // Pre-split: break on numbered items (1. 2. etc) even within same block
+            // Also split on **Bold Title**: or **Bold Title** at line start
+            const preSplit = raw
+                .replace(/\n(\d+)\.\s+\*\*/g, '\n\n$1. **')  // "\n1. **" → double newline before
+                .replace(/\n\*\*([^*]+)\*\*:/g, '\n\n**$1**:')  // "\n**Title**:" → double newline before
+                .replace(/\n(Fork|Branch|FORK|BRANCH)\s+(\d+|[A-Z])/g, '\n\nFork $2')  // Split on Fork N:
+                .replace(/\n---+/g, '\n\n---');  // Ensure --- gets its own block
+            
+            const blocks = preSplit.split(/\n{2,}/);
             blocks.forEach(block => {
                 block = block.trim(); if (!block) return;
                 let esc = block.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -3025,26 +3132,28 @@
                     .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
                     .replace(/`([^`]+)`/g, '<code class="sc">$1</code>');
                 if (/^(-{3,}|\*{3,})$/.test(block)) return;
-                if (/^#{1,4}\s/.test(block)) { secs.push({ type: 'h', text: block.replace(/^#+\s/, ''), html: `<div class="sh">${html.replace(/^#+\s/, '')}</div>` }); return; }
-                if (/^>\s?/.test(block)) { const inner = html.replace(/^&gt;\s?/gm, '').replace(/\n/g, '<br>'); secs.push({ type: 'q', text: block.replace(/^>\s?/gm, ''), html: `<div class="sq">${inner}</div>` }); return; }
+                if (/^#{1,4}\s/.test(block)) { secs.push({ type: 'h', text: block.replace(/^#+\s/, ''), html: '<div class="sh">' + html.replace(/^#+\s/, '') + '</div>' }); return; }
+                if (/^>\s?/.test(block)) { const inner = html.replace(/^&gt;\s?/gm, '').replace(/\n/g, '<br>'); secs.push({ type: 'q', text: block.replace(/^>\s?/gm, ''), html: '<div class="sq">' + inner + '</div>' }); return; }
                 if (/^(\d+)\.\s/.test(block)) {
-                    const lines = block.split(/\n/).filter(l => l.trim());
-                    lines.forEach(line => {
-                        const m = line.match(/^(\d+)\.\s+(.*)/);
-                        if (m) {
-                            const t2 = m[2].replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
-                            secs.push({ type: 'num', num: m[1], text: m[2], html: `<div class="snum"><span class="sn">${m[1]}.</span><span>${t2}</span></div>` });
-                        }
-                    }); return;
+                    const m = block.match(/^(\d+)\.\s+(.*)/s);
+                    if (m) {
+                        const rawText = m[2].trim();
+                        const t2 = rawText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+                            .replace(/\n/g, '<br>');
+                        secs.push({ type: 'num', num: m[1], text: rawText, html: '<div class="snum"><span class="sn">' + m[1] + '.</span><div>' + t2 + '</div></div>' });
+                    }
+                    return;
                 }
                 if (/^[-*+]\s/.test(block)) {
                     const lines = block.split(/\n/).filter(l => /^[-*+]\s/.test(l.trim()));
                     lines.forEach(line => {
                         const t2 = line.replace(/^[-*+]\s+/, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                        secs.push({ type: 'li', text: line.replace(/^[-*+]\s+/, ''), html: `<div class="snum"><span class="sn">·</span><span>${t2}</span></div>` });
+                        secs.push({ type: 'li', text: line.replace(/^[-*+]\s+/, ''), html: '<div class="snum"><span class="sn">·</span><span>' + t2 + '</span></div>' });
                     }); return;
                 }
-                secs.push({ type: 'p', text: block, html: `<p class="sp">${html.replace(/\n/g, '<br>')}</p>` });
+                secs.push({ type: 'p', text: block, html: '<p class="sp">' + html.replace(/\n/g, '<br>') + '</p>' });
             });
             return secs;
         }
@@ -3362,6 +3471,8 @@
                     replEmit('  <span class="repl-entity">/ripple</span> [id]    Visual ripple from node to neighbors');
                     replEmit('  <span class="repl-entity">/connect</span> [a] [b] Link two nodes by ID');
                     replEmit('  <span class="repl-entity">/ops</span>            List all operators (clickable to select)');
+                    replEmit('  <span class="repl-entity">/worlds</span>         List all POML worlds (clickable)');
+                    replEmit('  <span class="repl-entity">/load</span> [n|name]   Load a single world from clear canvas');
                     replEmit('  <span class="repl-entity">/clear</span>          Clear REPL output');
                     replEmit('');
                     replEmit('  <span class="repl-entity" onclick="replCmd(\'quickstart\')">/quickstart</span>     Step-by-step getting started');
@@ -3668,6 +3779,82 @@
                     replEmit(`Linked <span class="repl-entity" onclick="replFly(${cn1.id})">${cn1Name}</span> → <span class="repl-entity" onclick="replFly(${cn2.id})">${cn2Name}</span>`);
                     break;
 
+                case 'worlds': case 'world':
+                    if (typeof WORLDS_DATA === 'undefined') { replEmit('No POML data loaded (data.js).', 'repl-err'); break; }
+                    replEmit('<strong>WORLDS</strong> (' + WORLDS_DATA.length + ')', 'repl-info');
+                    WORLDS_DATA.forEach((w, i) => {
+                        const name = w.name.replace(/([A-Z])/g, ' $1').trim();
+                        const genre = w.meta ? w.meta.genre : '';
+                        replEmit('  <span class="repl-entity" onclick="replCmd(\'load ' + (i+1) + '\')">[' + (i+1) + ']</span> ' + name + (genre ? ' <span class="repl-dim">(' + genre + ')</span>' : ''));
+                    });
+                    replEmit('<span class="repl-dim">Click a world number or type /load [number] to load it.</span>');
+                    break;
+                    
+                case 'load':
+                    if (typeof WORLDS_DATA === 'undefined') { replEmit('No POML data loaded (data.js).', 'repl-err'); break; }
+                    if (!args) { replEmit('Usage: /load [world number or name]. Use /worlds to list.', 'repl-err'); break; }
+                    let loadIdx = parseInt(args) - 1;
+                    if (isNaN(loadIdx) || loadIdx < 0 || loadIdx >= WORLDS_DATA.length) {
+                        // Search by name
+                        const q = args.toLowerCase();
+                        loadIdx = WORLDS_DATA.findIndex(w => w.name.toLowerCase().includes(q));
+                        if (loadIdx < 0) { replEmit('World "' + args + '" not found. Use /worlds to list.', 'repl-err'); break; }
+                    }
+                    const lw = WORLDS_DATA[loadIdx];
+                    
+                    // Clear canvas first
+                    clearAll();
+                    
+                    // Load single world
+                    const lwName = lw.name;
+                    const lwH = (loadIdx * 137.5) % 360;
+                    const cwx = VW * 0.5, cwy = VH * 0.5;
+                    
+                    const wn = addNode(lwName, 'site', cwx, cwy);
+                    wn.hue = lwH;
+                    wn.text = lwName;
+                    wn.fullTitle = lwName.replace(/([A-Z])/g, ' $1').trim();
+                    wn.ctx = lw.meta ? 'WORLD\nGenre: ' + lw.meta.genre + '\nFocus: ' + lw.meta.description + '\n\n[Raw]\n' + lw.raw : 'WORLD\n' + (lw.raw || '');
+                    wn.ctxHtml = '<div class="chem-grid" style="--hx: hsl(' + lwH + ', 80%, 60%)"><div class="chem-row"><span class="chem-lbl">Nucleus</span><span class="chem-val">' + lwName + '</span></div>' + (lw.meta ? '<div class="chem-row"><span class="chem-lbl">Genre</span><span class="chem-val">' + lw.meta.genre + '</span></div><div class="chem-row"><span class="chem-lbl">Focus</span><span class="chem-val">' + lw.meta.description + '</span></div>' : '') + '</div><div class="chem-raw"><code>' + (lw.raw || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></div>';
+                    
+                    // Parse sub-elements if raw exists
+                    if (lw.raw) {
+                        const locRe2 = /location\s+<([^>]+)>/g;
+                        let m2;
+                        while ((m2 = locRe2.exec(lw.raw)) !== null) {
+                            const ln2 = addNode(m2[1], 'inverter', cwx + (Math.random()-.5)*200, cwy + (Math.random()-.5)*200);
+                            ln2.hue = (lwH + 20) % 360;
+                            ln2.text = m2[1];
+                            ln2.fullTitle = m2[1].replace(/([A-Z])/g, ' $1').trim();
+                            edges.push({from: wn, to: ln2});
+                        }
+                        const entRe2 = /entity\s+<([^>]+)>\s*:\s*(\w+)/g;
+                        while ((m2 = entRe2.exec(lw.raw)) !== null) {
+                            const en2 = addNode(m2[1], 'aphorist', cwx + (Math.random()-.5)*250, cwy + (Math.random()-.5)*250);
+                            en2.hue = (lwH + 120) % 360;
+                            en2.text = m2[1] + ' [' + m2[2] + ']';
+                            en2.fullTitle = m2[1].replace(/([A-Z])/g, ' $1').trim();
+                            edges.push({from: wn, to: en2});
+                        }
+                        const stRe2 = /state\s+<([^>]+)>/g;
+                        while ((m2 = stRe2.exec(lw.raw)) !== null) {
+                            const sn2 = addNode(m2[1], 'analyst', cwx + (Math.random()-.5)*180, cwy + (Math.random()-.5)*180);
+                            sn2.hue = (lwH + 240) % 360;
+                            sn2.text = m2[1];
+                            sn2.fullTitle = m2[1];
+                            edges.push({from: wn, to: sn2});
+                        }
+                    }
+                    
+                    computeV(); selectNode(wn);
+                    camX = VW * 0.35 - wn.x * camZ;
+                    camY = VH * 0.5 - wn.y * camZ;
+                    redrawV();
+                    if (typeof renderTimeline === 'function') renderTimeline();
+                    replEmit('<strong>Loaded world: ' + lwName.replace(/([A-Z])/g, ' $1').trim() + '</strong>' + (lw.meta ? ' <span class="repl-dim">(' + lw.meta.genre + ')</span>' : ''));
+                    replEmit(nodes.length + ' nodes, ' + edges.length + ' edges');
+                    break;
+                    
                 case 'ops': case 'operators':
                     replEmit('<strong>OPERATORS</strong>', 'repl-info');
                     Object.entries(OPS).forEach(([key, op]) => {
