@@ -2746,13 +2746,134 @@
             highlightCards(n.id); scrollToCard(n.id); 
             if (typeof renderTimeline === 'function') renderTimeline();
             
-            // Inject POML lineage context card into Air Traffic UI
+            // === NODE INSPECTOR: show text for ANY selected node ===
+            const hasExistingCard = ops.some(o => o.resNode === n || o.srcNode === n);
+            
             if (n.ctxHtml) {
+                // POML node — inject structured context card
                 const existing = ops.find(o => o.resNode === n && o.isContextDump);
                 if (!existing) {
                     const rec = { id: ++oid, srcNode: n, opNode: n, resNode: n, opKey: n.op, nb: 0, text: n.ctx || '', ts: Date.now(), html: n.ctxHtml, isContextDump: true };
                     ops.push(rec); addCard(rec); updateCard(rec.id, n.ctx || '', true);
                 }
+            } else if (n.text && !hasExistingCard) {
+                // Fork/user node without a card — create a readable text card
+                const title = (n.fullTitle || n.text || opLbl(n.op)).replace(/<[^>]*>?/gm, '').slice(0, 60);
+                const bodyText = (n.text || '').replace(/<[^>]*>?/gm, '');
+                const nbs = getNbs(n);
+                const parent = edges.find(e => e.to === n);
+                const children = edges.filter(e => e.from === n).map(e => e.to);
+                
+                const cardHtml = buildInspectorHtml(n, title, bodyText, nbs, parent, children);
+                
+                const rec = { id: ++oid, srcNode: parent ? parent.from : n, opNode: n, resNode: n, opKey: n.op, nb: 0, text: bodyText, ts: Date.now(), isInspector: true, title: title };
+                ops.push(rec);
+                addCard(rec);
+                const secEl = document.getElementById('secs-' + rec.id);
+                if (secEl) secEl.innerHTML = cardHtml;
+            }
+            
+            // === REPL: show live context for selected node ===
+            showSelectionContext(n);
+        }
+        
+        function buildInspectorHtml(n, title, bodyText, nbs, parent, children) {
+            const h = n.hue !== undefined ? n.hue : opH(n.op);
+            let html = '<div style="padding:8px 10px;font-family:\'Cormorant Garamond\',serif">';
+            
+            // Header
+            html += '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:var(--gold);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;border-bottom:1px solid var(--rule);padding-bottom:4px">';
+            html += opLbl(n.op) + ' N' + n.id;
+            if (n.depth !== undefined) html += ' · depth ' + n.depth;
+            html += '</div>';
+            
+            // Title
+            html += '<div style="font-size:16px;font-weight:600;color:var(--ink2);line-height:1.3;margin-bottom:8px">' + title + '</div>';
+            
+            // Body text
+            if (bodyText.length > 0) {
+                html += '<div style="font-size:14px;font-style:italic;color:var(--ink2);line-height:1.6;margin-bottom:10px">' + bodyText + '</div>';
+            }
+            
+            // ── LINEAGE ──
+            if (parent || children.length > 0) {
+                html += '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;margin-top:6px">LINEAGE</div>';
+                if (parent) {
+                    const pName = (parent.from.fullTitle || parent.from.text || opLbl(parent.from.op)).replace(/<[^>]*>?/gm, '').slice(0, 40);
+                    html += '<div style="font-size:11px;margin:2px 0"><span style="color:var(--ink3)">↑ from</span> <span class="repl-entity" style="color:var(--gold);cursor:pointer" onclick="replFly(' + parent.from.id + ')">' + pName + '</span></div>';
+                }
+                children.forEach(function(ch) {
+                    const cName = (ch.fullTitle || ch.text || opLbl(ch.op)).replace(/<[^>]*>?/gm, '').slice(0, 40);
+                    html += '<div style="font-size:11px;margin:2px 0"><span style="color:var(--ink3)">↓ to</span> <span class="repl-entity" style="color:var(--gold);cursor:pointer" onclick="replFly(' + ch.id + ')">' + cName + '</span></div>';
+                });
+            }
+            
+            // ── NEIGHBORS ──
+            if (nbs.length > 0) {
+                html += '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-top:8px;margin-bottom:4px">NEARBY (' + nbs.length + ')</div>';
+                nbs.slice(0, 4).forEach(function(nb) {
+                    const nbName = (nb.node.fullTitle || nb.node.text || opLbl(nb.node.op)).replace(/<[^>]*>?/gm, '').slice(0, 35);
+                    html += '<div style="font-size:10px;margin:2px 0"><span class="repl-entity" style="color:var(--ink2);cursor:pointer" onclick="replFly(' + nb.node.id + ')">N' + nb.node.id + ' ' + nbName + '</span> <span style="color:var(--ink3);font-size:8px">' + Math.round(nb.len) + 'px</span></div>';
+                });
+            }
+            
+            // ── QUICK ACTIONS ──
+            html += '<div style="display:flex;gap:4px;margin-top:10px;flex-wrap:wrap">';
+            html += '<button onclick="replCmd(\'fork ' + n.id + '\')" style="background:var(--bg3);border:1px solid var(--rule);color:var(--gold);font-family:\'IBM Plex Mono\',monospace;font-size:9px;padding:5px 10px;cursor:pointer;border-radius:2px">⑂ Fork</button>';
+            html += '<button onclick="replCmd(\'honey ' + n.id + '\')" style="background:var(--bg3);border:1px solid var(--rule);color:var(--gold);font-family:\'IBM Plex Mono\',monospace;font-size:9px;padding:5px 10px;cursor:pointer;border-radius:2px">🍯 Honey</button>';
+            html += '<button onclick="replCmd(\'cat ' + n.id + '\')" style="background:var(--bg3);border:1px solid var(--rule);color:var(--ink2);font-family:\'IBM Plex Mono\',monospace;font-size:9px;padding:5px 10px;cursor:pointer;border-radius:2px">📖 Full Text</button>';
+            html += '<button onclick="replCmd(\'neighbors ' + n.id + '\')" style="background:var(--bg3);border:1px solid var(--rule);color:var(--ink2);font-family:\'IBM Plex Mono\',monospace;font-size:9px;padding:5px 10px;cursor:pointer;border-radius:2px">◎ Neighbors</button>';
+            html += '</div>';
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function showSelectionContext(n) {
+            // Only auto-show context in REPL if panel is already expanded
+            const bot = document.getElementById('botPanel');
+            if (!bot || !bot.classList.contains('expanded')) return;
+            
+            const title = (n.fullTitle || n.text || opLbl(n.op)).replace(/<[^>]*>?/gm, '').slice(0, 45);
+            const children = edges.filter(e => e.from === n).map(e => e.to);
+            const parent = edges.find(e => e.to === n);
+            const nbs = getNbs(n);
+            
+            replEmit('');
+            replEmit('<span style="color:var(--gold);font-weight:600">▸ ' + title + '</span> <span class="repl-dim">N' + n.id + ' [' + opLbl(n.op) + ']</span>');
+            
+            // Show quick actions as clickable chips
+            let actions = '';
+            actions += '<span class="repl-entity" onclick="replCmd(\'fork ' + n.id + '\')">⑂ fork</span> · ';
+            actions += '<span class="repl-entity" onclick="replCmd(\'honey ' + n.id + '\')">🍯 honey</span> · ';
+            actions += '<span class="repl-entity" onclick="replCmd(\'drill ' + n.id + '\')">⛏ drill</span> · ';
+            actions += '<span class="repl-entity" onclick="replCmd(\'cat ' + n.id + '\')">📖 cat</span>';
+            replEmit(actions);
+            
+            // Children as candidates
+            if (children.length > 0) {
+                let childLine = '<span class="repl-dim">↓</span> ';
+                children.forEach(function(ch) {
+                    const cName = (ch.fullTitle || ch.text || opLbl(ch.op)).replace(/<[^>]*>?/gm, '').slice(0, 25);
+                    childLine += '<span class="repl-entity" onclick="replFly(' + ch.id + ')">' + cName + '</span> · ';
+                });
+                replEmit(childLine.slice(0, -3));
+            }
+            
+            // Parent
+            if (parent) {
+                const pName = (parent.from.fullTitle || parent.from.text || opLbl(parent.from.op)).replace(/<[^>]*>?/gm, '').slice(0, 30);
+                replEmit('<span class="repl-dim">↑</span> <span class="repl-entity" onclick="replFly(' + parent.from.id + ')">' + pName + '</span>');
+            }
+            
+            // Nearby as candidates to connect
+            if (nbs.length > 0) {
+                let nbLine = '<span class="repl-dim">◎</span> ';
+                nbs.slice(0, 3).forEach(function(nb) {
+                    const nbName = (nb.node.fullTitle || nb.node.text || opLbl(nb.node.op)).replace(/<[^>]*>?/gm, '').slice(0, 22);
+                    nbLine += '<span class="repl-entity" onclick="replFly(' + nb.node.id + ')">' + nbName + '</span> · ';
+                });
+                replEmit(nbLine.slice(0, -3));
             }
         }
         function clearAll() { nodes = []; edges = []; ops = []; selNode = null; hovNode = null; vmap = null; ripples = []; document.getElementById('sN').textContent = '0'; redrawV(); renderWT(); setReady(); }
