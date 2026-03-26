@@ -2905,11 +2905,21 @@
             html += '<div style="font-size:16px;font-weight:600;color:var(--ink2);line-height:1.3;margin-bottom:8px">' + title + '</div>';
             
             // Body text — render through parseSections for proper markdown
+            // Each section gets its own spawn + fork buttons
             if (bodyText.length > 0) {
                 const secs = parseSections(bodyText);
                 secs.forEach(function(sec, idx) {
-                    html += '<div class="wsec" style="border-bottom:1px solid var(--rule2);padding:3px 0;margin:0">';
-                    html += '<div class="sbody">' + sec.html + '</div>';
+                    const secTextEsc = sec.text.replace(/'/g, "\\'").replace(/\n/g, "\\n").slice(0, 500);
+                    html += '<div class="wsec" style="border-bottom:1px solid var(--rule2);padding:4px 0 4px 20px;margin:0;position:relative">';
+                    // Spawn button — creates node from this section
+                    html += '<button class="sfbtn" title="Spawn as node" onclick="event.stopPropagation();spawnSection(\'' + secTextEsc + '\',' + n.id + ')" style="position:absolute;left:0;top:6px">⊙</button>';
+                    html += '<div class="sbody" style="user-select:text">' + sec.html + '</div>';
+                    // Section action bar
+                    html += '<div class="sec-acts" style="display:none;gap:4px;margin-top:3px;padding-top:3px;border-top:1px dashed var(--rule2)">';
+                    html += '<button onclick="event.stopPropagation();spawnSection(\'' + secTextEsc + '\',' + n.id + ')" style="background:var(--bg3);border:1px solid var(--rule);color:var(--gold);font-size:8px;padding:3px 8px;cursor:pointer;font-family:ui-monospace,monospace;border-radius:2px">⊙ Spawn</button>';
+                    html += '<button onclick="event.stopPropagation();spawnAndFork(\'' + secTextEsc + '\',' + n.id + ')" style="background:var(--bg3);border:1px solid var(--rule);color:var(--ink2);font-size:8px;padding:3px 8px;cursor:pointer;font-family:ui-monospace,monospace;border-radius:2px">⑂ Fork</button>';
+                    html += '<button onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + secTextEsc + '\');this.textContent=\'✓\'" style="background:var(--bg3);border:1px solid var(--rule);color:var(--ink3);font-size:8px;padding:3px 8px;cursor:pointer;font-family:ui-monospace,monospace;border-radius:2px">Copy</button>';
+                    html += '</div>';
                     html += '</div>';
                 });
             }
@@ -4652,7 +4662,50 @@
             event.target.value = ''; // Reset so same file can be re-imported
         }
 
-    
+        // ── SECTION SPAWN FUNCTIONS ──
+        function spawnSection(text, parentId) {
+            const parent = nodes.find(n => n.id === parentId);
+            const title = text.replace(/\*\*/g, '').slice(0, 60);
+            const px = parent ? parent.x + 120 + Math.random() * 80 : VW/2;
+            const py = parent ? parent.y + (Math.random() - 0.5) * 120 : VH/2;
+            const n = addNode(title, curOp || 'root', px, py, tryMode);
+            n.text = text;
+            n.fullTitle = title;
+            if (parent) edges.push({ from: parent, to: n });
+            fireRipple(nodes.indexOf(n), .5);
+            camX = VW * 0.35 - n.x * camZ;
+            camY = VH * 0.5 - n.y * camZ;
+            computeV(); selectNode(n); redrawV();
+            replEmit('<strong>Spawned</strong> <span class="repl-entity" onclick="replFly(' + n.id + ')">N' + n.id + '</span> "' + title.slice(0, 30) + '"');
+        }
+
+        function spawnAndFork(text, parentId) {
+            const parent = nodes.find(n => n.id === parentId);
+            const title = text.replace(/\*\*/g, '').slice(0, 60);
+            const px = parent ? parent.x + 120 + Math.random() * 80 : VW/2;
+            const py = parent ? parent.y + (Math.random() - 0.5) * 120 : VH/2;
+            const n = addNode(title, curOp || 'fork', px, py, tryMode);
+            n.text = text;
+            n.fullTitle = title;
+            if (parent) edges.push({ from: parent, to: n });
+            computeV(); selectNode(n); redrawV();
+            // Auto-fire current operator
+            runOp(n, n, curOp || 'fork');
+        }
+
+        // Delegated click on sections to show/hide action bars
+        document.getElementById('wtL').addEventListener('click', function(e) {
+            const wsec = e.target.closest('.wsec');
+            if (!wsec || e.target.tagName === 'BUTTON') return;
+            const acts = wsec.querySelector('.sec-acts');
+            if (acts) {
+                const show = acts.style.display === 'none' || !acts.style.display;
+                // Close all other sec-acts first
+                document.querySelectorAll('.sec-acts').forEach(a => a.style.display = 'none');
+                acts.style.display = show ? 'flex' : 'none';
+            }
+        });
+
         function sendToScene(btn) {
             const card = btn.closest('.ocard');
             const oid = parseInt(card.dataset.oid, 10);
