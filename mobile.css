@@ -1,0 +1,299 @@
+/* ═══════════════════════════════════════════════════════
+   SHARED MOBILE + ACCESSIBILITY — Island Ecology Hive
+   Drop-in: <link rel="stylesheet" href="../mobile.css">
+   ═══════════════════════════════════════════════════════ */
+
+/* ── ACCESSIBILITY: CONTRAST + LEGIBILITY ── */
+/* Bump all faint ink3 text to readable levels */
+.topbar, .top, .topbar *, .top * {
+    min-height: 0; /* reset for wrapping */
+}
+
+/* Ensure minimum readable font sizes globally */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* ── A11Y: Focus outlines for keyboard nav ── */
+button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--gold, #d4a84b);
+    outline-offset: 2px;
+}
+
+/* ── A11Y: Minimum click/tap target size (44px WCAG) ── */
+button, [role="button"], .tb, .iso-btn, .wz, .panel-btn {
+    min-height: 32px;
+    min-width: 32px;
+}
+
+/* ── A11Y: Better link/interactive contrast ── */
+a, .t-click, .repl-entity, [onclick] {
+    cursor: pointer;
+}
+
+/* ── FULLSCREEN BUTTON (always visible) ── */
+#fsBtn {
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    z-index: 999;
+    background: var(--bg2, #0a0d16);
+    border: 1px solid var(--rule, rgba(140,180,210,.09));
+    color: var(--ink2, #c0d8e8);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 7px 12px;
+    cursor: pointer;
+    border-radius: 3px;
+    opacity: 0.5;
+    transition: opacity .2s, color .2s;
+    letter-spacing: .04em;
+}
+#fsBtn:hover { opacity: 1; color: var(--gold, #d4a84b); }
+
+/* ── FULLSCREEN MODE ── */
+.fullscreen .topbar,
+.fullscreen .top,
+.fullscreen .bot,
+.fullscreen .bot-panel,
+.fullscreen #botPanel,
+.fullscreen .divider,
+.fullscreen .div,
+.fullscreen #quiver,
+.fullscreen .quiver { display: none !important; }
+
+.fullscreen .main { flex: 1; }
+.fullscreen .main > * { border: none !important; }
+
+/* In fullscreen, side panels become transparent overlays */
+.fullscreen .tree-panel,
+.fullscreen .flight-panel,
+.fullscreen .dream-log,
+.fullscreen .lib-panel,
+.fullscreen .wtp,
+.fullscreen .side-panel,
+.fullscreen [class*="panel"]:not(#fsBtn) {
+    position: fixed !important;
+    right: 0; top: 0; bottom: 0;
+    width: 320px !important;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s;
+}
+.fullscreen:hover .tree-panel,
+.fullscreen:hover .flight-panel,
+.fullscreen:hover .dream-log,
+.fullscreen:hover .lib-panel,
+.fullscreen:hover .wtp,
+.fullscreen:hover .side-panel {
+    opacity: 0; /* stays hidden until toggled */
+}
+
+/* ── MOBILE TAB BAR ── */
+.mob-tab-bar {
+    display: none; /* hidden on desktop */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: var(--bg2, #0a0d16);
+    border-top: 1px solid var(--rule, rgba(140,180,210,.09));
+    z-index: 200;
+    align-items: center;
+    justify-content: space-around;
+}
+.mob-tab {
+    background: none;
+    border: none;
+    color: var(--ink3, rgba(140,180,210,.32));
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: 10px 8px;
+    cursor: pointer;
+    flex: 1;
+    text-align: center;
+    transition: color .15s;
+}
+.mob-tab.active { color: var(--gold, #d4a84b); }
+.mob-tab:hover { color: var(--ink2, #c0d8e8); }
+
+
+/* ══════════════════════════════════════
+   TABLET BREAKPOINT: ≤ 768px
+   ══════════════════════════════════════ */
+@media (max-width: 768px) {
+
+    /* ── TOPBAR ── */
+    .topbar, .top {
+        height: auto !important;
+        min-height: 36px;
+        flex-wrap: wrap;
+        padding: 3px 6px !important;
+        gap: 4px !important;
+    }
+    .topbar-spacer { display: none !important; }
+    .tstat, .tmsg, #api-hud, .t-msg { display: none !important; }
+    .tb, .iso-btn, .t-btn {
+        font-size: 9px !important;
+        padding: 0 7px !important;
+        height: 30px !important;
+    }
+
+    /* ── MAIN LAYOUT: stack vertical ── */
+    .main {
+        flex-direction: column !important;
+    }
+
+    /* ── SIDE PANELS: full-width, capped height ── */
+    .tree-panel, .flight-panel, .dream-log, .lib-panel,
+    .wtp, .side-panel, .log-panel, .term-panel,
+    .detail-panel, .info-panel {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-height: 35vh !important;
+        border-right: none !important;
+        border-left: none !important;
+        border-bottom: 1px solid var(--rule, rgba(140,180,210,.09)) !important;
+        order: 2; /* push below canvas */
+    }
+
+    /* ── CANVAS: takes majority of screen ── */
+    .vp, .field-wrap, .orrery-wrap, .canvas-wrap,
+    canvas, [class*="wrap"]:has(canvas) {
+        min-height: 50vh !important;
+        width: 100% !important;
+        order: 1;
+    }
+
+    /* ── BOTTOM BARS ── */
+    .bot, .bot-panel, #botPanel, .input-bar, .prompt-bar {
+        min-height: 44px;
+        z-index: 90;
+    }
+    .bin, .term-input, input[type="text"] {
+        font-size: 16px !important; /* prevents iOS zoom-on-focus */
+    }
+
+    /* ── QUIVER / POPUP PANELS ── */
+    #quiver, .quiver {
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 48px !important;
+        max-height: 35vh !important;
+        width: 100% !important;
+    }
+
+    /* ── MOBILE TAB BAR: visible ── */
+    .mob-tab-bar { display: flex !important; }
+
+    /* Pad bottom for tab bar */
+    #app { padding-bottom: 48px; }
+
+    /* ── FULLSCREEN BUTTON ── */
+    #fsBtn {
+        bottom: 56px;
+        right: 8px;
+        padding: 9px 14px;
+        opacity: 0.7;
+        font-size: 12px;
+    }
+
+    /* ── CARDS ── */
+    .ocard, .card, .dream-card, .flight-card {
+        margin: 4px !important;
+    }
+    .oa, .card-action {
+        font-size: 9px !important;
+        padding: 6px 4px !important;
+        min-height: 36px;
+    }
+}
+
+
+/* ══════════════════════════════════════
+   SMALL PHONE: ≤ 480px
+   ══════════════════════════════════════ */
+@media (max-width: 480px) {
+    .topbar, .top {
+        min-height: 32px;
+        padding: 2px 4px !important;
+    }
+    .tb, .iso-btn, .t-btn {
+        font-size: 8px !important;
+        padding: 0 5px !important;
+        height: 28px !important;
+    }
+    .tlogo, .t-logo {
+        font-size: 8px !important;
+    }
+
+    .tree-panel, .flight-panel, .dream-log, .lib-panel,
+    .wtp, .side-panel {
+        max-height: 30vh !important;
+    }
+
+    .vp, .field-wrap, .orrery-wrap, .canvas-wrap {
+        min-height: 55vh !important;
+    }
+}
+
+
+/* ══════════════════════════════════════
+   ACCESSIBILITY: HIGH CONTRAST MODE
+   (triggered by prefers-contrast or .a11y class)
+   ══════════════════════════════════════ */
+@media (prefers-contrast: more) {
+    :root, .dark {
+        --ink3: rgba(140, 180, 210, .6) !important;
+        --ink2: #e8f0f8 !important;
+        --rule: rgba(140, 180, 210, .2) !important;
+    }
+    .light {
+        --ink3: rgba(50, 35, 15, .7) !important;
+        --ink2: #060400 !important;
+        --rule: rgba(50, 35, 15, .25) !important;
+    }
+    button, .tb, .wz, .iso-btn {
+        font-weight: 700 !important;
+    }
+}
+
+/* Manual high-contrast toggle class */
+.a11y-hc {
+    --ink3: rgba(140, 180, 210, .6) !important;
+    --ink2: #e8f0f8 !important;
+    --rule: rgba(140, 180, 210, .2) !important;
+}
+.a11y-hc.light {
+    --ink3: rgba(50, 35, 15, .7) !important;
+    --ink2: #060400 !important;
+}
+
+/* ── A11Y: Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ── A11Y: Large text mode ── */
+.a11y-lg {
+    font-size: 14px !important;
+}
+.a11y-lg .tb, .a11y-lg .wz, .a11y-lg .iso-btn {
+    font-size: 12px !important;
+    padding: 4px 10px !important;
+    height: 38px !important;
+}
+.a11y-lg .tlogo { font-size: 13px !important; }
+.a11y-lg .ocard, .a11y-lg .card { font-size: 13px !important; }
