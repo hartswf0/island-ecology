@@ -3472,7 +3472,8 @@
                     replEmit('  <span class="repl-entity">/connect</span> [a] [b] Link two nodes by ID');
                     replEmit('  <span class="repl-entity">/ops</span>            List all operators (clickable to select)');
                     replEmit('  <span class="repl-entity">/worlds</span>         List all POML worlds (clickable)');
-                    replEmit('  <span class="repl-entity">/load</span> [n|name]   Load a single world from clear canvas');
+                    replEmit('  <span class="repl-entity">/add</span> [n|name]    Add a world to canvas (keeps existing)');
+                    replEmit('  <span class="repl-entity">/load</span> [n|name]   Same as /add (use /clear first to reset)');
                     replEmit('  <span class="repl-entity">/clear</span>          Clear REPL output');
                     replEmit('');
                     replEmit('  <span class="repl-entity" onclick="replCmd(\'quickstart\')">/quickstart</span>     Step-by-step getting started');
@@ -3785,12 +3786,12 @@
                     WORLDS_DATA.forEach((w, i) => {
                         const name = w.name.replace(/([A-Z])/g, ' $1').trim();
                         const genre = w.meta ? w.meta.genre : '';
-                        replEmit('  <span class="repl-entity" onclick="replCmd(\'load ' + (i+1) + '\')">[' + (i+1) + ']</span> ' + name + (genre ? ' <span class="repl-dim">(' + genre + ')</span>' : ''));
+                        replEmit('  <span class="repl-entity" onclick="replCmd(\'add ' + (i+1) + '\')">[' + (i+1) + ']</span> ' + name + (genre ? ' <span class="repl-dim">(' + genre + ')</span>' : ''));
                     });
-                    replEmit('<span class="repl-dim">Click a world number or type /load [number] to load it.</span>');
+                    replEmit('<span class="repl-dim">Click to add. Use /clear first for a fresh canvas. /add multiple worlds.</span>');
                     break;
                     
-                case 'load':
+                case 'load': case 'add':
                     if (typeof WORLDS_DATA === 'undefined') { replEmit('No POML data loaded (data.js).', 'repl-err'); break; }
                     if (!args) { replEmit('Usage: /load [world number or name]. Use /worlds to list.', 'repl-err'); break; }
                     let loadIdx = parseInt(args) - 1;
@@ -3802,13 +3803,22 @@
                     }
                     const lw = WORLDS_DATA[loadIdx];
                     
-                    // Clear canvas first
-                    clearAll();
+                    // Only clear if explicit: /load clear [name]
+                    // Otherwise add to existing canvas
                     
-                    // Load single world
+                    // Load world — position based on existing nodes
                     const lwName = lw.name;
                     const lwH = (loadIdx * 137.5) % 360;
-                    const cwx = VW * 0.5, cwy = VH * 0.5;
+                    // If nodes exist, offset new world to the right of existing content
+                    let cwx, cwy;
+                    if (nodes.length > 0) {
+                        const maxX = Math.max(...nodes.map(n => n.x));
+                        cwx = maxX + 300 + Math.random() * 100;
+                        cwy = VH * 0.5 + (Math.random() - 0.5) * 200;
+                    } else {
+                        cwx = VW * 0.5;
+                        cwy = VH * 0.5;
+                    }
                     
                     const wn = addNode(lwName, 'site', cwx, cwy);
                     wn.hue = lwH;
