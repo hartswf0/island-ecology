@@ -3524,6 +3524,10 @@
                     replEmit('  <span class="repl-entity">/worlds</span>         List all POML worlds (clickable)');
                     replEmit('  <span class="repl-entity">/add</span> [n|name]    Add a world to canvas (keeps existing)');
                     replEmit('  <span class="repl-entity">/load</span> [n|name]   Same as /add (use /clear first to reset)');
+                    replEmit('');
+                    replEmit('<strong>WORLDTEXT</strong>', 'repl-info');
+                    replEmit('  <span class="repl-entity">/worldtext</span> [id]   Compile text → typed W/L/E/S nodes');
+                    replEmit('  <span class="repl-entity">/wt</span>              Short alias for /worldtext');
                     replEmit('  <span class="repl-entity">/clear</span>          Clear REPL output');
                     replEmit('');
                     replEmit('  <span class="repl-entity" onclick="replCmd(\'quickstart\')">/quickstart</span>     Step-by-step getting started');
@@ -4016,6 +4020,166 @@
                     })();
                     break;
                     
+                case 'worldtext': case 'wt': case 'typify':
+                    const wtNode = args ? nodes.find(n => n.id === parseInt(args)) : selNode;
+                    if (!wtNode || !wtNode.text) { replEmit('Select a node with text, or /worldtext [id].', 'repl-err'); break; }
+                    if (!API_KEY) { replEmit('Set OpenAI API key first (/key [key]).', 'repl-err'); break; }
+                    
+                    const wtTitle = (wtNode.fullTitle || wtNode.text || '').replace(/<[^>]*>?/gm, '').slice(0, 40);
+                    replEmit('<span class="repl-dim">⟩ Compiling "' + wtTitle + '" to WorldText...</span>');
+                    
+                    (async () => {
+                        try {
+                            const wtSysPrompt = `You are a <WorldText Generator>.
+Your task is to convert the following input into a structured <WorldText> description.
+<WorldText> is a declarative language using:
+location <Name> { }
+entity <Name> : <type> { location: <Location> }
+rel [relation](<EntityA> -> <EntityB>)
+state <Entity.property> = value
+event <EventName> { actors: [] effects: [] }
+
+Output ONLY valid WorldText wrapped in: world <WorldName> { ... }
+Be concise. Extract key entities, locations, relations, and states.
+No commentary, just WorldText.`;
+
+                            const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
+                                body: JSON.stringify({
+                                    model: CONFIG.model,
+                                    messages: [
+                                        { role: 'system', content: wtSysPrompt },
+                                        { role: 'user', content: wtNode.text }
+                                    ],
+                                    temperature: 0.3, max_tokens: 1500
+                                })
+                            });
+                            const data = await r.json();
+                            const wt = data.choices?.[0]?.message?.content || '';
+                            
+                            if (!wt) { replEmit('WorldText compilation returned empty.', 'repl-err'); return; }
+                            
+                            // Parse the WorldText output into typed nodes
+                            const wtLines = wt.split('\n');
+                            let worldName = 'Compiled';
+                            const extracted = { locations: [], entities: [], relations: [], states: [], events: [] };
+                            
+                            // Extract world name
+                            const wnMatch = wt.match(/world\s+<([^>]+)>/);
+                            if (wnMatch) worldName = wnMatch[1];
+                            
+                            // Extract locations
+                            const locReg = /location\s+<([^>]+)>/g;
+                            let lm;
+                            while ((lm = locReg.exec(wt)) !== null) extracted.locations.push(lm[1]);
+                            
+                            // Extract entities
+                            const entReg = /entity\s+<([^>]+)>\s*:\s*(\w+)/g;
+                            while ((lm = entReg.exec(wt)) !== null) extracted.entities.push({ name: lm[1], type: lm[2] });
+                            
+                            // Extract relations
+                            const relReg = /rel\s+\[([^\]]+)\]\s*\(<([^>]+)>\s*->\s*<([^>]+)>\)/g;
+                            while ((lm = relReg.exec(wt)) !== null) extracted.relations.push({ rel: lm[1], from: lm[2], to: lm[3] });
+                            
+                            // Extract states
+                            const stReg = /state\s+<([^>]+)>\s*=\s*(.+)/g;
+                            while ((lm = stReg.exec(wt)) !== null) extracted.states.push({ key: lm[1], value: lm[2].trim() });
+                            
+                            // Extract events
+                            const evReg = /event\s+<([^>]+)>/g;
+                            while ((lm = evReg.exec(wt)) !== null) extracted.events.push(lm[1]);
+                            
+                            const total = extracted.locations.length + extracted.entities.length + extracted.states.length + extracted.events.length;
+                            if (total === 0) {
+                                replEmit('<span class="repl-dim">No structured elements found. Raw output:</span>');
+                                replEmit(wt.slice(0, 500));
+                                return;
+                            }
+                            
+                            // Create nodes from extracted elements
+                            const baseX = wtNode.x, baseY = wtNode.y;
+                            const lookup = {};
+                            let created = 0;
+                            
+                            // World nucleus
+                            const worldNode = addNode(worldName, 'site', baseX + 200, baseY);
+                            worldNode.hue = wtNode.hue || (Math.random() * 360);
+                            worldNode.text = worldName;
+                            worldNode.fullTitle = worldName.replace(/([A-Z])/g, ' $1').trim();
+                            worldNode.ctx = 'COMPILED WORLD\n' + wt.slice(0, 500);
+                            edges.push({ from: wtNode, to: worldNode });
+                            lookup[worldName] = worldNode;
+                            created++;
+                            
+                            // Locations → inverter (L)
+                            extracted.locations.forEach((loc, i) => {
+                                const ln = addNode(loc, 'inverter', baseX + 300 + Math.random() * 100, baseY - 150 + i * 80);
+                                ln.hue = (worldNode.hue + 20) % 360;
+                                ln.text = loc;
+                                ln.fullTitle = loc.replace(/([A-Z])/g, ' $1').trim();
+                                edges.push({ from: worldNode, to: ln });
+                                lookup[loc] = ln;
+                                created++;
+                            });
+                            
+                            // Entities → aphorist (E)
+                            extracted.entities.forEach((ent, i) => {
+                                const en = addNode(ent.name, 'aphorist', baseX + 400 + Math.random() * 100, baseY - 100 + i * 70);
+                                en.hue = (worldNode.hue + 120) % 360;
+                                en.text = ent.name + ' [' + ent.type + ']';
+                                en.fullTitle = ent.name.replace(/([A-Z])/g, ' $1').trim();
+                                edges.push({ from: worldNode, to: en });
+                                lookup[ent.name] = en;
+                                created++;
+                            });
+                            
+                            // States → analyst (S)
+                            extracted.states.forEach((st, i) => {
+                                const sn = addNode(st.key, 'analyst', baseX + 350 + Math.random() * 80, baseY + 100 + i * 60);
+                                sn.hue = (worldNode.hue + 240) % 360;
+                                sn.text = st.key + ' = ' + st.value;
+                                sn.fullTitle = st.key;
+                                edges.push({ from: worldNode, to: sn });
+                                created++;
+                            });
+                            
+                            // Events → site variant
+                            extracted.events.forEach((ev, i) => {
+                                const evn = addNode(ev, 'site', baseX + 450 + Math.random() * 80, baseY + 50 + i * 60);
+                                evn.hue = (worldNode.hue + 60) % 360;
+                                evn.text = ev;
+                                evn.fullTitle = ev.replace(/([A-Z])/g, ' $1').trim();
+                                edges.push({ from: worldNode, to: evn });
+                                created++;
+                            });
+                            
+                            // Relations → edges between existing nodes
+                            extracted.relations.forEach(rel => {
+                                const fromN = lookup[rel.from];
+                                const toN = lookup[rel.to];
+                                if (fromN && toN) { 
+                                    edges.push({ from: fromN, to: toN }); 
+                                    replEmit('  <span class="repl-dim">[' + rel.rel + ']</span> <span class="repl-entity" onclick="replFly(' + fromN.id + ')">' + rel.from + '</span> → <span class="repl-entity" onclick="replFly(' + toN.id + ')">' + rel.to + '</span>');
+                                }
+                            });
+                            
+                            computeV(); redrawV();
+                            camX = VW * 0.35 - worldNode.x * camZ;
+                            camY = VH * 0.5 - worldNode.y * camZ;
+                            selectNode(worldNode);
+                            
+                            replEmit('<strong>✓ WorldText compiled: ' + worldName + '</strong>');
+                            replEmit('  ' + extracted.locations.length + ' locations (L) · ' + extracted.entities.length + ' entities (E) · ' + extracted.states.length + ' states (S) · ' + extracted.events.length + ' events');
+                            replEmit('  ' + created + ' nodes · ' + extracted.relations.length + ' relations created');
+                            
+                            // Also store the raw worldtext on the world node
+                            worldNode.ctx = wt;
+                            worldNode.ctxHtml = '<div class="chem-raw"><code style="font-size:9px;white-space:pre-wrap">' + wt.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></div>';
+                            
+                        } catch(e) { replEmit('WorldText compilation failed: ' + e.message, 'repl-err'); }
+                    })();
+                    break;
+
                 case 'compile':
                     if (!args) { replEmit('Usage: /compile [natural language query]', 'repl-err'); break; }
                     if (!API_KEY) {
