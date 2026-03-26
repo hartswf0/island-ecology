@@ -2872,14 +2872,15 @@
             // ALWAYS create inspector card with full text + navigation
             if (n.text) {
                 const title = (n.fullTitle || n.text || opLbl(n.op)).replace(/<[^>]*>?/gm, '').slice(0, 60);
-                const bodyText = (n.text || '').replace(/<[^>]*>?/gm, '');
+                const bodyRaw = n.text || '';  // Keep markdown intact for rendering
+                const bodyPlain = bodyRaw.replace(/<[^>]*>?/gm, '');
                 const nbs = getNbs(n);
                 const parent = edges.find(e => e.to === n);
                 const children = edges.filter(e => e.from === n).map(e => e.to);
                 
-                const cardHtml = buildInspectorHtml(n, title, bodyText, nbs, parent, children);
+                const cardHtml = buildInspectorHtml(n, title, bodyRaw, nbs, parent, children);
                 
-                const rec = { id: ++oid, srcNode: parent ? parent.from : n, opNode: n, resNode: n, opKey: n.op, nb: 0, text: bodyText, ts: Date.now(), isInspector: true, title: title };
+                const rec = { id: ++oid, srcNode: parent ? parent.from : n, opNode: n, resNode: n, opKey: n.op, nb: 0, text: bodyPlain, ts: Date.now(), isInspector: true, title: title };
                 ops.push(rec);
                 addCard(rec);
                 const secEl = document.getElementById('secs-' + rec.id);
@@ -2903,9 +2904,14 @@
             // Title
             html += '<div style="font-size:16px;font-weight:600;color:var(--ink2);line-height:1.3;margin-bottom:8px">' + title + '</div>';
             
-            // Body text
+            // Body text — render through parseSections for proper markdown
             if (bodyText.length > 0) {
-                html += '<div style="font-size:14px;font-style:italic;color:var(--ink2);line-height:1.6;margin-bottom:10px">' + bodyText + '</div>';
+                const secs = parseSections(bodyText);
+                secs.forEach(function(sec, idx) {
+                    html += '<div class="wsec" style="border-bottom:1px solid var(--rule2);padding:3px 0;margin:0">';
+                    html += '<div class="sbody">' + sec.html + '</div>';
+                    html += '</div>';
+                });
             }
             
             // ── LINEAGE ──
@@ -3118,10 +3124,14 @@
             // Pre-split: break on numbered items (1. 2. etc) even within same block
             // Also split on **Bold Title**: or **Bold Title** at line start
             const preSplit = raw
-                .replace(/\n(\d+)\.\s+\*\*/g, '\n\n$1. **')  // "\n1. **" → double newline before
-                .replace(/\n\*\*([^*]+)\*\*:/g, '\n\n**$1**:')  // "\n**Title**:" → double newline before
-                .replace(/\n(Fork|Branch|FORK|BRANCH)\s+(\d+|[A-Z])/g, '\n\nFork $2')  // Split on Fork N:
-                .replace(/\n---+/g, '\n\n---');  // Ensure --- gets its own block
+                .replace(/\n(\d+)\.\s+\*\*/g, '\n\n$1. **')              // "\n1. **Title" → break before
+                .replace(/\n(\d+)\.\s+/g, '\n\n$1. ')                    // "\n1. text" → break before any numbered
+                .replace(/\n\*\*([^*]+)\*\*:?/g, '\n\n**$1**')           // "\n**Title**:" → break before bold titles
+                .replace(/\n(Fork|Branch|FORK|BRANCH|Level)\s+(\d+|[A-Z])/gi, '\n\nFork $2')  // Fork/Branch/Level
+                .replace(/\n\*\s+\*\*/g, '\n\n* **')                     // "\n* **bold" → break before bold bullets
+                .replace(/\n-\s+\*\*/g, '\n\n- **')                      // "\n- **bold" → break before bold bullets
+                .replace(/\n---+/g, '\n\n---')                            // --- dividers
+                .replace(/\n(Action-Reaction Chain|Summary|Conclusion)/gi, '\n\n$1');  // Common section headers
             
             const blocks = preSplit.split(/\n{2,}/);
             blocks.forEach(block => {
@@ -3152,6 +3162,20 @@
                         const t2 = line.replace(/^[-*+]\s+/, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                         secs.push({ type: 'li', text: line.replace(/^[-*+]\s+/, ''), html: '<div class="snum"><span class="sn">·</span><span>' + t2 + '</span></div>' });
                     }); return;
+                }
+                // Bold-title paragraph: "**Title**: body text..."
+                if (/^\*\*/.test(block)) {
+                    const titleMatch = block.match(/^\*\*([^*]+)\*\*[:\s]*(.*)/s);
+                    if (titleMatch) {
+                        const secTitle = titleMatch[1].trim();
+                        const secBody = titleMatch[2].trim()
+                            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+                            .replace(/\n/g, '<br>');
+                        secs.push({ type: 'titled', text: block, html: '<div class="sp" style="margin:6px 0"><strong style="color:var(--gold);font-size:14px">' + secTitle + '</strong><br>' + secBody + '</div>' });
+                        return;
+                    }
                 }
                 secs.push({ type: 'p', text: block, html: '<p class="sp">' + html.replace(/\n/g, '<br>') + '</p>' });
             });
