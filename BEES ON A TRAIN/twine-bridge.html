@@ -2935,6 +2935,7 @@
                     html += '<button onclick="event.stopPropagation();spawnSection(\'' + secTextEsc + '\',' + n.id + ')" style="background:var(--bg3);border:1px solid var(--rule);color:var(--gold);font-size:8px;padding:3px 8px;cursor:pointer;font-family:ui-monospace,monospace;border-radius:2px">⊙ Spawn</button>';
                     html += '<button onclick="event.stopPropagation();spawnAndFork(\'' + secTextEsc + '\',' + n.id + ')" style="background:var(--bg3);border:1px solid var(--rule);color:var(--ink2);font-size:8px;padding:3px 8px;cursor:pointer;font-family:ui-monospace,monospace;border-radius:2px">⑂ Fork</button>';
                     html += '<button onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + secTextEsc + '\');this.textContent=\'✓\'" style="background:var(--bg3);border:1px solid var(--rule);color:var(--ink3);font-size:8px;padding:3px 8px;cursor:pointer;font-family:ui-monospace,monospace;border-radius:2px">Copy</button>';
+                    html += '<button onclick="event.stopPropagation();spawnSection(\'' + secTextEsc + '\',' + n.id + ');setTimeout(function(){replCmd(\'wt\')},300)" style="background:var(--bg3);border:1px solid var(--gold2);color:var(--gold);font-size:8px;padding:3px 8px;cursor:pointer;font-family:ui-monospace,monospace;border-radius:2px;font-weight:600">⟩WT</button>';
                     html += '</div>';
                     html += '</div>';
                 });
@@ -2968,6 +2969,7 @@
             html += '<button onclick="replCmd(\'honey ' + n.id + '\')" style="background:var(--bg3);border:1px solid var(--rule);color:var(--gold);font-family:\'IBM Plex Mono\',monospace;font-size:9px;padding:5px 10px;cursor:pointer;border-radius:2px">🍯 Honey</button>';
             html += '<button onclick="replCmd(\'cat ' + n.id + '\')" style="background:var(--bg3);border:1px solid var(--rule);color:var(--ink2);font-family:\'IBM Plex Mono\',monospace;font-size:9px;padding:5px 10px;cursor:pointer;border-radius:2px">📖 Full Text</button>';
             html += '<button onclick="replCmd(\'neighbors ' + n.id + '\')" style="background:var(--bg3);border:1px solid var(--rule);color:var(--ink2);font-family:\'IBM Plex Mono\',monospace;font-size:9px;padding:5px 10px;cursor:pointer;border-radius:2px">◎ Neighbors</button>';
+            html += '<button onclick="replCmd(\'wt ' + n.id + '\')" style="background:var(--bg3);border:1px solid var(--gold2);color:var(--gold);font-family:\'IBM Plex Mono\',monospace;font-size:9px;padding:5px 10px;cursor:pointer;border-radius:2px;font-weight:600">⟩ WorldText</button>';
             html += '</div>';
             
             html += '</div>';
@@ -4068,32 +4070,47 @@ No commentary, just WorldText.`;
                             const wnMatch = wt.match(/world\s+<([^>]+)>/);
                             if (wnMatch) worldName = wnMatch[1];
                             
+                            // Normalize: replace | and ; delimiters with newlines  
+                            const wtNorm = wt.replace(/\|/g, '\n').replace(/;\s*/g, '\n');
+                            
                             // Extract locations
-                            const locReg = /location\s+<([^>]+)>/g;
+                            const locReg = /location\s+<?([^>{}\n|]+)>?/gi;
                             let lm;
-                            while ((lm = locReg.exec(wt)) !== null) extracted.locations.push(lm[1]);
+                            while ((lm = locReg.exec(wtNorm)) !== null) { const n = lm[1].trim(); if (n && n.length > 1) extracted.locations.push(n); }
                             
-                            // Extract entities
-                            const entReg = /entity\s+<([^>]+)>\s*:\s*(\w+)/g;
-                            while ((lm = entReg.exec(wt)) !== null) extracted.entities.push({ name: lm[1], type: lm[2] });
+                            // Extract entities — type is OPTIONAL
+                            const entReg = /entity\s+<?([^>{}\n|:]+)>?(?:\s*:\s*(\w+))?/gi;
+                            while ((lm = entReg.exec(wtNorm)) !== null) { const n = lm[1].trim(); if (n && n.length > 1) extracted.entities.push({ name: n, type: lm[2] || 'unknown' }); }
                             
-                            // Extract relations
-                            const relReg = /rel\s+\[([^\]]+)\]\s*\(<([^>]+)>\s*->\s*<([^>]+)>\)/g;
-                            while ((lm = relReg.exec(wt)) !== null) extracted.relations.push({ rel: lm[1], from: lm[2], to: lm[3] });
+                            // Extract relations — flexible spacing
+                            const relReg = /rel\s+\[([^\]]+)\]\s*\(?<?([^>\s,)]+)>?\s*->\s*<?([^>\s,)]+)>?\)?/gi;
+                            while ((lm = relReg.exec(wtNorm)) !== null) extracted.relations.push({ rel: lm[1].trim(), from: lm[2].trim(), to: lm[3].trim() });
                             
-                            // Extract states
-                            const stReg = /state\s+<([^>]+)>\s*=\s*(.+)/g;
-                            while ((lm = stReg.exec(wt)) !== null) extracted.states.push({ key: lm[1], value: lm[2].trim() });
+                            // Extract states — handle both <Entity.prop> and Entity.prop
+                            const stReg = /state\s+<?([^>=\n|]+)>?\s*=\s*([^\n|{}]+)/gi;
+                            while ((lm = stReg.exec(wtNorm)) !== null) extracted.states.push({ key: lm[1].trim(), value: lm[2].trim() });
                             
                             // Extract events
-                            const evReg = /event\s+<([^>]+)>/g;
-                            while ((lm = evReg.exec(wt)) !== null) extracted.events.push(lm[1]);
+                            const evReg = /event\s+<?([^>{}\n|]+)>?/gi;
+                            while ((lm = evReg.exec(wtNorm)) !== null) { const n = lm[1].trim(); if (n && n.length > 1) extracted.events.push(n); }
+                            
+                            // Extract rules too
+                            const ruReg = /rule\s+<?([^>{}\n|]+)>?/gi;
+                            while ((lm = ruReg.exec(wtNorm)) !== null) { const n = lm[1].trim(); if (n && n.length > 1) extracted.events.push('⚙ ' + n); }
                             
                             const total = extracted.locations.length + extracted.entities.length + extracted.states.length + extracted.events.length;
                             if (total === 0) {
-                                replEmit('<span class="repl-dim">No structured elements found. Raw output:</span>');
-                                replEmit(wt.slice(0, 500));
-                                return;
+                                // FALLBACK: try to extract angle-bracket tokens as entities
+                                const abReg = /<([A-Z][A-Za-z0-9_ ]+)>/g;
+                                while ((lm = abReg.exec(wt)) !== null) {
+                                    const name = lm[1].trim();
+                                    if (!extracted.entities.find(e => e.name === name)) extracted.entities.push({ name, type: 'extracted' });
+                                }
+                                if (extracted.entities.length === 0) {
+                                    replEmit('<span class="repl-dim">No structured elements found. Raw WorldText:</span>');
+                                    replEmit('<div style="font-size:9px;max-height:200px;overflow:auto;background:var(--bg3);padding:4px;border-radius:2px;white-space:pre-wrap">' + wt.replace(/</g,'&lt;').replace(/>/g,'&gt;').slice(0, 1000) + '</div>');
+                                    return;
+                                }
                             }
                             
                             // Create nodes from extracted elements
