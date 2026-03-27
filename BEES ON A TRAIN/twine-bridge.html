@@ -1636,31 +1636,46 @@
         // ══════════════════════════════
         // POML OPERATORS
         // ══════════════════════════════
-        const baseSys = `You are the ARCHITECT of the Garden of Forking Paths. You generate branching narrative worlds — recursive, mysterious, and structurally surprising. Every fork opens new doors. Every path reveals hidden causality. RULES: Lush atmospheric prose. Diegetic. Never conclude — always open more doors. Reference specific entities, locations, and events by name.`;
+        const baseSys = `You are a WORLD COMPILER. You analyze and extend narrative structures with extreme specificity.
+
+RULES:
+- Name every entity, location, mechanic, and relation explicitly.
+- Be concrete: materials, colors, sounds, temperatures, distances, timestamps.
+- Avoid filler adjectives (mysterious, enigmatic, cryptic, ethereal, eerie). Show don't tell.
+- Every sentence must contain either a PROPER NOUN, a SPECIFIC MECHANIC, or a CAUSAL LINK.
+- Prefer short declarative sentences over long flowing prose.
+- Reference exact elements from the source text — don't invent generics.
+- Output should read like a technical bible, not a fantasy novel.
+- Never use: "whispers", "beckons", "tapestry", "labyrinthine", "ethereal", "enigmatic", "cryptic", "eldritch".`;
 
         const OPS = {
             "fork": {
                 lbl: "FORK",
                 hue: 320,
-                verb: "Generate 2-4 new narrative paths",
+                verb: "Generate 2-4 branching paths",
                 category: "NARRATIVE",
                 usageCount: 0,
-                sys: `You are the ARCHITECT of the Garden of Forking Paths. 
-                Your task is to take the current narrative beat and generate exactly 2 to 4 distinct "FORKS" in the story.
-                
-                RULES:
-                1. Each FORK must be a surprising, distinct direction. 
-                2. Format EACH fork clearly with a [TITLE] and a [NARRATIVE_TEXT].
-                3. The narrative must be lush, mysterious, and recursive.
-                4. Do NOT conclude the story. Open more doors.
-                5. Reference specific entities, objects, locations from the source text by name.
-                6. Structure your output like this:
-                
-                FORK 1: [Surprising Title]
-                [Atmospheric narrative text about this specific path...]
-                
-                FORK 2: [Another Surprising Title]
-                [Atmospheric narrative text about this different path...]`
+                sys: `You are a NARRATIVE FORKING ENGINE. Generate exactly 3 distinct paths from the source material.
+
+REQUIREMENTS:
+- Each fork must diverge on a DIFFERENT AXIS: one spatial, one temporal, one causal.
+- Name every character, object, and location with a specific proper noun.
+- State what physically changes. What breaks? What appears? What moves where?
+- Each fork: 2-3 paragraphs MAX. Dense. No filler.
+- Include at least one: dialogue line, physical measurement, or timestamp per fork.
+- NEVER use these words: mysterious, enigmatic, cryptic, ethereal, beckons, whispers, tapestry, labyrinthine.
+- Reference entities from the source by their exact names.
+
+FORMAT:
+
+FORK 1: [Specific Action Title]
+[Concrete, specific narrative. Name things. State causes and effects.]
+
+FORK 2: [Different Axis Title]
+[Different direction entirely. New mechanics or entities introduced.]
+
+FORK 3: [Third Axis Title]
+[Structural reversal or perspective shift. Changes the rules.]`
             },
             "root": {
                 lbl: "ROOT",
@@ -3029,6 +3044,12 @@
         // RUN OPERATOR
         // ══════════════════════════════
         async function runOp(srcNode, opNode, opKey) {
+            // Guard: don't fork nodes with no real text content
+            const guardTxt = (srcNode.text || srcNode.ctx || '').replace(/<[^>]*>/g, '').trim();
+            if (guardTxt.length < 10) {
+                setMsg('Node has too little text to operate on. Select a node with content.');
+                return;
+            }
             const op = OPS[opKey]; if (!op?.sys) return;
             const concept = srcNode.text;
             const spCtx = buildCtx(opNode);
@@ -4032,18 +4053,25 @@
                     
                     (async () => {
                         try {
-                            const wtSysPrompt = `You are a <WorldText Generator>.
-Your task is to convert the following input into a structured <WorldText> description.
-<WorldText> is a declarative language using:
-location <Name> { }
-entity <Name> : <type> { location: <Location> }
-rel [relation](<EntityA> -> <EntityB>)
-state <Entity.property> = value
-event <EventName> { actors: [] effects: [] }
+                            const wtSysPrompt = `You are a <WorldText Compiler>. Convert the input into structured WorldText.
 
-Output ONLY valid WorldText wrapped in: world <WorldName> { ... }
-Be concise. Extract key entities, locations, relations, and states.
-No commentary, just WorldText.`;
+FORMAT (each element on its own line):
+world <WorldName> {
+  location <LocationName> { description: "1-sentence physical description" }
+  entity <EntityName> : type { location: <Loc>, traits: ["trait1","trait2"] }
+  rel [verb](<EntityA> -> <EntityB>)
+  state <Entity.property> = value
+  event <EventName> { actors: [<A>,<B>], effects: ["effect"] }
+}
+
+RULES:
+- Extract EVERY named character, place, object, force, concept.
+- Entity types: character, creature, object, system, force, concept, structure.
+- Relations should be specific verbs: [chases], [controls], [fears], [contains], [blocks], [transforms].
+- States should capture measurable properties: health, mood, position, intensity.
+- EVERY location and entity MUST have a description field.
+- Put each element on its own line (not pipe-separated).
+- Output ONLY the world block. No commentary.`;
 
                             const r = await fetch('https://api.openai.com/v1/chat/completions', {
                                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
