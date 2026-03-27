@@ -1549,7 +1549,7 @@
                 <button class="tb" id="tbFi" onclick="setMode('fire')">⊙ Aim</button>
                 <button class="tb" id="soundModeBtn" title="Sound Settings">🔊</button>
                 <button class="tb" onclick="togTheme()" id="tbTh">☀</button>
-                <button class="tb" onclick="clearAll()">Clear</button>
+                <span id="tokenBurn" style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ink3);padding:0 6px;cursor:help;transition:transform .2s" title="Token burn this session">⊘0k</span><button class="tb" onclick="clearAll()">Clear</button>
             </div>
 
             <div id="soundPanel" style="display:none;">
@@ -1949,9 +1949,52 @@ FORK 3: [Third Axis Title]
         let VW = 0, VH = 0;
         const CONFIG = { model: "gpt-4o", storageKey: "epistemic_openai_key" };
         let API_KEY = "";
-        function saveApiKey() { API_KEY = document.getElementById('api-key-input').value.trim(); try { localStorage.setItem(CONFIG.storageKey, API_KEY); } catch(e) { console.warn('localStorage full:', e); } setApiStatus('ok'); }
+        function saveApiKey() { 
+            API_KEY = document.getElementById('api-key-input').value.trim(); 
+            try { localStorage.setItem(CONFIG.storageKey, API_KEY); } 
+            catch(e) { 
+                // localStorage full — clear old data and retry
+                console.warn('localStorage full, clearing old data...');
+                try {
+                    const keep = ['epistemic_openai_key', 'twine_onboarded'];
+                    Object.keys(localStorage).forEach(k => { if (!keep.includes(k)) localStorage.removeItem(k); });
+                    localStorage.setItem(CONFIG.storageKey, API_KEY);
+                } catch(e2) {
+                    // Nuclear option: clear everything
+                    localStorage.clear();
+                    localStorage.setItem(CONFIG.storageKey, API_KEY);
+                }
+            } 
+            setApiStatus('ok'); 
+        }
         function loadApiKey() { API_KEY = localStorage.getItem(CONFIG.storageKey) || ""; if (document.getElementById('api-key-input')) document.getElementById('api-key-input').value = API_KEY; if (API_KEY) setApiStatus('ok'); }
-        function setApiStatus(s) { const d = document.getElementById('dot-api'); if (d) d.className = 'tdot ' + s; }
+        // ── TOKEN BURN COUNTER ──
+        let tokenBurn = { total: 0, session: 0, calls: 0 };
+        
+        function trackTokens(usage) {
+            if (!usage) return;
+            const total = (usage.prompt_tokens || 0) + (usage.completion_tokens || 0);
+            tokenBurn.total += total;
+            tokenBurn.session += total;
+            tokenBurn.calls++;
+            updateTokenUI();
+        }
+        
+        function updateTokenUI() {
+            const el = document.getElementById('tokenBurn');
+            if (!el) return;
+            const k = (tokenBurn.session / 1000).toFixed(1);
+            el.textContent = '⊘' + k + 'k';
+            el.title = tokenBurn.session.toLocaleString() + ' tokens · ' + tokenBurn.calls + ' calls this session';
+            const pct = Math.min(tokenBurn.session / 50000, 1);
+            const h = 120 - pct * 120;
+            el.style.color = 'hsl(' + h + ', 70%, 55%)';
+            // Flash animation
+            el.style.transform = 'scale(1.3)';
+            setTimeout(() => el.style.transform = 'scale(1)', 200);
+        }
+
+                function setApiStatus(s) { const d = document.getElementById('dot-api'); if (d) d.className = 'tdot ' + s; }
 
         let nodes = [], ops = [], edges = [], nid = 0, oid = 0;
         let selNode = null, hovNode = null, dragging = null, dox = 0, doy = 0;
@@ -3107,6 +3150,7 @@ FORK 3: [Third Axis Title]
                         })
                     });
                     const data = await r.json();
+                    if (data.usage) trackTokens(data.usage);
                     text = data.choices?.[0]?.message?.content || 'Error: ' + (data.error?.message || JSON.stringify(data));
                 }
 
@@ -4037,6 +4081,8 @@ FORK 3: [Third Axis Title]
                                 })
                             });
                             const data = await r.json();
+                            if (data.usage) trackTokens(data.usage);
+                    if (data.usage) trackTokens(data.usage);
                             const honey = data.choices?.[0]?.message?.content || 'Error';
                             replEmit(`<div style="border-left:2px solid var(--gold2);padding-left:8px;margin:4px 0;font-family:'Cormorant Garamond',serif;font-size:12px;line-height:1.5;color:var(--ink1)">🍯 ${honey}</div>`);
                         } catch(e) { replEmit('Honey synthesis failed: ' + e.message, 'repl-err'); }
@@ -4085,6 +4131,8 @@ RULES:
                                 })
                             });
                             const data = await r.json();
+                            if (data.usage) trackTokens(data.usage);
+                    if (data.usage) trackTokens(data.usage);
                             const wt = data.choices?.[0]?.message?.content || '';
                             
                             if (!wt) { replEmit('WorldText compilation returned empty.', 'repl-err'); return; }
@@ -4256,6 +4304,8 @@ RULES:
                                 })
                             });
                             const data = await r.json();
+                            if (data.usage) trackTokens(data.usage);
+                    if (data.usage) trackTokens(data.usage);
                             if (data.choices?.[0]) {
                                 const compiled = data.choices[0].message.content.trim();
                                 replEmit(`<span class="repl-dim">→ ${compiled}</span>`);
