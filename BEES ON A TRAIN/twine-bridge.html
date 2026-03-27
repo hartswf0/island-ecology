@@ -255,7 +255,88 @@
             cursor: pointer;
             transition: color .12s, background .12s;
             white-space: nowrap;
-            touch-action: manipulation
+            touch-action: manipulation;
+            min-width: 36px;
+        }
+        .tb-group {
+            display: flex;
+            align-items: center;
+            border-left: 1px solid var(--rule);
+            padding-left: 2px;
+            margin-left: 2px;
+            position: relative;
+        }
+        .tb-group:first-child { border-left: none; margin-left: 0; }
+        .tb-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 7px;
+            color: var(--ink4);
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            padding: 0 6px;
+            pointer-events: none;
+        }
+        .tb-danger { color: var(--ink3); }
+        .tb-danger:hover { color: #c44; background: rgba(200,60,60,.1); }
+        .tb-status { gap: 0; }
+
+        /* ── COMMAND PALETTE ── */
+        #cmdPalette {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 9999;
+            background: rgba(0,0,0,.5);
+            backdrop-filter: blur(4px);
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 15vh;
+        }
+        #cmdPalette.open { display: flex; }
+        #cmdPaletteBox {
+            background: var(--bg);
+            border: 1px solid var(--rule);
+            border-radius: 8px;
+            width: min(480px, 90vw);
+            box-shadow: 0 20px 60px rgba(0,0,0,.4);
+            overflow: hidden;
+        }
+        #cmdInput {
+            width: 100%;
+            background: var(--bg2);
+            border: none;
+            border-bottom: 1px solid var(--rule);
+            color: var(--ink2);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 14px;
+            padding: 16px 20px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        #cmdInput::placeholder { color: var(--ink4); }
+        #cmdResults {
+            max-height: 50vh;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+        .cmd-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background .1s;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+        }
+        .cmd-item:hover, .cmd-item.active { background: var(--bg3); }
+        .cmd-icon { font-size: 16px; width: 24px; text-align: center; flex-shrink: 0; }
+        .cmd-label { color: var(--ink2); font-weight: 600; }
+        .cmd-desc { color: var(--ink3); font-size: 9px; margin-left: auto; }
+        .cmd-key { 
+            color: var(--ink4); font-size: 8px; 
+            border: 1px solid var(--rule2); border-radius: 3px; 
+            padding: 1px 5px; margin-left: 6px;
         }
 
         .tb:hover,
@@ -1538,18 +1619,32 @@
                     onchange="saveApiKey()">
             </div>
             <div class="tr">
-                <div style="display:flex; border-left: 1px solid var(--rule); margin-right: 4px;">
-                    <button class="tb iso-btn on" data-iso="all" onclick="setIso('all')" title="View All">All</button>
-                    <button class="tb iso-btn" data-iso="site" onclick="setIso('site')" title="Isolate Worlds">W</button>
-                    <button class="tb iso-btn" data-iso="inverter" onclick="setIso('inverter')" title="Isolate Locations">L</button>
-                    <button class="tb iso-btn" data-iso="aphorist" onclick="setIso('aphorist')" title="Isolate Entities">E</button>
-                    <button class="tb iso-btn" data-iso="analyst" onclick="setIso('analyst')" title="Isolate States">S</button>
+                <!-- ▸ FILTER GROUP -->
+                <div class="tb-group" title="Filter by type">
+                    <span class="tb-label">Filter</span>
+                    <button class="tb iso-btn on" data-iso="all" onclick="setIso('all')" title="Show all node types">All</button>
+                    <button class="tb iso-btn" data-iso="site" onclick="setIso('site')" title="Worlds — root narrative containers">W</button>
+                    <button class="tb iso-btn" data-iso="inverter" onclick="setIso('inverter')" title="Locations — spatial/structural nodes">L</button>
+                    <button class="tb iso-btn" data-iso="aphorist" onclick="setIso('aphorist')" title="Entities — characters, objects, forces">E</button>
+                    <button class="tb iso-btn" data-iso="analyst" onclick="setIso('analyst')" title="States — properties, conditions, values">S</button>
                 </div>
-                <button class="tb on" id="tbEx" onclick="setMode('explore')">Explore</button>
-                <button class="tb" id="tbFi" onclick="setMode('fire')">⊙ Aim</button>
-                <button class="tb" id="soundModeBtn" title="Sound Settings">🔊</button>
-                <button class="tb" onclick="togTheme()" id="tbTh">☀</button>
-                <span id="tokenBurn" style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ink3);padding:0 6px;cursor:help;transition:transform .2s" title="Token burn this session">⊘0k</span><button class="tb" onclick="clearAll()">Clear</button>
+                <!-- ▸ MODE GROUP -->
+                <div class="tb-group">
+                    <span class="tb-label">Mode</span>
+                    <button class="tb on" id="tbEx" onclick="setMode('explore')" title="Explore: click to select, drag to pan">Explore</button>
+                    <button class="tb" id="tbFi" onclick="setMode('fire')" title="Aim: shift+drag between nodes to fire operators">⊙ Aim</button>
+                </div>
+                <!-- ▸ SYSTEM GROUP -->
+                <div class="tb-group">
+                    <button class="tb" onclick="togTheme()" id="tbTh" title="Toggle light/dark theme">☀</button>
+                    <button class="tb" id="soundModeBtn" title="Sound: ambient, mechanical, or silent">🔊</button>
+                    <button class="tb" onclick="openCmdPalette()" title="Command palette (⌘K)">⌘K</button>
+                </div>
+                <!-- ▸ STATUS -->
+                <div class="tb-group tb-status">
+                    <span id="tokenBurn" style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ink3);padding:0 4px;cursor:help;transition:transform .2s" title="Token burn this session">⊘0k</span>
+                    <button class="tb tb-danger" onclick="clearAll()" title="Remove all nodes and edges from canvas">✕</button>
+                </div>
             </div>
 
             <div id="soundPanel" style="display:none;">
@@ -1629,6 +1724,15 @@
     </div>
 
     <div id="ctx"></div>
+
+    <!-- ══ COMMAND PALETTE ══ -->
+    <div id="cmdPalette" onclick="if(event.target===this)closeCmdPalette()">
+        <div id="cmdPaletteBox">
+            <input id="cmdInput" type="text" placeholder="Type a command... (⌘K to open)" autocomplete="off" 
+                oninput="filterCmds(this.value)" onkeydown="cmdKeyNav(event)">
+            <div id="cmdResults"></div>
+        </div>
+    </div>
 
     <script>
         'use strict';
@@ -1993,6 +2097,82 @@ FORK 3: [Third Axis Title]
             el.style.transform = 'scale(1.3)';
             setTimeout(() => el.style.transform = 'scale(1)', 200);
         }
+
+                // ── COMMAND PALETTE ──
+        const CMD_LIST = [
+            { icon: '⑂', label: 'Fork', desc: 'Generate branching paths from selected node', action: () => { closeCmdPalette(); if(selNode) replCmd('fork ' + selNode.id); } },
+            { icon: '🍯', label: 'Honey', desc: 'Deep analysis of selected node', action: () => { closeCmdPalette(); if(selNode) replCmd('honey ' + selNode.id); } },
+            { icon: '⟩', label: 'WorldText', desc: 'Compile text into W/L/E/S typed nodes', action: () => { closeCmdPalette(); replCmd('wt'); }, key: '/wt' },
+            { icon: '📋', label: 'Worlds', desc: 'List all available POML worlds', action: () => { closeCmdPalette(); replCmd('worlds'); }, key: '/worlds' },
+            { icon: '+', label: 'Add World', desc: 'Load a world onto the canvas', action: () => { closeCmdPalette(); replCmd('worlds'); }, key: '/add' },
+            { icon: '⊙', label: 'Push Text', desc: 'Create a node from text input', action: () => { closeCmdPalette(); const t = prompt('Enter text for new node:'); if(t) replCmd('push ' + t); }, key: '/push' },
+            { icon: '🔗', label: 'Connect', desc: 'Link two nodes by ID', action: () => { closeCmdPalette(); const ids = prompt('Enter two node IDs (e.g. 5 12):'); if(ids) replCmd('connect ' + ids); }, key: '/connect' },
+            { icon: '◎', label: 'Ripple', desc: 'Visual cascade from node to neighbors', action: () => { closeCmdPalette(); replCmd('ripple'); }, key: '/ripple' },
+            { icon: '⊕', label: 'Operators', desc: 'List all narrative operators', action: () => { closeCmdPalette(); replCmd('ops'); }, key: '/ops' },
+            { icon: '🔍', label: 'Find', desc: 'Search nodes by text', action: () => { closeCmdPalette(); const q = prompt('Search:'); if(q) replCmd('grep ' + q); }, key: '/grep' },
+            { icon: '🌳', label: 'Tree', desc: 'Show node hierarchy', action: () => { closeCmdPalette(); replCmd('tree'); }, key: '/tree' },
+            { icon: '📊', label: 'Stats', desc: 'Scene statistics', action: () => { closeCmdPalette(); replCmd('stats'); }, key: '/stats' },
+            { icon: 'W', label: 'Filter: Worlds', desc: 'Show only World nodes', action: () => { closeCmdPalette(); setIso('site'); } },
+            { icon: 'L', label: 'Filter: Locations', desc: 'Show only Location nodes', action: () => { closeCmdPalette(); setIso('inverter'); } },
+            { icon: 'E', label: 'Filter: Entities', desc: 'Show only Entity nodes', action: () => { closeCmdPalette(); setIso('aphorist'); } },
+            { icon: 'S', label: 'Filter: States', desc: 'Show only State nodes', action: () => { closeCmdPalette(); setIso('analyst'); } },
+            { icon: '☀', label: 'Toggle Theme', desc: 'Switch light/dark mode', action: () => { closeCmdPalette(); togTheme(); } },
+            { icon: '🔊', label: 'Sound Settings', desc: 'Configure audio feedback', action: () => { closeCmdPalette(); document.getElementById('soundPanel').style.display = document.getElementById('soundPanel').style.display === 'none' ? 'flex' : 'none'; } },
+            { icon: '?', label: 'Help', desc: 'Show all REPL commands', action: () => { closeCmdPalette(); replCmd('help'); }, key: '/help' },
+            { icon: '✕', label: 'Clear Canvas', desc: 'Remove all nodes and edges', action: () => { closeCmdPalette(); if(confirm('Clear all nodes?')) clearAll(); } },
+        ];
+        let cmdIdx = 0;
+        let cmdFiltered = CMD_LIST;
+
+        function openCmdPalette() {
+            const p = document.getElementById('cmdPalette');
+            p.classList.add('open');
+            const inp = document.getElementById('cmdInput');
+            inp.value = '';
+            inp.focus();
+            cmdFiltered = CMD_LIST;
+            cmdIdx = 0;
+            renderCmds();
+        }
+        function closeCmdPalette() {
+            document.getElementById('cmdPalette').classList.remove('open');
+        }
+        function filterCmds(q) {
+            q = q.toLowerCase();
+            cmdFiltered = q ? CMD_LIST.filter(c => 
+                c.label.toLowerCase().includes(q) || 
+                c.desc.toLowerCase().includes(q) || 
+                (c.key && c.key.includes(q))
+            ) : CMD_LIST;
+            cmdIdx = 0;
+            renderCmds();
+        }
+        function renderCmds() {
+            const el = document.getElementById('cmdResults');
+            el.innerHTML = cmdFiltered.map((c, i) => 
+                '<div class="cmd-item' + (i === cmdIdx ? ' active' : '') + '" onclick="CMD_LIST[' + CMD_LIST.indexOf(c) + '].action()">' +
+                '<span class="cmd-icon">' + c.icon + '</span>' +
+                '<span class="cmd-label">' + c.label + '</span>' +
+                '<span class="cmd-desc">' + c.desc + '</span>' +
+                (c.key ? '<span class="cmd-key">' + c.key + '</span>' : '') +
+                '</div>'
+            ).join('');
+        }
+        function cmdKeyNav(e) {
+            if (e.key === 'Escape') { closeCmdPalette(); return; }
+            if (e.key === 'ArrowDown') { e.preventDefault(); cmdIdx = Math.min(cmdIdx + 1, cmdFiltered.length - 1); renderCmds(); return; }
+            if (e.key === 'ArrowUp') { e.preventDefault(); cmdIdx = Math.max(cmdIdx - 1, 0); renderCmds(); return; }
+            if (e.key === 'Enter' && cmdFiltered[cmdIdx]) { e.preventDefault(); cmdFiltered[cmdIdx].action(); return; }
+        }
+        // Global shortcut: Cmd+K or Ctrl+K
+        document.addEventListener('keydown', function(e) {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                const p = document.getElementById('cmdPalette');
+                if (p.classList.contains('open')) closeCmdPalette();
+                else openCmdPalette();
+            }
+        });
 
                 function setApiStatus(s) { const d = document.getElementById('dot-api'); if (d) d.className = 'tdot ' + s; }
 
